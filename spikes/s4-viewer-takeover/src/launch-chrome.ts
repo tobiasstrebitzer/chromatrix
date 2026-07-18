@@ -1,4 +1,4 @@
-// Launch real Google Chrome (channel=chrome) with the promoted stealth flags. For S4 the interactive
+// Launch real Google Chrome (channel=chrome) with the promoted fidelity flags. For S4 the interactive
 // server runs HEADED (real GPU during a real login); the automated self-test runs headless (no window).
 // A `profileDir` can be supplied so a login persists across runs (the point of the takeover login tool).
 
@@ -9,8 +9,8 @@ import { join } from 'node:path'
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
-// Mirrors @chromatrix/stealth STEALTH_LAUNCH_FLAGS (kept inline so the spike is self-contained).
-const STEALTH_FLAGS = [
+// Mirrors @chromatrix/fidelity FIDELITY_LAUNCH_FLAGS (kept inline so the spike is self-contained).
+const FIDELITY_FLAGS = [
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
   '--disable-background-timer-throttling',
@@ -38,7 +38,7 @@ export async function launchChrome(
     '--disable-features=Translate,MediaRouter',
     '--window-size=1200,820',
     '--window-position=60,60',
-    ...STEALTH_FLAGS,
+    ...FIDELITY_FLAGS,
     ...(opts.headless ? ['--headless=new'] : []),
     opts.startUrl ?? 'about:blank',
   ]

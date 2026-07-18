@@ -64,9 +64,9 @@ importers:
       '@chromatrix/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@chromatrix/stealth':
+      '@chromatrix/fidelity':
         specifier: workspace:*
-        version: link:../stealth
+        version: link:../fidelity
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -81,7 +81,7 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)
 
-  packages/stealth:
+  packages/fidelity:
     dependencies:
       '@chromatrix/cdp':
         specifier: workspace:*
@@ -105,9 +105,9 @@ importers:
       '@chromatrix/cdp':
         specifier: workspace:*
         version: link:../../packages/cdp
-      '@chromatrix/stealth':
+      '@chromatrix/fidelity':
         specifier: workspace:*
-        version: link:../../packages/stealth
+        version: link:../../packages/fidelity
       ws:
         specifier: ^8.18.0
         version: 8.21.1
@@ -119,7 +119,7 @@ importers:
         specifier: ^8.5.13
         version: 8.18.1
 
-  spikes/s2-stealth-baseline:
+  spikes/s2-fidelity-baseline:
     dependencies:
       ws:
         specifier: ^8.18.0

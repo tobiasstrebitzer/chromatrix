@@ -9,7 +9,7 @@
 //   HEADLESS=1 pnpm s1      # headless; identical protocol behaviour, no visible window
 
 import { CdpMux, transparentInterceptor, type Interceptor } from '@chromatrix/cdp'
-import { launchChrome, runtimeEnableSuppressInterceptor } from '@chromatrix/stealth'
+import { launchChrome, runtimeEnableSuppressInterceptor } from '@chromatrix/fidelity'
 import { runConsumer } from './consumer.ts'
 import { runProbe, closeTarget } from './probe.ts'
 
@@ -26,7 +26,7 @@ interface Row {
 async function measure(browserWsUrl: string, mode: string, interceptor: Interceptor): Promise<Row> {
   const mux = await CdpMux.start({ browserWsUrl, interceptor })
   try {
-    const { result: consumer, close: closeConsumer } = await runConsumer(mux.url)
+    const { result: consumer, close: closeConsumer } = await runConsumer(mux.url!)
     const probe = await runProbe(browserWsUrl, consumer.targetId) // measured while consumer session is live
     const runtimeEnableReachedChrome = mux.forwardedMethods.has('Runtime.enable')
     closeConsumer()
@@ -48,7 +48,7 @@ async function measure(browserWsUrl: string, mode: string, interceptor: Intercep
 async function multiplexSmoke(browserWsUrl: string): Promise<{ ok: boolean; detail: string }> {
   const mux = await CdpMux.start({ browserWsUrl, interceptor: runtimeEnableSuppressInterceptor })
   try {
-    const [a, b] = await Promise.all([runConsumer(mux.url), runConsumer(mux.url)])
+    const [a, b] = await Promise.all([runConsumer(mux.url!), runConsumer(mux.url!)])
     const ok = a.result.evaluateOk && b.result.evaluateOk && a.result.targetId !== b.result.targetId
     a.close()
     b.close()
@@ -109,7 +109,7 @@ function printReport(rows: Row[], smoke: { ok: boolean; detail: string }): void 
     console.log('   consumer functionality — defense-in-depth against older builds + non-getter CDP tells.')
   } else if (mitigated && !mitigated.evaluateOk) {
     console.log('❌ PIVOT SIGNAL: suppression broke the consumer (eval failed) → proxy-side rewriting is not')
-    console.log('   transparent for this consumer. Favour "stealth-lint / reject-and-upgrade" (PRD §7 S1).')
+    console.log('   transparent for this consumer. Favour "fidelity-lint / reject-and-upgrade" (PRD §7 S1).')
   } else if (mitigated && mitigated.runtimeEnableReachedChrome) {
     console.log('❌ Mitigation did not block Runtime.enable — it still reached Chrome. Interceptor bug.')
   }

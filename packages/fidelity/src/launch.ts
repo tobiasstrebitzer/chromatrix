@@ -1,4 +1,4 @@
-// Launch the real Google Chrome (channel=chrome) with chromatrix's stealth flags. One Chrome per
+// Launch the real Google Chrome (channel=chrome) with chromatrix's fidelity flags. One Chrome per
 // `--user-data-dir` = one identity. Persistent profiles get SIGTERM on close (Chrome flushes cookies/storage
 // to disk) and a stale-singleton-lock cleanup on launch (so a hard-killed prior run can be reattached);
 // ephemeral throwaways are hard-killed and their dir removed. Proven across spikes S2/S3/S4.
@@ -7,7 +7,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { STEALTH_LAUNCH_FLAGS } from './flags.ts'
+import { FIDELITY_LAUNCH_FLAGS } from './flags.ts'
 
 const DEFAULT_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
@@ -26,7 +26,7 @@ export interface LaunchOptions {
   startUrl?: string
   /** Override the Chrome binary (defaults to macOS Google Chrome). */
   executablePath?: string
-  /** Extra flags appended after the stealth set. */
+  /** Extra flags appended after the fidelity flag set. */
   extraArgs?: string[]
 }
 
@@ -48,7 +48,7 @@ export async function launchChrome(opts: LaunchOptions = {}): Promise<ChromeHand
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-features=Translate,MediaRouter',
-    ...STEALTH_LAUNCH_FLAGS,
+    ...FIDELITY_LAUNCH_FLAGS,
     ...(opts.headless ? ['--headless=new'] : []),
     ...(opts.extraArgs ?? []),
     opts.startUrl ?? 'about:blank',

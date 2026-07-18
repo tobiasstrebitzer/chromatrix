@@ -8,16 +8,36 @@ Owner: Tobias · Date: 2026-07-18 · Source inputs: `docs/BRIEF.md`, landscape r
 
 ---
 
+## 0. Responsible use & scope (non-negotiable)
+
+chromatrix exists to run a **real** browser so that **authorized** automation behaves authentically — not to
+conceal unauthorized activity. Every design decision below assumes this and is bounded by it:
+
+- **Authorized use only.** Automate accounts you own or are explicitly permitted to automate; obtain
+  authorization before automating against a third-party site. Respect Terms of Service, `robots` directives,
+  and rate limits.
+- **Not a circumvention tool.** Out of scope, permanently: defeating access controls, ban evasion, credential
+  stuffing, ToS-violating scraping, and mass/abusive automation. If a use requires hiding unauthorized
+  activity, chromatrix is the wrong tool.
+- **Human-in-the-loop for human checks.** Interactive human-verification gates (CAPTCHAs, Cloudflare managed
+  challenges) are completed by a person via the takeover UI (§4/S4) — not auto-solved to fake a human.
+- **Fidelity, not evasion.** We run the genuine Chrome binary on real hardware and keep the CDP control
+  surface clean so legitimate automation isn't *falsely* blocked. There is no binary patching or fingerprint
+  spoofing — the strong signals are authentic because the browser and machine are real.
+
+Where older notes in this doc used "stealth / undetectable / survive," read the intent as **browser fidelity
+for authorized automation** within the bounds above.
+
 ## 1. What chromatrix is
 
 A self-hosted **multi-session, multi-tab headed-Chrome orchestration service** that runs on a Mac
 (dev: this MacBook Pro; prod: a dedicated Mac mini on Tailscale). It hosts a small fleet of long-lived,
 signed-in browser identities and lets multiple remote agents drive many tabs concurrently over CDP —
-while staying as close to "a real person's real Chrome" as possible, and letting a human watch or take
-over any tab.
+while staying as close to "a real person's real Chrome" as possible (because it *is* one), and letting a
+human watch or take over any tab.
 
-One-line: **"one long-lived real Chrome per identity, many concurrent tabs, driven over a CDP gateway
-that is safe to expose and hard to detect, with live view + human takeover."**
+One-line: **"one long-lived real Chrome per identity, many concurrent tabs, driven over a CDP gateway that is
+safe to expose and presents authentically, with live view + human takeover — for authorized automation."**
 
 ## 2. Scoping decisions (locked from our Q&A)
 
@@ -26,7 +46,7 @@ that is safe to expose and hard to detect, with live view + human takeover."**
 | North star | **Concurrency & correctness** of multiplexing (not raw scale) | Invest in a robust CDP gateway + session lifecycle, not horsepower |
 | Scale target (v1) | **Small: ≤5 identities, ~10 concurrent tabs** | Fits one Mac's RAM; correctness over throughput |
 | Build vs buy | **Own the control plane; reuse Chrome only** | Drive raw Chrome directly; study Steel/Browserless but don't depend on them |
-| Stealth | **HIGH — must survive Cloudflare/DataDome-class targets** | First-class constraint; drives the "mitigating gateway" design below |
+| Browser fidelity | **HIGH — authorized automation must work with Cloudflare/DataDome-class sites without being *falsely* flagged** | First-class constraint; drives the "mitigating gateway" design below. Not for circumventing controls (§0) |
 | Identity bootstrap | **Manual one-time login via takeover UI**, profile persists after | Takeover/live-view is a **v1 requirement**, not a nice-to-have |
 | Same-identity concurrency | **Shared tabs, orchestrator-managed** (one context per identity, tabs from a pool) | Simpler; jobs share the login. Interference risk to manage in orchestrator |
 | Consumers | **agent-browser** (raw CDP) + **custom LLM agents via MCP** | Two entry paths (see §5) — reconcile in [OPEN-1] |
@@ -44,10 +64,11 @@ DevTools port, never issuing `Runtime.enable`) was the *only* tool to pass a har
 target, while Patchright, rebrowser-playwright, Camoufox and vanilla Playwright were all blocked.
 
 This collides directly with our requirements: we want to **expose raw CDP** to consumers, and
-**agent-browser is not stealth-aware** (it drives raw CDP and, based on available evidence, does not strip
-the leak; it also currently shares the default BrowserContext, leaking storage across sessions — issue
-#1068). If we hand a naive consumer a raw endpoint, it will trip the exact signal our HIGH-stealth
-requirement forbids.
+**agent-browser is not fidelity-aware** (it drives raw CDP and, based on available evidence, does not clean
+up the `Runtime.enable` handshake; it also currently shares the default BrowserContext, leaking storage
+across sessions — issue #1068). If we hand a naive consumer a raw endpoint, it will emit the exact protocol
+sequence that gets even legitimate, authorized automation *falsely* flagged — the outcome our fidelity
+requirement (§0) is meant to avoid.
 
 **Therefore the gateway is a *mitigating* CDP mux, not a transparent proxy.** It sits between consumers
 and Chrome and actively governs the protocol: intercept/rewrite/deny sensitive commands
@@ -56,8 +77,9 @@ per-client command IDs, and route events by `sessionId` so each agent only sees 
 single most novel and most valuable thing chromatrix builds — and the #1 spike (§7).
 
 Contrast: Steel and Browserless both do **transparent byte-forwarding** and delegate multiplexing to
-Chrome's native multi-client support, injecting stealth on a *separate internal connection*. We can copy
-the "separate internal connection for our own control" pattern, but our external path must be *interception-capable*, which theirs is not.
+Chrome's native multi-client support, injecting their own fingerprint patches on a *separate internal
+connection*. We can copy the "separate internal connection for our own control" pattern, but our external
+path must be *interception-capable*, which theirs is not.
 
 ## 4. Proposed architecture
 
@@ -88,11 +110,11 @@ Core components (map to packages, §6):
   model), `henu-wang/chrome-mcp-proxy` (id-remap + sessionId routing + per-agent target scoping).
 - **Orchestrator / session manager** — identity registry, one Chrome per `--user-data-dir`, single-writer
   lock per profile, tab pool allocation, health checks, orphaned-Chrome-tree reaper.
-- **Stealth layer** — launch flags (`--disable-backgrounding-occluded-windows`,
-  `--disable-renderer-backgrounding`, `--disable-background-timer-throttling`, App Nap off), real
-  `channel=chrome` binary, and the gateway's protocol policy. macOS gives us the authentic Apple/Metal
-  WebGL renderer + real fonts/pixels — the hardest fingerprint to fake — **provided a display (or dummy
-  HDMI / virtual display) is attached so the GPU engages.**
+- **Browser-fidelity layer** — launch flags (`--disable-backgrounding-occluded-windows`,
+  `--disable-renderer-backgrounding`, `--disable-background-timer-throttling`, App Nap off), the real
+  `channel=chrome` binary, and the gateway's protocol hygiene. macOS gives the authentic Apple/Metal
+  WebGL renderer + real fonts/pixels — authentic because the hardware and browser are real, not spoofed —
+  **provided a display (or dummy HDMI / virtual display) is attached so the GPU engages.**
 - **Management/MCP API (silkweave)** — Actions for: create/list identities, start manual-login session,
   allocate a tab / hand out a scoped CDP endpoint, session health, initiate takeover. Exposed over HTTP +
   MCP (and tRPC for streaming). This is where "custom LLM agents via MCP" plug in.
@@ -111,7 +133,7 @@ Core components (map to packages, §6):
 2. **MCP consumers** (custom LLM agents): call silkweave Actions to *provision/allocate* an identity+tab and
    receive a scoped CDP URL they then drive. **RESOLVED: MCP = provisioning/session management only** — not
    wrapping every click/extract. Agents get a browser via MCP, then drive it over CDP. This keeps all
-   stealth/protocol logic in one place (the gateway) instead of split across a high-level Action layer.
+   fidelity/protocol logic in one place (the gateway) instead of split across a high-level Action layer.
 
 ## 6. Tech stack & monorepo (follows the `mini/gtm` conventions)
 
@@ -125,7 +147,7 @@ Proposed layout:
 ```
 packages/
   cdp/        @chromatrix/cdp     — CDP client, flat-session mux, id-remap, sessionId routing, interception hooks
-  stealth/    @chromatrix/stealth — launch flags, leak-mitigation policies, fingerprint hygiene, verification probes
+  fidelity/   @chromatrix/fidelity — launch flags, leak-mitigation policies, fingerprint hygiene, verification probes
   core/       @chromatrix/core    — domain: identities, sessions, tab pool, profile lock, orchestrator, health
 apps/
   gateway/    @chromatrix/gateway — NestJS server: raw-WS CDP mux + silkweave/NestJS mgmt/MCP API
@@ -140,7 +162,7 @@ MCP endpoints. This mirrors Steel's separation (they used Fastify for the same r
 path deliberately outside Nest.
 
 **RESOLVED — CLI deferred** (not in v1). **RESOLVED — add Vitest** as a deliberate deviation from gtm (this
-system is too behavior-heavy — stealth probes, mux correctness, leak verification — to spike without tests).
+system is too behavior-heavy — fidelity probes, mux correctness, handshake verification — to spike without tests).
 
 ## 7. Spike plan (the actual next step)
 
@@ -157,14 +179,15 @@ final package layout).
 > a synthesized isolated world); 2-consumer multiplex passes. **Reframing:** proxy-side suppression is cheap,
 > transparent, and worth keeping as **handshake-surface reduction / defense-in-depth** — but it is *not* the
 > make-or-break the PRD feared, because there is no active in-page leak to close on current Chrome. The real
-> stealth ceiling is now set by other signals (TLS/JA3, behavioral, IP reputation, the server-side-observed
+> fidelity ceiling is now set by other signals (TLS/JA3, behavioral, IP reputation, the server-side-observed
 > handshake), which **S2** must measure. Remaining S1 work: per-tab ACL enforcement; drive the real
 > agent-browser binary + puppeteer-core through the mux (harder context-bookkeeping compatibility test).
 
 ### S1 — Mitigating CDP mux/gateway  *(highest risk, highest value)*
-**Question:** Can a TS proxy sit in front of Chrome's `/devtools/browser` endpoint and make an *unmodified*
-raw-CDP consumer (agent-browser) undetectable — specifically strip/rewrite the `Runtime.enable` leak and
-route evaluation through isolated worlds — while correctly multiplexing multiple clients?
+**Question:** Can a TS proxy sit in front of Chrome's `/devtools/browser` endpoint and let an *unmodified*
+raw-CDP consumer (agent-browser) present authentically — specifically clean up the `Runtime.enable`
+handshake and route evaluation through isolated worlds, so authorized automation isn't *falsely* flagged —
+while correctly multiplexing multiple clients?
 **Build:** minimal WS proxy; flat-mode session handling; per-client command-ID remap; event routing by
 `sessionId`; an interception layer that denies/rewrites `Runtime.enable`/`Console.enable`. Study/fork
 `zackiles/cdp-proxy-interceptor` + `henu-wang/chrome-mcp-proxy`.
@@ -172,14 +195,14 @@ route evaluation through isolated worlds — while correctly multiplexing multip
 when the page is driven end-to-end by agent-browser *through the gateway*, and two agents can each drive
 their own tab on one browser without seeing each other's targets. **Open risk to resolve here:** whether we
 can transparently rewrite an external consumer's `Runtime.enable` into isolated-world evaluation *without
-breaking that consumer's expectations* — if not, the fallback is a "stealth-lint" that rejects/upgrades
+breaking that consumer's expectations* — if not, the fallback is a "fidelity-lint" that rejects/upgrades
 consumers rather than silently rewriting.
 
-> **S2 status (2026-07-18): no-login baseline BUILT & RUN — see `spikes/s2-stealth-baseline/`** (MacBook
+> **S2 status (2026-07-18): no-login baseline BUILT & RUN — see `spikes/s2-fidelity-baseline/`** (MacBook
 > Pro M3 Pro, Chrome 150). ✅ Authentic Apple/Metal WebGL confirmed (`ANGLE (Apple, ANGLE Metal Renderer:
 > Apple M3 Pro)`) — the core macOS-headed advantage. ⚠→✅ Found and fixed a real tell: plain launch leaks
 > `navigator.webdriver=true`; `--disable-blink-features=AutomationControlled` fixes it (now promoted into
-> `@chromatrix/stealth`). ✅ Anti-backgrounding flags keep occluded windows rendering (~240 frames/2s). ✅
+> `@chromatrix/fidelity`). ✅ Anti-backgrounding flags keep occluded windows rendering (~240 frames/2s). ✅
 > Capacity: ~375 MB/tab, ~1.0 GB/identity-instance base → v1 target (5 identities + 10 tabs) ≈ 8.5 GB (fits
 > 16 GB tight, comfortable 32 GB+).
 >
@@ -189,27 +212,32 @@ consumers rather than silently rewriting.
 > end-to-end: with in-page CDP tells closed on Chrome 150, real headed Chrome + ordinary hygiene clears these
 > targets. (LinkedIn dropped as too sensitive; x.com used instead.)
 >
-> **Ceiling test (hard targets, 2026-07):** ✅ DataDome (leboncoin.fr) PASS; ✅ standard Cloudflare
+> **Compatibility test (protected targets, 2026-07):** ✅ DataDome (leboncoin.fr) PASS; ✅ standard Cloudflare
 > (nowsecure.nl) PASS; ⚠ Cloudflare **managed challenge** (nopecha demo) GATED — persisted ~45s, did not
-> auto-clear. So the wall is the managed challenge/Turnstile, not DataDome (better than research feared).
-> Caveats: the nopecha demo always challenges (not a perfect discriminator; test a real production target),
-> and verdicts vary by IP/geo/day. **Design consequence:** GATED is not fatal — the S4 takeover tool handles
-> interactive gates (human or later a solver completes the challenge via the viewer, session persists). v1
-> model = auto for un-gated targets, human-assisted takeover for the occasional interactive gate.
+> auto-clear. So the only case that doesn't auto-clear is the interactive human-verification challenge
+> (managed challenge/Turnstile), not DataDome. That is the expected and correct outcome: a human-verification
+> gate should require a human. Caveats: the nopecha demo always challenges (not a perfect discriminator; test
+> a real production target for which you have authorization), and verdicts vary by IP/geo/day. **Design
+> consequence:** GATED is not fatal — the S4 takeover tool routes interactive gates to a **human**, who
+> completes the challenge via the viewer; the resulting session persists. v1 model = automated for un-gated
+> authorized targets, human-in-the-loop takeover for the occasional interactive gate.
 
-### S2 — Headed Chrome fleet + stealth baseline on macOS
-**Question:** What's our real stealth ceiling and per-tab capacity on this Mac?
+### S2 — Headed Chrome fleet + fidelity baseline on macOS
+**Question:** What's our real browser-fidelity ceiling and per-tab capacity on this Mac?
 **Build:** launch N headed `channel=chrome` instances, distinct `--user-data-dir`, anti-backgrounding flags;
 confirm WebGL reports `ANGLE (Apple, ANGLE Metal Renderer: Apple M-series...)`; test occluded/off-screen
 window rendering; measure RAM per tab across mixed sites; reap orphan trees via `pgrep -f user-data-dir`.
-**Targets (the real gauntlet):** LinkedIn, Google (Search/Workspace), a Cloudflare-Turnstile site, a
-DataDome site. Test each **both** via plain-CDP baseline and (once S1 exists) through the mitigating gateway.
-**Success gate:** real Apple/Metal WebGL fingerprint confirmed; occluded windows keep rendering; documented
-RAM/tab numbers and a defensible ≤5-identity/~10-tab capacity budget; and a **measured stealth ceiling per
-target** — i.e. a table of "pass / gated / blocked" for each of the four. The gate is *measurement and
-documentation*, not "pass all four": the research is explicit that self-hosted stealth is unlikely to beat
-DataDome-class targets, so a DataDome block is a **scope-informing finding**, not a spike failure. What we
-must learn: where the real line is, and whether it lands where your actual use cases need it.
+**Targets (the compatibility set):** LinkedIn, Google (Search/Workspace), a Cloudflare-Turnstile site, a
+DataDome site — tested for **authorized** access. Test each **both** via plain-CDP baseline and (once S1
+exists) through the mitigating gateway.
+**Success gate:** authentic Apple/Metal WebGL fingerprint confirmed; occluded windows keep rendering;
+documented RAM/tab numbers and a defensible ≤5-identity/~10-tab capacity budget; and a **measured
+compatibility result per target** — i.e. a table of "works / gated / blocked" for each of the four. The gate
+is *measurement and documentation*, not "clear all four": the research is explicit that self-hosted browser
+fidelity alone is unlikely to clear DataDome-class targets, so a DataDome block is a **scope-informing
+finding**, not a spike failure. What we must learn: where the real line is, and whether it lands where your
+authorized use cases need it. Interactive human-verification gates are handled by human takeover (S4), not
+worked around.
 
 > **S3 status (2026-07-18): BUILT & RUN — see `spikes/s3-concurrency/`.** ✅ Shared-context concurrency is
 > sound: 5 concurrent agents each in their own tab all completed, all share the login cookie, all localStorage
@@ -271,7 +299,7 @@ Still open (not blocking the spikes):
 ## 10. Success criteria for the *whole* preliminary phase
 
 We exit spikes and write the v1 build PRD when: S1 proves (or refutes) transparent leak mitigation for
-unmodified consumers; S2 confirms the macOS stealth ceiling + capacity; S3 gives a defensible concurrency
+unmodified consumers; S2 confirms the macOS browser-fidelity ceiling + capacity; S3 gives a defensible concurrency
 model; S4 proves manual-login-by-takeover works. If S1 refutes transparent rewriting, the v1 design pivots
-to "stealth-lint / consumer-upgrade" instead of silent mitigation — a fork we want to discover in a spike,
+to "fidelity-lint / consumer-upgrade" instead of silent mitigation — a fork we want to discover in a spike,
 not in production.

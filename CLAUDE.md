@@ -4,6 +4,13 @@ Self-hosted multi-session, multi-tab **headed-Chrome CDP orchestration** for Mac
 per identity, many concurrent tabs driven by remote agents over a **mitigating CDP gateway**, plus live-view
 + human takeover. Dev on a MacBook Pro; prod later on a Mac mini via Tailscale.
 
+> **Responsible use.** chromatrix runs a *real* browser so that **authorized** automation behaves
+> authentically — not to conceal unauthorized activity. Automate accounts you own or are permitted to
+> automate; respect Terms of Service, `robots`, and rate limits. It is **not** for defeating access controls,
+> ban evasion, credential stuffing, ToS-violating scraping, or mass abuse. Interactive human-verification
+> gates (CAPTCHAs, managed challenges) are completed by a **human** via takeover, never auto-solved. The
+> design goal is *fidelity* (a genuine browser presenting as itself), not evasion. See [`docs/PRD.md`](docs/PRD.md) §0.
+
 Currently in the **PRD / spike phase**: the four foundational risks have been de-risked with runnable spikes,
 and the proven primitives are consolidated into `packages/`. Next is the real gateway (`apps/gateway`).
 
@@ -13,7 +20,7 @@ and the proven primitives are consolidated into `packages/`. Next is the real ga
   ("mitigating mux, not transparent proxy"), the component design, and per-spike **status notes with results**.
   **Start here.**
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) — one-page consolidated summary of what every spike proved (S1–S4 +
-  the stealth ceiling test). The fastest way to load "what do we know".
+  the compatibility test against protected sites). The fastest way to load "what do we know".
 - [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) — the continuation handoff: what to build next (`apps/gateway`)
   and how, plus the open threads.
 - [`docs/BRIEF.md`](docs/BRIEF.md) — the original research brief that kicked this off.
@@ -24,12 +31,12 @@ and the proven primitives are consolidated into `packages/`. Next is the real ga
 ```
 packages/
   cdp/        @chromatrix/cdp     — CdpClient + CdpMux (id-remap, sessionId routing, Interceptor seam)
-  stealth/    @chromatrix/stealth — launchChrome + stealth flags + runtimeEnableSuppressInterceptor
+  fidelity/   @chromatrix/fidelity — launchChrome + fingerprint-hygiene launch flags + runtimeEnableSuppressInterceptor
   core/       @chromatrix/core    — (skeleton) identity registry, tab pool, profile lock, orchestrator
 apps/
   gateway/    @chromatrix/gateway — (placeholder) NestJS: raw-WS CDP mux + silkweave mgmt/MCP API
   web/        @chromatrix/web     — (placeholder) React/Vite viewer + takeover SPA
-spikes/       s1-cdp-mux · s2-stealth-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
+spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
 ```
 
 ## Toolchain & conventions (mirrors `~/projects/mini/gtm`)
@@ -52,7 +59,7 @@ pnpm install
 pnpm lint          # oxlint
 pnpm typecheck     # turbo → tsgo per package
 pnpm s1            # spike S1 — mitigating CDP mux (HEADLESS=1 to hide the window)
-pnpm s2            # spike S2 — headed stealth + capacity baseline
+pnpm s2            # spike S2 — headed fidelity + capacity baseline
 pnpm s2:targets    # spike S2 — logged-in target matrix (PROFILE_DIR=abs/path, optional CLOUDFLARE_URL/DATADOME_URL)
 pnpm s3            # spike S3 — shared-tab concurrency
 pnpm s4            # spike S4 — live-view + takeover login tool (START_URL=… PROFILE_DIR=… )
@@ -64,7 +71,7 @@ pnpm s4:test       # spike S4 — automated mechanism self-test
 | Spike | Result |
 |---|---|
 | S1 mux | Runtime.enable getter-leak already closed on Chrome 150; proxy-side suppression works, consumer still evaluates |
-| S2 stealth | Apple/M3 Metal WebGL confirmed; fixed `navigator.webdriver` tell; ~8.5 GB for v1 fleet; x.com signed-in ✓, DataDome/std-Cloudflare PASS, managed-challenge GATED |
+| S2 fidelity | Authentic Apple/M3 Metal WebGL confirmed; fixed `navigator.webdriver` mismatch; ~8.5 GB for v1 fleet; x.com signed-in ✓, DataDome/std-Cloudflare PASS, managed-challenge GATED (→ human takeover) |
 | S3 concurrency | shared context + tab affinity is the sound v1 model; ephemeral contexts don't inherit the login |
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
 

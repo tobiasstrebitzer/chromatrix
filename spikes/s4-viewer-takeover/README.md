@@ -36,7 +36,7 @@ persistent identity profile chromatrix can reuse (one long-lived Chrome per iden
 ## Notes / limitations (turn-1 scope)
 
 - Coordinate mapping is normalized [0..1] → CSS-px via the frame's `deviceWidth/Height` metadata (no
-  `Emulation.setDeviceMetricsOverride`, which the research flags as a stealth-sensitive domain).
+  `Emulation.setDeviceMetricsOverride`, which the research flags as a fidelity-sensitive domain).
 - Key mapping covers printable chars + Enter/Tab/Backspace/arrows/Escape — enough for logins; not a full
   keymap (no IME/composition, limited modifiers).
 - "pause → live → resume" agent-handoff isn't exercised here (no agent is running during a login). It's a

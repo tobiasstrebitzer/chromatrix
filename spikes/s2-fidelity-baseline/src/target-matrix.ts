@@ -11,7 +11,7 @@ import { CdpClient } from './cdp-client.ts'
 import { launchChrome } from './launch-chrome.ts'
 
 // Either connect to a running Chrome (CDP_URL) or self-launch a headed one with the persistent profile
-// (PROFILE_DIR — so the x.com login is available). Headed by default for the real GPU/stealth fingerprint.
+// (PROFILE_DIR — so the x.com login is available). Headed by default for the real GPU/fidelity fingerprint.
 async function getBrowser(): Promise<{ client: CdpClient; close: () => void }> {
   if (process.env.CDP_URL) {
     const client = await CdpClient.connect(process.env.CDP_URL)

@@ -2,7 +2,7 @@
 // getters — the leak). Enable Runtime, subscribe to consoleAPICalled, console.log a getter object, and
 // dump the exact event payload.
 
-import { launchChrome } from '@chromatrix/stealth'
+import { launchChrome } from '@chromatrix/fidelity'
 import { CdpClient } from '@chromatrix/cdp'
 
 async function main(): Promise<void> {

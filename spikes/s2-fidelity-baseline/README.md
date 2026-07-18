@@ -1,6 +1,6 @@
-# Spike S2 — macOS headed-Chrome stealth + capacity baseline
+# Spike S2 — macOS headed-Chrome fidelity + capacity baseline
 
-**Research question (docs/PRD.md §7, S2):** what is our real stealth ceiling and per-tab capacity on a
+**Research question (docs/PRD.md §7, S2):** what is our real fidelity ceiling and per-tab capacity on a
 Mac, running the real headed Google Chrome? This spike covers the parts that **do not need a logged-in
 identity**; the logged-in target matrix (LinkedIn/Google) and Cloudflare-Turnstile/DataDome pass-rates are
 deferred until spike **S4** provides the manual-login tool.
@@ -42,7 +42,7 @@ Network is used for the RAM measurement and the secure-context fingerprint page;
 
 ## Promoted
 
-`--disable-blink-features=AutomationControlled` (proven here) is added to `@chromatrix/stealth`'s flag set.
+`--disable-blink-features=AutomationControlled` (proven here) is added to `@chromatrix/fidelity`'s flag set.
 
 ## Target matrix (logged-in, real targets) — `pnpm s2:targets`
 
@@ -64,7 +64,7 @@ CLOUDFLARE_URL=…  DATADOME_URL=…   PROFILE_DIR=/abs/path/.profiles/x  pnpm s
 | Cloudflare (nowsecure.nl) | ✅ PASS (real content, no challenge) |
 | DataDome | ⬜ skipped — set `DATADOME_URL` to a designated target |
 
-**Read:** real headed Chrome on macOS + the promoted stealth flags clears a signed-in x.com session, an
+**Read:** real headed Chrome on macOS + the promoted fidelity flags clears a signed-in x.com session, an
 external automation-tell adjudicator, and a standard Cloudflare-protected page **cleanly**. This confirms
 the S1-derived thesis: with in-page CDP tells closed on Chrome 150, ordinary hygiene + real hardware is
 enough for these targets.

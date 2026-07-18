@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@chromatrix/cdp": "workspace:*",
-    "@chromatrix/stealth": "workspace:*"
+    "@chromatrix/fidelity": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -6,8 +6,8 @@ dominant 2026 detection signal is the automation-protocol handshake — chiefly 
 Chrome serialize console-logged objects and invoke their property getters. Can we neutralise that leak
 **at the proxy**, for a consumer we don't control, without breaking the consumer's ability to evaluate JS?
 
-If yes → the gateway can be a transparent-looking raw-CDP endpoint that is nonetheless stealthy.
-If no → we pivot to a "stealth-lint / reject-and-upgrade the consumer" model instead of silent rewriting.
+If yes → the gateway can be a transparent-looking raw-CDP endpoint that is nonetheless authentic.
+If no → we pivot to a "fidelity-lint / reject-and-upgrade the consumer" model instead of silent rewriting.
 
 ## How it works
 
@@ -17,7 +17,7 @@ If no → we pivot to a "stealth-lint / reject-and-upgrade the consumer" model i
 > - `@chromatrix/cdp` — `CdpClient`, `CdpMux` (one upstream WS, N clients, id-remap, sessionId routing,
 >   pluggable interceptor), and the `Interceptor` contract + `transparentInterceptor` (byte passthrough
 >   baseline, what Steel/Browserless do).
-> - `@chromatrix/stealth` — `launchChrome` (real headed Chrome + stealth flags) and
+> - `@chromatrix/fidelity` — `launchChrome` (real headed Chrome + fidelity flags) and
 >   `runtimeEnableSuppressInterceptor` (never forwards `Runtime.enable`; mints a real isolated world via
 >   `Page.createIsolatedWorld` and synthesizes the `executionContextCreated` the consumer expects).
 
@@ -73,7 +73,7 @@ Multiplex smoke: PASS
    close on this build.
 
 **Implication for the gateway:** proxy-side `Runtime.enable` suppression is cheap, transparent to the
-consumer, and worth keeping — but it is no longer the make-or-break the PRD feared. The stealth ceiling on
+consumer, and worth keeping — but it is no longer the make-or-break the PRD feared. The fidelity ceiling on
 current Chrome is set by *other* signals (TLS/JA3, behavioral, network/IP reputation, the handshake pattern
 observed server-side), which is exactly what spike **S2** must measure against LinkedIn/Google/Cloudflare/
 DataDome. See `docs/PRD.md` §7.

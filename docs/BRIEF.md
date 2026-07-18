@@ -1,3 +1,12 @@
+> **Historical document — read with [`PRD.md`](PRD.md) §0.** This is the verbatim original exploratory
+> query and the research reply that kicked chromatrix off, kept as a record. Its framing ("stealth mode,"
+> "avoid bot detection," "binary-level stealth") reflects that early exploration and the third-party tools it
+> surveys (Steel, Patchright, Camoufox — which market themselves that way). The project's actual, governing
+> scope is **[`PRD.md`](PRD.md) §0 — Responsible use**: a *real* browser for *authorized* automation
+> (browser **fidelity**, not evasion), automating only accounts/sites you own or are permitted to automate,
+> respecting ToS/robots/rate limits, with human-in-the-loop for human-verification gates. Where this brief
+> says "stealth," read the current intent as "fidelity" within those bounds.
+
 # User Query
 
 Is there a tool / open source project out there that allows me to run headed multi-session and multi-tab browsers on a dedicated device (e.g. mac mini), ideally exposing CDP, compatible with tools like vercel "agent-browser".

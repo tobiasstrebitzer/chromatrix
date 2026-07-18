@@ -1,4 +1,4 @@
-// S2 runner. Launches ONE real headed Chrome and measures the stealth/capacity baseline that does NOT
+// S2 runner. Launches ONE real headed Chrome and measures the fidelity/capacity baseline that does NOT
 // require a logged-in identity: GPU/WebGL fingerprint, automation-fingerprint hygiene, per-tab RAM, and
 // occluded-window rendering. The logged-in target matrix (LinkedIn/Google) + Cloudflare/DataDome pass-rates
 // are deferred until S4 provides the manual-login tool (see docs/PRD.md §7). Prints a report.
@@ -47,10 +47,10 @@ async function main(): Promise<void> {
     await client.send('Target.closeTarget', { targetId }).catch(() => {})
 
     console.log('\n══════════════════════════════════════════════════════════════════════════════')
-    console.log(' chromatrix · S2 — stealth + capacity baseline (no-login parts)')
+    console.log(' chromatrix · S2 — fidelity + capacity baseline (no-login parts)')
     console.log('══════════════════════════════════════════════════════════════════════════════\n')
 
-    console.log('── GPU / WebGL fingerprint (the macOS stealth advantage) ─────────────────────')
+    console.log('── GPU / WebGL fingerprint (the macOS fidelity advantage) ─────────────────────')
     console.log(`  VENDOR            : ${webgl.vendor}`)
     console.log(`  RENDERER          : ${webgl.renderer}`)
     console.log(`  UNMASKED_VENDOR   : ${webgl.unmaskedVendor}`)
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
         webgl.isAppleMetal
           ? '✅ authentic Apple/Metal GPU renderer (headless/SwiftShader cannot fake this)'
           : webgl.isSoftware
-            ? '❌ SOFTWARE renderer (SwiftShader/LLVMpipe) — blocklisted, not stealthy'
+            ? '❌ SOFTWARE renderer (SwiftShader/LLVMpipe) — blocklisted, not authentic'
             : '⚠  non-Apple/Metal, non-software renderer — inspect the string above'
       }`,
     )
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
 
     console.log('\n── Deferred (needs S4 login tool / real targets) ─────────────────────────────')
     console.log('  LinkedIn / Google logged-in behaviour, and Cloudflare-Turnstile / DataDome pass-rates.')
-    console.log('  These set the true stealth ceiling and are the decisive S2 measurement — run after S4.')
+    console.log('  These set the true fidelity ceiling and are the decisive S2 measurement — run after S4.')
     console.log('══════════════════════════════════════════════════════════════════════════════\n')
   } finally {
     client.close()

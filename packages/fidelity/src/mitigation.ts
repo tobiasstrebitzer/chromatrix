@@ -1,4 +1,4 @@
-// Runtime.enable suppression — a stealth Interceptor for the CdpMux. Never lets `Runtime.enable` reach
+// Runtime.enable suppression — a fidelity Interceptor for the CdpMux. Never lets `Runtime.enable` reach
 // Chrome; instead mints a real isolated world and synthesizes the executionContextCreated event the
 // consumer expects, so an unmodified raw-CDP consumer still evaluates while Chrome's Runtime domain is never
 // enabled. Proven in spike S1 (docs/PRD.md §7).

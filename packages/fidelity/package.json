@@ -1,9 +1,9 @@
 {
-  "name": "@chromatrix/stealth",
+  "name": "@chromatrix/fidelity",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Stealth layer for chromatrix: Chrome launch flags, CDP leak-mitigation policies (Runtime.enable suppression + isolated-world emulation), fingerprint hygiene, and verification probes (Runtime.enable getter-trap, WebGL renderer assertions). Populated from spikes/s1-cdp-mux + S2.",
+  "description": "Browser-fidelity layer for chromatrix: Chrome launch flags, CDP leak-mitigation policies (Runtime.enable suppression + isolated-world emulation), fingerprint hygiene, and verification probes (Runtime.enable getter-trap, WebGL renderer assertions). Populated from spikes/s1-cdp-mux + S2.",
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
   "files": ["build"],
