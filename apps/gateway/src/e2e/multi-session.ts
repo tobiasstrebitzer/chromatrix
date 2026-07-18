@@ -95,10 +95,10 @@ interface AgentRuntime {
 async function main(): Promise<void> {
   const profiles = mkdtempSync(join(tmpdir(), 'chromatrix-e2e-'))
   process.env.CHROMATRIX_PROFILES = profiles
-  const { startGateway } = await import('./bootstrap.ts')
+  const { startGateway } = await import('../bootstrap.ts')
   const page = await startPageServer()
   const handle = await startGateway({ port: 0 })
-  const base = `http://${handle.host}:${handle.port}`
+  const base = `http://${handle.host}:${handle.port}/api`
   const post = async (path: string, body: unknown) => {
     const res = await fetch(`${base}${path}`, {
       method: 'POST',

@@ -14,10 +14,12 @@ const shutdown = async (signal: string) => {
 process.on('SIGINT', () => void shutdown('SIGINT'))
 process.on('SIGTERM', () => void shutdown('SIGTERM'))
 
+const http = `http://${handle.host}:${handle.port}`
 console.log('\n════════════════════════════════════════════════════════════════')
 console.log(' chromatrix · gateway')
 console.log('════════════════════════════════════════════════════════════════')
-console.log(`  HTTP + MCP : http://${handle.host}:${handle.port}   (MCP at /mcp)`)
+console.log(`  Dashboard  : ${http}${process.env.VITE_DEV_URL ? '   (dev: proxied to Vite HMR)' : '   (serving apps/web/dist)'}`)
+console.log(`  API        : ${http}/api   ·   tRPC ${http}/trpc   ·   MCP ${http}/mcp`)
 console.log(`  CDP mux    : ${handle.gateway.publicWsOrigin}/cdp/<identity>?token=…`)
-console.log(`  Takeover   : ${handle.gateway.publicHttpOrigin()}/takeover/<identity>`)
+console.log(`  Takeover   : ${http}/#/takeover/<identity>   (screencast WS: /takeover/<identity>/ws)`)
 console.log('  Ctrl-C to stop.\n')

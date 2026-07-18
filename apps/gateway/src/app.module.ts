@@ -1,26 +1,46 @@
-// Gateway Nest module. Registers the silkweave MCP adapter (provisioning tools under /mcp) and wires the
-// CdpGatewayService as a factory provider — its one ctor arg (the absolute profiles root) isn't a Nest
+// Gateway Nest module. Registers the silkweave adapters (tRPC procedures under /trpc, MCP tools under /mcp,
+// and the AppRouter typegen the web app consumes) plus ServeStatic for the built SPA in prod. The
+// CdpGatewayService is a factory provider — its one ctor arg (the absolute profiles root) isn't a Nest
 // provider, so it's supplied via useFactory. The raw-WS CDP mux is NOT a Nest concern; main.ts binds it to
 // the underlying http.Server after boot (PRD §6).
 
+import { join } from 'node:path'
 import { Module } from '@nestjs/common'
+import { ServeStaticModule } from '@nestjs/serve-static'
 import { SilkweaveModule } from '@silkweave/nestjs'
 import { mcp } from '@silkweave/nestjs/mcp'
-import { GatewayController } from './gateway.controller.ts'
-import { CdpGatewayService } from './gateway.service.ts'
-import { profilesRoot } from './paths.ts'
+import { trpc } from '@silkweave/nestjs/trpc'
+import { typegen } from '@silkweave/nestjs/typegen'
+import { GatewayController } from './gateway/gateway.controller.ts'
+import { CdpGatewayService } from './gateway/gateway.service.ts'
+import { profilesRoot, repoRoot } from './common/paths.ts'
 
 @Module({
   imports: [
+    // Prod: serve the built SPA (apps/web/dist) on the same port as the API. In dev the dev-proxy in
+    // bootstrap.ts handles non-API routes (proxied to Vite) BEFORE this runs, and a missing dist just
+    // serves nothing — so this is safe to always register. The API namespaces are excluded so they 404 as
+    // their own handlers, not index.html. (`/cdp` + the takeover WS are raw upgrades — never HTTP GETs — so
+    // ServeStatic never sees them.)
+    ServeStaticModule.forRoot({
+      rootPath: join(repoRoot(), 'apps', 'web', 'dist'),
+      exclude: ['/api', '/api/{*path}', '/trpc', '/trpc/{*path}', '/mcp', '/mcp/{*path}'],
+    }),
     SilkweaveModule.forRoot({
       silkweave: {
         name: 'chromatrix-gateway',
         description: 'chromatrix CDP orchestration gateway — identity/tab provisioning + takeover',
         version: '0.1.0',
       },
-      // Provisioning-only MCP surface (PRD §5): create/start identities, allocate/release scoped tabs,
-      // health, start-takeover. Agents drive raw CDP over the URL allocate-tab returns, not over /mcp.
-      adapters: [mcp({ basePath: '/mcp' })],
+      adapters: [
+        // @Trpc()-decorated controller methods → tRPC procedures under /trpc (the web app's typed client).
+        trpc({ basePath: '/trpc' }),
+        // The same methods (where @Mcp'd) → MCP tools under /mcp. Provisioning-only surface (PRD §5): agents
+        // then drive raw CDP over the scoped URL AllocateTab returns.
+        mcp({ basePath: '/mcp' }),
+        // Emit the AppRouter type into the web app on every boot (committed; regenerated on boot).
+        typegen({ path: join(repoRoot(), 'apps', 'web', 'src', 'generated', 'appRouter.d.ts') }),
+      ],
     }),
   ],
   controllers: [GatewayController],

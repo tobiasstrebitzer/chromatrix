@@ -6,19 +6,24 @@
 //   /cdp/<identity>?token=…       → agent raw-CDP, attached under the live per-tab ACL scope
 //   /takeover/<identity>/ws       → human live-view + input (screencast fan-out)
 //
-// Anything else is destroyed (Nest has no WS routes of its own here).
+// Any other upgrade falls back to `fallbackUpgrade` when provided (the Vite HMR proxy in dev), else destroyed.
 
 import type { IncomingMessage, Server } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { Logger } from '@nestjs/common'
 import { WebSocketServer, type WebSocket } from 'ws'
-import type { CdpGatewayService } from './gateway.service.ts'
-import { TakeoverHub } from './takeover.ts'
+import type { CdpGatewayService } from '../gateway/gateway.service.ts'
+import { TakeoverHub } from '../takeover/takeover.ts'
 
 const CDP_RE = /^\/cdp\/([a-z0-9][a-z0-9_-]{0,63})$/
 const TAKEOVER_RE = /^\/takeover\/([a-z0-9][a-z0-9_-]{0,63})\/ws$/
 
-export function mountGatewayUpgrades(server: Server, service: CdpGatewayService): void {
+/** @param fallbackUpgrade handles upgrades we don't own (e.g. the dev-proxy's HMR socket); dev-only. */
+export function mountGatewayUpgrades(
+  server: Server,
+  service: CdpGatewayService,
+  fallbackUpgrade?: (req: IncomingMessage, socket: Duplex, head: Buffer) => void,
+): void {
   const log = new Logger('CdpUpgrade')
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 512 * 1024 * 1024 })
   const takeoverHubs = new Map<string, TakeoverHub>()
@@ -63,6 +68,7 @@ export function mountGatewayUpgrades(server: Server, service: CdpGatewayService)
       return
     }
 
+    if (fallbackUpgrade) return fallbackUpgrade(req, socket, head)
     reject(socket, 404)
   })
 }

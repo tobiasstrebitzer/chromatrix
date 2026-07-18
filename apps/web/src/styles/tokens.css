@@ -1,0 +1,147 @@
+/*
+ * chromatrix design tokens — the SINGLE source of color truth (adapted from the silkweave/gtm token
+ * system). Legible and technical: a neutral near-black canvas with one cyan accent and a five-stop
+ * "chroma" spectrum reserved for the mark / brand flourishes. Light is the default; dark is a token
+ * swap on `[data-theme='dark']`. Components consume the semantic names via Tailwind utilities (see
+ * globals.css @theme) or var(--token), never raw hex.
+ */
+
+:root,
+[data-theme='light'] {
+  /* ---------- Backgrounds ---------- */
+  --bg: #ffffff;
+  --bg-surface: #fafafa;
+  --bg-surface-hover: #f3f3f5;
+  --bg-code: #f6f7f8;
+  --bg-elevated: #ffffffcc;
+
+  /* ---------- Borders ---------- */
+  --border: #e7e8ea;
+  --border-light: #d6d8dc;
+  --border-strong: #b6b9c0;
+
+  /* ---------- Foreground / Text ---------- */
+  --fg-1: #0d1014;
+  --fg-2: #3d4249;
+  --fg-3: #666d76;
+  --fg-4: #8a9098;
+  --fg-disabled: #c2c6cc;
+
+  /* ---------- Accent (chroma cyan) ---------- */
+  --accent: #0891b2;
+  --accent-hover: #0e7490;
+  --accent-dim: #22d3ee;
+  --accent-bg: #ecfeff;
+  --accent-ring: #0891b233;
+
+  /* ---------- Semantic ---------- */
+  --success: #16a34a;
+  --success-bg: #ecfdf3;
+  --warning: #b45309;
+  --warning-bg: #fff7ed;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #0284c7;
+  --info-bg: #eff8ff;
+
+  /* ---------- Elevation (softer in light) ---------- */
+  --shadow-xs: 0 1px 2px rgba(13, 16, 20, 0.06);
+  --shadow-sm: 0 1px 3px rgba(13, 16, 20, 0.08), 0 1px 2px rgba(13, 16, 20, 0.04);
+  --shadow: 0 4px 12px rgba(13, 16, 20, 0.08), 0 1px 3px rgba(13, 16, 20, 0.05);
+  --shadow-md: 0 4px 12px rgba(13, 16, 20, 0.08), 0 1px 3px rgba(13, 16, 20, 0.05);
+  --shadow-lg: 0 12px 32px rgba(13, 16, 20, 0.12), 0 4px 8px rgba(13, 16, 20, 0.06);
+  --shadow-glow: 0 0 0 1px var(--accent-ring), 0 4px 16px rgba(8, 145, 178, 0.15);
+
+  /* ---------- aliases (bridge for the @theme utilities) ---------- */
+  --surface: var(--bg-surface);
+  --sidebar: #f5f6f7;
+  --text: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --accent-tint: var(--accent-bg);
+  --accent-fg: #ffffff;
+  --warn: var(--warning);
+  --ring: var(--accent);
+}
+
+[data-theme='dark'] {
+  /* ---------- Backgrounds ---------- */
+  --bg: #08090c;
+  --bg-surface: #101318;
+  --bg-surface-hover: #171b22;
+  --bg-code: #0b0d11;
+  --bg-elevated: #12151b46;
+
+  /* ---------- Borders ---------- */
+  --border: #1c2029;
+  --border-light: #282d38;
+  --border-strong: #383f4d;
+
+  /* ---------- Foreground / Text ---------- */
+  --fg-1: #e6e8ec;
+  --fg-2: #b6bcc6;
+  --fg-3: #868d99;
+  --fg-4: #7a828e;
+  --fg-disabled: #464d59;
+
+  /* ---------- Accent ---------- */
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
+  --accent-dim: #0891b2;
+  --accent-bg: #083344;
+  --accent-ring: #22d3ee40;
+
+  /* ---------- Semantic ---------- */
+  --success: #22c55e;
+  --success-bg: #052e1c;
+  --warning: #f59e0b;
+  --warning-bg: #2a1f04;
+  --danger: #ef4444;
+  --danger-bg: #2a0d10;
+  --info: #38bdf8;
+  --info-bg: #082f3f;
+
+  /* ---------- Elevation ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 16px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px var(--accent-ring), 0 8px 32px rgba(34, 211, 238, 0.18);
+
+  /* ---------- aliases ---------- */
+  --surface: var(--bg-surface);
+  --sidebar: #0b0d11;
+  --text: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --accent-tint: var(--accent-bg);
+  --accent-fg: #04191f;
+  --warn: var(--warning);
+  --ring: var(--accent);
+}
+
+/* Theme-independent tokens — the chroma spectrum (mark / brand flourishes, used sparingly), type
+   tracking, easing. (Color-bearing tokens live in the per-theme blocks above.) */
+:root {
+  --chroma-rose: #f43f5e;
+  --chroma-fuchsia: #d946ef;
+  --chroma-indigo: #6366f1;
+  --chroma-cyan: #06b6d4;
+  --chroma-emerald: #10b981;
+
+  --chroma-gradient: linear-gradient(
+    135deg,
+    #f43f5e 0%,
+    #d946ef 28%,
+    #6366f1 52%,
+    #06b6d4 76%,
+    #10b981 100%
+  );
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-caps: 0.1em;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}

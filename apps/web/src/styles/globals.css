@@ -1,0 +1,165 @@
+/*
+ * Global stylesheet: Tailwind v4 (CSS-first @theme) + token→utility mapping + base resets. Components
+ * reference semantic utility names (bg-bg, text-text, bg-accent, border-border, …), never raw hex.
+ * Adapted from the silkweave/gtm design system.
+ */
+@import 'tailwindcss';
+@import './tokens.css';
+@import './fonts.css';
+
+/* Drive dark mode off the same <html data-theme> the tokens swap on. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  /* Semantic colors → utilities. `inline` keeps the var() reference so flipping data-theme re-themes
+     with zero JS and zero component changes. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+
+  /* Native extras for the ui/ kit. */
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-border-light: var(--border-light);
+  --color-border-strong: var(--border-strong);
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-accent-bg: var(--accent-bg);
+  --color-accent-dim: var(--accent-dim);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  /* Stock-name bridge → utilities so the ui/ primitives can speak bg-primary / text-muted-foreground /
+     bg-destructive / bg-background etc. onto the chromatrix palette. */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+
+  /* Font roles */
+  --font-sans: var(--cx-font-sans);
+  --font-mono: var(--cx-font-mono);
+
+  /* Type scale — size + line-height. Display sizes carry tight tracking. */
+  --text-display-xl: 2.5rem;
+  --text-display-xl--line-height: 3rem;
+  --text-display-xl--letter-spacing: -0.02em;
+  --text-display-lg: 2rem;
+  --text-display-lg--line-height: 2.5rem;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-md: 1.5rem;
+  --text-display-md--line-height: 2rem;
+  --text-display-md--letter-spacing: -0.02em;
+  --text-display-sm: 1.25rem;
+  --text-display-sm--line-height: 1.75rem;
+  --text-display-sm--letter-spacing: -0.02em;
+  --text-heading-1: 1.5rem;
+  --text-heading-1--line-height: 2rem;
+  --text-heading-2: 1.25rem;
+  --text-heading-2--line-height: 1.75rem;
+  --text-heading-3: 1rem;
+  --text-heading-3--line-height: 1.5rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5rem;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.02em;
+  --text-code: 0.84375rem;
+  --text-code--line-height: 1.375rem;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+}
+
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 150ms;
+  --motion-slow: 220ms;
+
+  /* Stock-name bridge → raw custom properties. Each points at a chromatrix token so theme-swap flows. */
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--surface);
+  --secondary-foreground: var(--text);
+  --muted: var(--sidebar);
+  --muted-foreground: var(--text-muted);
+  --background: var(--bg);
+  --foreground: var(--text);
+  --destructive: var(--danger);
+  --radius: var(--radius-md);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--cx-font-sans);
+    font-size: var(--text-body);
+    line-height: 1.5rem;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Standard focus ring: accent-derived, 2px + 2px offset. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Lucide icons ship a hardcoded 24px width/height; default them to 16px (our icon size). `:where()`
+     keeps specificity at 0 so any explicit size-* utility still wins. */
+  :where(svg.lucide) {
+    width: 1rem;
+    height: 1rem;
+  }
+}

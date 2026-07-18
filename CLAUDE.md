@@ -16,7 +16,8 @@ into `packages/`, and the **gateway (`apps/gateway`) is now built and running**:
 MCP provisioning surface, the raw-WS CDP mux mounted outside Nest's pipeline with a live per-tab ACL, and the
 takeover route. Two end-to-end tests drive real Chrome + real CDP and pass: `run accept` (single-identity ACL)
 and `run e2e` (multi-session: concurrent identities × agents × tabs — parallelism + isolation + teardown under
-load). Next is `apps/web` (the viewer/takeover SPA). See NEXT-SESSION.md.
+load). The **`apps/web` dashboard is now built too** (React/Vite/Tailwind-v4 on the gtm design system, tRPC to
+the gateway, single-origin dev-proxy/prod-serve). What remains is validation + prod hardening. See NEXT-SESSION.md.
 
 ## Docs — read these for context
 
@@ -38,8 +39,10 @@ packages/
   fidelity/   @chromatrix/fidelity — launchChrome + fingerprint-hygiene launch flags + runtimeEnableSuppressInterceptor
   core/       @chromatrix/core    — identity registry, tab pool, profile lock, reaper, supervisor, orchestrator
 apps/
-  gateway/    @chromatrix/gateway — NestJS: raw-WS CDP mux (outside Nest) + per-tab ACL + silkweave MCP mgmt + takeover
-  web/        @chromatrix/web     — (placeholder) React/Vite viewer + takeover SPA
+  gateway/    @chromatrix/gateway — NestJS: raw-WS CDP mux (outside Nest) + per-tab ACL + silkweave tRPC/MCP mgmt + takeover
+              src/{gateway,cdp,takeover,common,e2e}/ — grouped by concern (not flat)
+  web/        @chromatrix/web     — React 19 + Vite + Tailwind v4 dashboard (Sessions + Takeover), gtm design system, tRPC client
+              src/{styles,lib,components/{brand,shell,ui},views,generated}/
 spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
 ```
 
@@ -53,8 +56,15 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
   tsconfigs set `customConditions: ["@chromatrix/source"]` + `allowImportingTsExtensions`.
 - **Vitest** is the test runner (installed; no tests written yet).
 - **silkweave** (`@silkweave/*`) is the API/MCP/tRPC toolkit — the gateway uses `@silkweave/nestjs` +
-  `@silkweave/mcp` (the MCP adapter is an optional peer; add it explicitly). NestJS needs decorator metadata,
-  so `apps/gateway` carries its own `.swcrc` (`legacyDecorator` + `decoratorMetadata`) mirroring gtm's.
+  `@silkweave/{mcp,trpc,typegen}` (each adapter is an optional peer; add them explicitly). NestJS needs
+  decorator metadata, so `apps/gateway` carries its own `.swcrc` (`legacyDecorator` + `decoratorMetadata`).
+- **Single-origin web** (mirrors gtm): the gateway is the only origin. In **dev** it reverse-proxies non-API
+  routes to Vite (`VITE_DEV_URL`, HMR); in **prod** `ServeStaticModule` serves `apps/web/dist`. The SPA uses
+  relative URLs in both — no CORS. Controller REST is under `/api` (`@Controller('api')`); `/trpc` + `/mcp` are
+  silkweave adapter transports; `typegen` emits `apps/web/src/generated/appRouter.d.ts` (committed, regen on boot).
+- **apps/web** is React 19 + Vite + **Tailwind v4** (CSS-first `@theme`, no config file) + TanStack Router
+  (hash history). Design system ported from gtm: CSS-variable tokens (light/dark on `data-theme`), `cn()` with
+  an extended tailwind-merge for the custom text scale, Inter + JetBrains Mono via `@fontsource`.
 - Real Chrome binary: `/Applications/Google Chrome.app` (v150). Persistent identity profiles live under
   `.profiles/<id>/` (**gitignored** — contains session cookies).
 
@@ -72,9 +82,13 @@ pnpm s4            # spike S4 — live-view + takeover login tool (START_URL=…
 pnpm s4:test       # spike S4 — automated mechanism self-test
 
 # gateway (apps/gateway) — the real control plane
-pnpm --filter @chromatrix/gateway run start    # boot the gateway (PORT=8830; MCP at /mcp, CDP at /cdp/<id>)
+pnpm --filter @chromatrix/gateway run start    # boot the gateway (PORT=8830; API /api, tRPC /trpc, MCP /mcp, CDP /cdp/<id>)
 pnpm --filter @chromatrix/gateway run accept   # single-identity acceptance test (real Chrome; HEADLESS=1 for no window)
 pnpm --filter @chromatrix/gateway run e2e      # multi-session parallel e2e (IDENTITIES/AGENTS_PER_IDENTITY/TABS_PER_AGENT; HEADLESS=0 to watch)
+
+# dashboard (apps/web)
+pnpm dev                                       # dev: Vite (:5181) + gateway proxying to it for HMR — open the gateway origin
+pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeStatic serves apps/web/dist on one port
 ```
 
 ## Status at a glance
@@ -87,6 +101,7 @@ pnpm --filter @chromatrix/gateway run e2e      # multi-session parallel e2e (IDE
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
 | **gateway** | **built + green**: Nest/MCP provisioning (8 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
 | **multi-session e2e** | **built + green**: `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents × 2 tabs = 18 tabs) — parallelism (wall ≪ Σ), per-agent marker isolation, same-identity + cross-identity ACL denial, live churn, and zero-survivor teardown all pass |
+| **apps/web** | **built + green**: React/Vite/Tailwind-v4 dashboard (Sessions provisioning + Takeover live-view) on the gtm design system, tRPC client to the gateway; dev-proxy + prod-serve both verified; renders in real headless Chrome with no console errors |
 
 ## Wrapup Config
 
@@ -96,5 +111,5 @@ pnpm --filter @chromatrix/gateway run e2e      # multi-session parallel e2e (IDE
 - version_bump: no (pre-release, private)
 - publish: no (all packages private)
 - docs: `docs/` folder (PRD, FINDINGS, NEXT-SESSION) with this CLAUDE.md as the index
-- frontend_smoke: no (apps/web is a placeholder)
+- frontend_smoke: `pnpm --filter @chromatrix/web run build` then load the gateway-served dashboard in a real headless Chrome and assert React mounts with no console errors (see the session's verify-web smoke); a Vitest/Playwright harness is a future add
 - co_authored_by: no (global — `includeCoAuthoredBy: false` in ~/.claude/settings.json)

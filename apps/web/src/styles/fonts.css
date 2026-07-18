@@ -1,0 +1,22 @@
+/*
+ * Self-hosted fonts, bundled via @fontsource — NO third-party / Google Fonts CDN at runtime (no
+ * phone-home posture). Vite bundles the woff2 + @font-face. Sans + mono only: Inter is UI/body/display
+ * (tight tracking on large sizes); JetBrains Mono is code, identity ids, targetIds, and scoped URLs.
+ */
+
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+
+:root {
+  --cx-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --cx-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  --font-sans: var(--cx-font-sans);
+  --font-mono: var(--cx-font-mono);
+}

@@ -3,8 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "chromatrix viewer/takeover SPA (React 19 + Vite + Tailwind v4). CDP Page.startScreencast render + Input.dispatch* takeover, pause->live->resume. Built during spike S4; see docs/PRD.md §4, §7.",
+  "description": "chromatrix dashboard SPA: React 19 + Vite + Tailwind v4, consumed through the NestJS gateway over tRPC. Sessions/tabs provisioning + live-view takeover (CDP screencast + Input.dispatch*).",
   "scripts": {
-    "typecheck": "echo 'web: not yet implemented (built during S4) — see docs/PRD.md' "
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsgo -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@tanstack/react-router": "^1.170.16",
+    "@trpc/client": "^11.7.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.21.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.1",
+    "@trpc/server": "^11.7.1",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "tailwindcss": "^4.3.1",
+    "vite": "^6.3.0"
   }
 }

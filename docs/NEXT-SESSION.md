@@ -68,20 +68,37 @@ Follow-ups if useful: wrap as a Vitest test; add a soak/leak variant (repeat all
 rounds, assert RAM/pid steady); measure the real per-identity RAM/throughput ceiling on the Mac mini (S2 said
 ~1.5–2 GB/Chrome — not yet stress-measured with many tabs).
 
-## The next milestone — `apps/web` (viewer + takeover SPA)
+## apps/web dashboard — built (this session)
 
-The placeholder `apps/web`. Build the React/Vite SPA that consumes the gateway:
-a session/tab dashboard (drive the MCP/REST provisioning actions) and the live-view + takeover panel that
-connects to `/takeover/<id>/ws` (the gateway already serves a bare-bones viewer at `GET /takeover/<id>` — the
-SPA replaces it with a real UI). Mirror gtm's `apps/web` wiring (Vite dev proxy to the gateway, single origin).
-If the dashboard wants typed calls, add the `@silkweave/nestjs/trpc` + `typegen` adapters to the gateway (only
-`mcp` is wired today) and a `@silkweave/trpc` client in the web app.
+The React 19 + Vite + Tailwind-v4 dashboard is built on gtm's design system (rebranded: cyan accent + a
+"chroma" spectrum mark) and consumes the gateway over tRPC. Verified: typecheck + `vite build` + lint clean,
+and it renders in a real headless Chrome with `#root` populated and **zero console errors** (a
+launchChrome + CdpClient smoke — dogfooding our own stack).
 
-Smaller hardening follow-ups on the gateway itself, when needed:
+- **Gateway additions**: `@Controller('api')` + `@Trpc` on every action; `trpc` + `typegen` + `mcp` silkweave
+  adapters; `ServeStaticModule` for `apps/web/dist`; a Vite dev-proxy in `bootstrap.ts` (`VITE_DEV_URL`) with
+  the raw-WS handler taking a `fallbackUpgrade` for Vite HMR. **Single origin** dev + prod (no CORS). The
+  `appRouter.d.ts` is emitted by typegen and committed. Gateway `src/` regrouped into
+  `{gateway,cdp,takeover,common,e2e}/` (no longer flat); the e2e drivers now hit `/api/*`.
+- **Web layout**: `styles/` (tokens·globals·fonts) · `lib/` (utils·theme·trpc·useGateway·types·
+  sessionsContext·usePersistedState) · `components/{brand,shell,ui}` · `views/` (SessionsView·TakeoverView) ·
+  `generated/appRouter.d.ts`.
+- **Views**: **Sessions** (start identity → lease agent tabs → copy the scoped CDP URL; Health/Stop/Takeover;
+  polls `gatewayListSessions`) and **Takeover** (live-view + `Input.dispatch*` over `/takeover/<id>/ws`).
+
+Follow-ups worth doing on the web app next:
+- **Drive it in a browser + screenshot the real UI** (this session only asserted no-console-errors, not visual
+  correctness). Then flesh out empty/error states and a session auto-refresh indicator.
+- Consider a Vitest/Playwright smoke harness so `frontend_smoke` is a committed script, not an ad-hoc one.
+- tRPC outputs are typed `unknown` (no response DTOs) → the web app casts in `lib/useGateway.ts`. Add response
+  DTOs on the controller if you want end-to-end typed returns.
+
+## Gateway hardening follow-ups (carry-over, when needed)
+
 - A global `ValidationPipe` so the `class-validator` rules on the DTOs actually run (today handlers read the
   body directly; validation is declared but not enforced).
-- Auth on `/mcp` + the provisioning routes (gtm gates `/mcp` at the transport via `mcp({ auth })`); currently
-  open on loopback. Add before exposing over Tailscale.
+- Auth on `/mcp` + `/trpc` + the provisioning routes (gtm gates `/mcp` at the transport via `mcp({ auth })`);
+  currently open on loopback. Add before exposing over Tailscale.
 - Token lifecycle: tokens currently live until `stopIdentity`; add release/expiry if agents churn a lot.
 
 ## Open threads (carry-over)
