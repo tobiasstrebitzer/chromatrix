@@ -66,7 +66,7 @@ export class CdpGatewayService {
 
   async startIdentity(id: string, opts: { headless?: boolean } = {}): Promise<SessionInfo> {
     assertValidIdentityId(id)
-    const session = await this.orchestrator.startIdentity(id)
+    const session = await this.orchestrator.startIdentity(id, { headless: opts.headless })
     if (!this.muxes.has(id)) {
       const mux = await CdpMux.connect({
         browserWsUrl: session.supervisor.browserWsUrl,

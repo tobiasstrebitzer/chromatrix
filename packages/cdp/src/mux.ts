@@ -49,7 +49,11 @@ export class CdpMux {
     readonly url?: string,
   ) {
     this.upstream.on('message', (data) => this.onUpstreamMessage(data.toString()))
+    // An upstream (Chrome) socket error/close must not crash the process: tear the mux down instead. `ws`
+    // rethrows an 'error' with no listener.
+    this.upstream.on('error', () => this.close())
     this.server?.on('connection', (ws) => this.attachClient(ws))
+    this.server?.on('error', () => {})
   }
 
   private static async openUpstream(browserWsUrl: string): Promise<WebSocket> {
@@ -79,11 +83,15 @@ export class CdpMux {
   attachClient(ws: WebSocket, scope: ClientScope = unrestrictedScope): void {
     const client = new DownstreamClient(ws, this.nextClientId++, scope)
     this.clients.add(client)
-    ws.on('message', (data) => void this.onClientMessage(client, data.toString()))
-    ws.on('close', () => {
+    const drop = () => {
       this.clients.delete(client)
       for (const [sid, owner] of this.sessionOwner) if (owner === client) this.sessionOwner.delete(sid)
-    })
+    }
+    ws.on('message', (data) => void this.onClientMessage(client, data.toString()))
+    ws.on('close', drop)
+    // A downstream (agent/browser) socket error must not crash the process — drop the client. `ws` rethrows
+    // an unhandled 'error'; the ensuing 'close' would double-drop, which is idempotent.
+    ws.on('error', drop)
   }
 
   private async onClientMessage(client: DownstreamClient, raw: string): Promise<void> {

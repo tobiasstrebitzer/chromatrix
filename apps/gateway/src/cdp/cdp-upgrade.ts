@@ -26,9 +26,14 @@ export function mountGatewayUpgrades(
 ): void {
   const log = new Logger('CdpUpgrade')
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 512 * 1024 * 1024 })
+  wss.on('error', (e) => log.warn(`ws server error: ${e.message}`))
   const takeoverHubs = new Map<string, TakeoverHub>()
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+    // Guard the RAW upgrade socket: a reset/protocol error on it (common on the dev HMR proxy path, or a
+    // client that vanishes mid-handshake) rethrows fatally if unhandled — an unlistened socket error is what
+    // takes the whole gateway down. This keeps it contained to the one connection.
+    socket.on('error', () => {})
     const url = new URL(req.url ?? '/', 'http://localhost')
     const path = url.pathname
 
@@ -68,7 +73,14 @@ export function mountGatewayUpgrades(
       return
     }
 
-    if (fallbackUpgrade) return fallbackUpgrade(req, socket, head)
+    if (fallbackUpgrade) {
+      try {
+        return fallbackUpgrade(req, socket, head)
+      } catch (e) {
+        log.warn(`fallback upgrade failed: ${(e as Error).message}`)
+        return socket.destroy()
+      }
+    }
     reject(socket, 404)
   })
 }

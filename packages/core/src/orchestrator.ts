@@ -41,12 +41,15 @@ export class Orchestrator {
     return this.sessions.get(id)?.supervisor.status === 'running'
   }
 
-  /** Start (or return the already-running) session for an identity: launches Chrome + control channel. */
-  async startIdentity(id: string): Promise<Session> {
+  /**
+   * Start (or return the already-running) session for an identity: launches Chrome + control channel.
+   * Per-call `opts` (e.g. `headless`) override the orchestrator's construction-time defaults for this launch.
+   */
+  async startIdentity(id: string, opts: SupervisorOptions = {}): Promise<Session> {
     const existing = this.sessions.get(id)
     if (existing) return existing
     const identity = this.registry.create(id)
-    const supervisor = new ChromeSupervisor(identity, this.options)
+    const supervisor = new ChromeSupervisor(identity, { ...this.options, ...opts })
     await supervisor.start()
     const tabs = new TabPool(id, supervisor.client, this.options)
     const session = { supervisor, tabs }

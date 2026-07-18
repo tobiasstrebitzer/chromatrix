@@ -19,6 +19,16 @@ export class CdpClient {
   private constructor(ws: WebSocket) {
     this.ws = ws
     this.ws.on('message', (data) => this.onMessage(data.toString()))
+    // A post-connect socket error (reset, protocol error, Chrome exit) MUST NOT crash the process: `ws`
+    // rethrows an 'error' with no listener. Reject in-flight commands and treat it as a close.
+    this.ws.on('error', (err) => this.settleAll(err instanceof Error ? err : new Error(String(err))))
+    this.ws.on('close', () => this.settleAll(new Error('CDP connection closed')))
+  }
+
+  /** Reject every in-flight command (on error/close) so callers never hang on a dead socket. */
+  private settleAll(err: Error): void {
+    for (const p of this.pending.values()) p.reject(err)
+    this.pending.clear()
   }
 
   static connect(url: string): Promise<CdpClient> {

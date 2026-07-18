@@ -61,10 +61,13 @@ export class TakeoverHub {
       void this.onInput(m)
     })
 
-    ws.on('close', () => {
+    const drop = () => {
       this.viewers.delete(ws)
       if (this.viewers.size === 0) void this.stopCasting()
-    })
+    }
+    ws.on('close', drop)
+    // A viewer socket error must not crash the gateway (`ws` rethrows an unhandled 'error'); drop the viewer.
+    ws.on('error', drop)
   }
 
   private async ensureCasting(): Promise<void> {
