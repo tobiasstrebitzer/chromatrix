@@ -187,9 +187,15 @@ consumers rather than silently rewriting.
 > signed in (auth_token + logged-in DOM markers, persisted profile); ✅ bot.sannysoft.com **0** automation
 > tells failed; ✅ Cloudflare (nowsecure.nl) PASS (real content, no challenge). This confirms the S1 thesis
 > end-to-end: with in-page CDP tells closed on Chrome 150, real headed Chrome + ordinary hygiene clears these
-> targets. **Remaining ceiling test:** a hard managed-challenge/Turnstile gate and a DataDome target (the
-> toughest per research) are still unmeasured — plug designated URLs into `CLOUDFLARE_URL`/`DATADOME_URL`.
-> (LinkedIn dropped as too sensitive; x.com used instead.)
+> targets. (LinkedIn dropped as too sensitive; x.com used instead.)
+>
+> **Ceiling test (hard targets, 2026-07):** ✅ DataDome (leboncoin.fr) PASS; ✅ standard Cloudflare
+> (nowsecure.nl) PASS; ⚠ Cloudflare **managed challenge** (nopecha demo) GATED — persisted ~45s, did not
+> auto-clear. So the wall is the managed challenge/Turnstile, not DataDome (better than research feared).
+> Caveats: the nopecha demo always challenges (not a perfect discriminator; test a real production target),
+> and verdicts vary by IP/geo/day. **Design consequence:** GATED is not fatal — the S4 takeover tool handles
+> interactive gates (human or later a solver completes the challenge via the viewer, session persists). v1
+> model = auto for un-gated targets, human-assisted takeover for the occasional interactive gate.
 
 ### S2 — Headed Chrome fleet + stealth baseline on macOS
 **Question:** What's our real stealth ceiling and per-tab capacity on this Mac?

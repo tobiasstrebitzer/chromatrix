@@ -69,6 +69,25 @@ external automation-tell adjudicator, and a standard Cloudflare-protected page *
 the S1-derived thesis: with in-page CDP tells closed on Chrome 150, ordinary hygiene + real hardware is
 enough for these targets.
 
-**Honest caveat:** `nowsecure.nl` is a standard Cloudflare page, **not** a hard managed-challenge/Turnstile
-gate, and DataDome (the toughest per the research) is unmeasured. Those remain the real ceiling test — plug
-a designated Turnstile-gated and DataDome target into `CLOUDFLARE_URL`/`DATADOME_URL` to measure them.
+### Ceiling test — hard targets (2026-07)
+
+Run with `CLOUDFLARE_URL`/`DATADOME_URL` (self-launches a headed Chrome with the profile; polls a Cloudflare
+managed challenge ~45s to see if it auto-clears):
+
+| hard target | verdict |
+|---|---|
+| DataDome — `leboncoin.fr` | ✅ PASS |
+| Cloudflare standard — `nowsecure.nl` | ✅ PASS |
+| Cloudflare **managed challenge** — `nopecha.com/demo/cloudflare` | ⚠ GATED (challenge persisted ~45s) |
+
+**Read:** real headed Chrome + hygiene clears DataDome (leboncoin) and standard Cloudflare on this residential
+IP — better than the research's pessimistic framing for DataDome. The wall is the **Cloudflare managed
+challenge / Turnstile**, which did not auto-clear. Two caveats: (1) `nopecha`'s demo is *designed* to always
+present a challenge (often an interactive Turnstile click), so a clean human browser is gated there too — it
+is not a perfect discriminator; test a real managed-challenge production target for a truer read. (2) Anti-bot
+verdicts vary by IP/geo/day; a single run is directional.
+
+**Why GATED isn't fatal:** an interactive challenge is exactly what the **S4 takeover tool** handles — a human
+(or, later, a Turnstile solver) completes the gate through the live viewer, just like the initial login, and
+the cleared/cookied session persists on the identity profile. So chromatrix's model degrades gracefully:
+auto for un-gated targets, human-assisted takeover for the occasional interactive gate.

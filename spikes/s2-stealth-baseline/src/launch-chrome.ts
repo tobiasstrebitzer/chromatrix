@@ -28,8 +28,21 @@ export interface ChromeHandle {
   close: () => void
 }
 
-export async function launchChrome(opts: { headless?: boolean } = {}): Promise<ChromeHandle> {
-  const userDataDir = mkdtempSync(join(tmpdir(), 'chromatrix-s2-'))
+export async function launchChrome(
+  opts: { headless?: boolean; profileDir?: string; startUrl?: string } = {},
+): Promise<ChromeHandle> {
+  const ephemeral = !opts.profileDir
+  const userDataDir = opts.profileDir ?? mkdtempSync(join(tmpdir(), 'chromatrix-s2-'))
+  // Clean stale singleton locks left by a hard-killed prior Chrome on a persistent profile (S3/reattach).
+  if (opts.profileDir) {
+    for (const f of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      try {
+        rmSync(join(userDataDir, f), { force: true })
+      } catch {
+        /* best effort */
+      }
+    }
+  }
   const args = [
     '--remote-debugging-port=0',
     `--user-data-dir=${userDataDir}`,
@@ -41,7 +54,7 @@ export async function launchChrome(opts: { headless?: boolean } = {}): Promise<C
     ...ANTI_BACKGROUNDING_FLAGS,
     ...AUTOMATION_HIDE_FLAGS,
     ...(opts.headless ? ['--headless=new'] : []),
-    'about:blank',
+    opts.startUrl ?? 'about:blank',
   ]
   const proc = spawn(CHROME, args, { stdio: ['ignore', 'ignore', 'pipe'] })
 
@@ -68,14 +81,18 @@ export async function launchChrome(opts: { headless?: boolean } = {}): Promise<C
     proc,
     close: () => {
       try {
-        proc.kill('SIGKILL')
+        // Persistent profiles get SIGTERM so Chrome flushes cookies/storage to disk before exit;
+        // ephemeral throwaways can be hard-killed.
+        proc.kill(ephemeral ? 'SIGKILL' : 'SIGTERM')
       } catch {
         /* already gone */
       }
-      try {
-        rmSync(userDataDir, { recursive: true, force: true })
-      } catch {
-        /* best effort */
+      if (ephemeral) {
+        try {
+          rmSync(userDataDir, { recursive: true, force: true })
+        } catch {
+          /* best effort */
+        }
       }
     },
   }

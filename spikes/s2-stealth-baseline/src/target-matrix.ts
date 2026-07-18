@@ -7,30 +7,29 @@
 //   PROFILE_DIR=./.profiles/x pnpm s2:targets      # while `pnpm s4` is running on that profile
 //   CDP_URL=ws://127.0.0.1:PORT/devtools/browser/… pnpm s2:targets
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { get } from 'node:http'
 import { CdpClient } from './cdp-client.ts'
+import { launchChrome } from './launch-chrome.ts'
 
-function discoverBrowserWs(): Promise<string> {
-  if (process.env.CDP_URL) return Promise.resolve(process.env.CDP_URL)
-  const profileDir = process.env.PROFILE_DIR ?? './.profiles/x'
-  const [portLine, pathLine] = readFileSync(join(profileDir, 'DevToolsActivePort'), 'utf8').split('\n')
-  const port = portLine.trim()
-  // Resolve the browser ws endpoint via /json/version (robust across Chrome builds).
-  return new Promise((resolve, reject) => {
-    get(`http://127.0.0.1:${port}/json/version`, (res) => {
-      let body = ''
-      res.on('data', (c) => (body += c))
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(body).webSocketDebuggerUrl)
-        } catch {
-          resolve(`ws://127.0.0.1:${port}${(pathLine ?? '').trim()}`)
-        }
-      })
-    }).on('error', reject)
+// Either connect to a running Chrome (CDP_URL) or self-launch a headed one with the persistent profile
+// (PROFILE_DIR — so the x.com login is available). Headed by default for the real GPU/stealth fingerprint.
+async function getBrowser(): Promise<{ client: CdpClient; close: () => void }> {
+  if (process.env.CDP_URL) {
+    const client = await CdpClient.connect(process.env.CDP_URL)
+    return { client, close: () => client.close() }
+  }
+  const chrome = await launchChrome({
+    headless: process.env.HEADLESS === '1',
+    profileDir: process.env.PROFILE_DIR,
+    startUrl: 'about:blank',
   })
+  const client = await CdpClient.connect(chrome.browserWsUrl)
+  return {
+    client,
+    close: () => {
+      client.close()
+      chrome.close()
+    },
+  }
 }
 
 interface TabHandle {
@@ -72,9 +71,8 @@ function classify(title: string, bodyText: string): 'pass' | 'gated' | 'blocked'
 }
 
 async function main(): Promise<void> {
-  const browserWs = await discoverBrowserWs()
-  const client = await CdpClient.connect(browserWs)
-  console.log(`Connected to running Chrome: ${browserWs}\n`)
+  const { client, close } = await getBrowser()
+  console.log(`Browser ready (profile: ${process.env.PROFILE_DIR ?? 'ephemeral'})\n`)
 
   const lines: string[] = []
   try {
@@ -125,20 +123,29 @@ async function main(): Promise<void> {
       await client.send('Target.closeTarget', { targetId: tab.targetId }).catch(() => {})
     }
 
-    // ── (c) Cloudflare-protected target ───────────────────────────────────────────────────────────────
+    // ── (c) Cloudflare-protected target (polls for a managed challenge to auto-clear) ───────────────────
     {
       const url = process.env.CLOUDFLARE_URL ?? 'https://nowsecure.nl/'
       const tab = await openTab(client, url)
       await settle(client, tab.sessionId, 15000)
-      const info = await evaluate<{ title: string; body: string }>(
-        client,
-        tab.sessionId,
-        `({ title: document.title, body: (document.body ? document.body.innerText : '').slice(0, 600) })`,
-      )
-      const verdict = classify(info.title, info.body)
+      // A managed challenge shows "Just a moment…" then may auto-solve for a legit browser — poll ~30s.
+      let info = { title: '', body: '' }
+      let verdict: 'pass' | 'gated' | 'blocked' = 'gated'
+      for (let attempt = 0; attempt < 12; attempt++) {
+        info = await evaluate<{ title: string; body: string }>(
+          client,
+          tab.sessionId,
+          `({ title: document.title, body: (document.body ? document.body.innerText : '').slice(0, 600) })`,
+        )
+        verdict = classify(info.title, info.body)
+        if (verdict !== 'gated') break
+        await new Promise((r) => setTimeout(r, 2500))
+      }
       lines.push('')
       lines.push(`(c) Cloudflare (${url})`)
-      lines.push(`      verdict       : ${verdict === 'pass' ? '✅ PASS' : verdict === 'gated' ? '⚠  GATED (challenge shown)' : '❌ BLOCKED'}`)
+      lines.push(
+        `      verdict       : ${verdict === 'pass' ? '✅ PASS (challenge auto-cleared)' : verdict === 'gated' ? '⚠  GATED (challenge persisted ~45s)' : '❌ BLOCKED'}`,
+      )
       lines.push(`      title         : ${info.title}`)
       await client.send('Target.closeTarget', { targetId: tab.targetId }).catch(() => {})
     }
@@ -163,7 +170,7 @@ async function main(): Promise<void> {
       lines.push('(d) DataDome         : skipped — set DATADOME_URL to a designated target to measure.')
     }
   } finally {
-    client.close()
+    close()
   }
 
   console.log('══════════════════════════════════════════════════════════════════════════════')
