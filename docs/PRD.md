@@ -210,6 +210,15 @@ affinity); a clear verdict on whether per-job `createBrowserContext` is worth it
 fingerprint and can't persist. Resolve the flagged unknowns: do **dynamic HSTS / TLS-session caches leak**
 between the persistent default context and CDP contexts?
 
+> **S4 status (2026-07-18): BUILT & self-tested — see `spikes/s4-viewer-takeover/`.** CDP
+> `Page.startScreencast` (JPEG q75, ack-throttled) fanned out to all viewers + `Input.dispatch*` for control.
+> Automated gates pass: screencast frames flow (138/1.5s), injected mouse click fires the page handler with
+> **`isTrusted === true`**, injected keyboard types into a focused input; a server smoke confirms the HTTP
+> viewer + WS frame bridge. `pnpm s4` runs the interactive login tool (headed Chrome + a local
+> `http://127.0.0.1:<port>` viewer you drive by hand); `PROFILE_DIR=…` makes the login persist → a reusable
+> identity profile. Human-driven real login (LinkedIn/Google) is the remaining manual step, and it's what
+> unblocks the deferred S2 target matrix. Out of scope held: WebRTC/neko, pause→live→resume agent handoff.
+
 ### S4 — Viewer / takeover (also the login-bootstrap tool)
 **Question:** Is CDP screencast + input-injection good enough for manual login and occasional takeover?
 **Build:** `Page.startScreencast` → browser canvas in `apps/web`; forward mouse/keyboard via `Input.dispatch*`

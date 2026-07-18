@@ -122,6 +122,19 @@ importers:
         specifier: ^8.5.13
         version: 8.18.1
 
+  spikes/s4-viewer-takeover:
+    dependencies:
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
+
 packages:
 
   '@babel/generator@8.0.0-rc.3':
