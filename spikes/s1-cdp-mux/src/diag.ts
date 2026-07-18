@@ -2,8 +2,8 @@
 // Tests several trap shapes, both same-session (Runtime enabled on the evaluating session) and via a
 // separate enabled session, so we can tell "technique dead on Chrome 150" apart from "harness bug".
 
-import { launchChrome } from './launch-chrome.ts'
-import { CdpClient } from './cdp-client.ts'
+import { launchChrome } from '@chromatrix/stealth'
+import { CdpClient } from '@chromatrix/cdp'
 
 const TRAPS: Record<string, string> = {
   'plain-obj-enumerable-id': `

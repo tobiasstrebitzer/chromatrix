@@ -11,15 +11,18 @@ If no → we pivot to a "stealth-lint / reject-and-upgrade the consumer" model i
 
 ## How it works
 
-- `launch-chrome.ts` — launches the real headed Google Chrome (channel=chrome) with a throwaway profile and
-  the anti-backgrounding flags; returns the `/devtools/browser` WS endpoint.
-- `mux.ts` — `CdpMux`: one upstream WS to Chrome, N downstream clients, per-client command-id remapping,
-  event routing by `sessionId`, and a pluggable interceptor over every client→Chrome message.
-- `mitigation.ts` — two interceptors:
-  - `transparent` — byte passthrough (what Steel/Browserless do) → the **baseline**.
-  - `runtime-enable-suppress` — never forwards `Runtime.enable`; instead mints a real **isolated world**
-    (`Page.createIsolatedWorld`) and synthesizes the `Runtime.executionContextCreated` event the consumer
-    expects, so the consumer can still evaluate while Chrome's Runtime domain is never enabled.
+> **Now consolidated:** the CDP client, `CdpMux`, and the interceptors were promoted into the real packages
+> and this spike consumes them (validating the `@chromatrix/source` dev path — it runs with
+> `node --conditions=@chromatrix/source …`):
+> - `@chromatrix/cdp` — `CdpClient`, `CdpMux` (one upstream WS, N clients, id-remap, sessionId routing,
+>   pluggable interceptor), and the `Interceptor` contract + `transparentInterceptor` (byte passthrough
+>   baseline, what Steel/Browserless do).
+> - `@chromatrix/stealth` — `launchChrome` (real headed Chrome + stealth flags) and
+>   `runtimeEnableSuppressInterceptor` (never forwards `Runtime.enable`; mints a real isolated world via
+>   `Page.createIsolatedWorld` and synthesizes the `executionContextCreated` the consumer expects).
+
+Spike-local files:
+
 - `consumer.ts` — a naive raw-CDP consumer (stand-in for agent-browser): create tab → attach → `Page.enable`
   → `Runtime.enable` → `Runtime.evaluate('1+1')`.
 - `probe.ts` — an **independent** observer connected directly to Chrome that never enables Runtime; it arms

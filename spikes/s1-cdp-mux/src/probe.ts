@@ -6,7 +6,7 @@
 // Runtime.evaluate works without Runtime.enable (enable only controls event delivery), so the probe can
 // measure without perturbing what it measures.
 
-import { CdpClient } from './cdp-client.ts'
+import { CdpClient } from '@chromatrix/cdp'
 
 const ARM_TRAP = `
   (function () {

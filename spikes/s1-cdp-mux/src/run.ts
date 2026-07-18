@@ -8,11 +8,10 @@
 //   pnpm s1                 # from repo root
 //   HEADLESS=1 pnpm s1      # headless; identical protocol behaviour, no visible window
 
-import { launchChrome } from './launch-chrome.ts'
-import { CdpMux } from './mux.ts'
+import { CdpMux, transparentInterceptor, type Interceptor } from '@chromatrix/cdp'
+import { launchChrome, runtimeEnableSuppressInterceptor } from '@chromatrix/stealth'
 import { runConsumer } from './consumer.ts'
 import { runProbe, closeTarget } from './probe.ts'
-import { transparentInterceptor, runtimeEnableSuppressInterceptor, type Interceptor } from './mitigation.ts'
 
 interface Row {
   mode: string

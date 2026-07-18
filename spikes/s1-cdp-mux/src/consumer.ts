@@ -3,7 +3,7 @@
 // evaluate. Runtime.enable is exactly the call that leaks under a transparent proxy. We keep the
 // connection OPEN (via the returned close()) so the probe can measure while this session is live.
 
-import { CdpClient } from './cdp-client.ts'
+import { CdpClient } from '@chromatrix/cdp'
 
 export interface ConsumerResult {
   targetId: string

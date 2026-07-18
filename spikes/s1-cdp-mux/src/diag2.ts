@@ -2,8 +2,8 @@
 // getters — the leak). Enable Runtime, subscribe to consoleAPICalled, console.log a getter object, and
 // dump the exact event payload.
 
-import { launchChrome } from './launch-chrome.ts'
-import { CdpClient } from './cdp-client.ts'
+import { launchChrome } from '@chromatrix/stealth'
+import { CdpClient } from '@chromatrix/cdp'
 
 async function main(): Promise<void> {
   const chrome = await launchChrome({ headless: true })

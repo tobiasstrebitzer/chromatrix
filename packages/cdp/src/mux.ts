@@ -1,11 +1,10 @@
-// CdpMux — the mitigating multiplexer prototype. One upstream WS to Chrome's /devtools/browser endpoint,
-// N downstream clients, per-client command-id remapping, event routing by sessionId, and a pluggable
-// interceptor over every client->Chrome message. This is the throwaway S1 version; once proven it is
-// promoted into packages/cdp (docs/PRD.md §6/§7).
+// CdpMux — the mitigating multiplexer. One upstream WS to Chrome's /devtools/browser endpoint, N downstream
+// clients, per-client command-id remapping, event routing by sessionId, and a pluggable interceptor over
+// every client→Chrome message. Proven in spike S1 (docs/PRD.md §7); this is the promoted version.
 
 import WebSocket, { WebSocketServer } from 'ws'
 import type { AddressInfo } from 'node:net'
-import type { ClientMessage, InterceptContext, Interceptor } from './mitigation.ts'
+import type { ClientMessage, InterceptContext, Interceptor } from './interceptor.ts'
 
 interface PendingUpstream {
   client?: DownstreamClient
@@ -115,7 +114,6 @@ export class CdpMux {
         else entry.resolveInternal(msg.result)
         return
       }
-      // Client response: learn sessionId ownership from explicit attaches, then route back with orig id.
       if (entry.method === 'Target.attachToTarget' && msg.result?.sessionId && entry.client) {
         this.sessionOwner.set(msg.result.sessionId, entry.client)
       }
@@ -123,7 +121,6 @@ export class CdpMux {
       return
     }
 
-    // Event: route by top-level sessionId to its owner, else broadcast (browser-level).
     if (msg.method) {
       const sid = msg.sessionId
       if (sid) {

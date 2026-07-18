@@ -1,6 +1,5 @@
-// Minimal raw-CDP WebSocket client. Deliberately tiny and dependency-light so the spike's "consumer"
-// and "probe" speak CDP directly (no puppeteer/chrome-remote-interface) — closest to how an unmodified
-// raw-CDP consumer like vercel-labs/agent-browser behaves. Supports flat-mode sessionId routing.
+// Raw-CDP WebSocket client. Tiny and dependency-light (just `ws`), speaks flat-mode sessionId routing.
+// Promoted from the spikes (S1–S4 all ran on this shape).
 
 import WebSocket from 'ws'
 
@@ -9,7 +8,7 @@ interface Pending {
   reject: (err: Error) => void
 }
 
-type EventListener = (params: unknown, sessionId?: string) => void
+type EventListener = (params: any, sessionId?: string) => void
 
 export class CdpClient {
   private readonly ws: WebSocket
@@ -68,7 +67,7 @@ export class CdpClient {
     set.add(cb)
   }
 
-  /** Resolve on the next matching event (optionally filtered), with a timeout. */
+  /** Resolve on the next matching event (optionally filtered by sessionId), with a timeout. */
   once(method: string, opts: { sessionId?: string; timeoutMs?: number } = {}): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

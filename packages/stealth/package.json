@@ -21,6 +21,9 @@
     "typecheck": "tsgo -p tsconfig.json",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@chromatrix/cdp": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "rimraf": "^6.1.3",

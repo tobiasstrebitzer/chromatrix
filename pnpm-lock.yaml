@@ -82,6 +82,10 @@ importers:
         version: 3.2.7(@types/node@22.20.1)
 
   packages/stealth:
+    dependencies:
+      '@chromatrix/cdp':
+        specifier: workspace:*
+        version: link:../cdp
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -98,6 +102,12 @@ importers:
 
   spikes/s1-cdp-mux:
     dependencies:
+      '@chromatrix/cdp':
+        specifier: workspace:*
+        version: link:../../packages/cdp
+      '@chromatrix/stealth':
+        specifier: workspace:*
+        version: link:../../packages/stealth
       ws:
         specifier: ^8.18.0
         version: 8.21.1
