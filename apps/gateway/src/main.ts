@@ -4,6 +4,14 @@
 
 import { startGateway } from './bootstrap.ts'
 
+// Last-resort resilience for the long-lived process: a stray socket error (a client vanishing mid-frame, a
+// malformed WS frame on the dev HMR proxy path, a reset from Chrome) must never take the whole gateway down.
+// Per-socket 'error' handlers are the first line (see cdp/, takeover/, @chromatrix/cdp); this net catches
+// anything they miss, LOGS the full stack so nothing is hidden, and keeps serving. Deliberately NOT in
+// bootstrap.ts — the e2e drivers run there and must still fail loudly on real bugs.
+process.on('uncaughtException', (err) => console.error('[gateway] uncaughtException — kept alive:', err))
+process.on('unhandledRejection', (err) => console.error('[gateway] unhandledRejection — kept alive:', err))
+
 const handle = await startGateway()
 
 const shutdown = async (signal: string) => {
