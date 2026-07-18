@@ -181,9 +181,15 @@ consumers rather than silently rewriting.
 > `navigator.webdriver=true`; `--disable-blink-features=AutomationControlled` fixes it (now promoted into
 > `@chromatrix/stealth`). ✅ Anti-backgrounding flags keep occluded windows rendering (~240 frames/2s). ✅
 > Capacity: ~375 MB/tab, ~1.0 GB/identity-instance base → v1 target (5 identities + 10 tabs) ≈ 8.5 GB (fits
-> 16 GB tight, comfortable 32 GB+). **Deferred to post-S4:** the decisive logged-in LinkedIn/Google +
-> Cloudflare/DataDome pass-rate matrix (needs the S4 login tool + real targets). Given S1's finding, these
-> *external* signals now set the ceiling, not in-page CDP tells.
+> 16 GB tight, comfortable 32 GB+).
+>
+> **Target matrix RUN (2026-07-18, human-verified x.com login via S4, `pnpm s2:targets`):** ✅ x.com `/home`
+> signed in (auth_token + logged-in DOM markers, persisted profile); ✅ bot.sannysoft.com **0** automation
+> tells failed; ✅ Cloudflare (nowsecure.nl) PASS (real content, no challenge). This confirms the S1 thesis
+> end-to-end: with in-page CDP tells closed on Chrome 150, real headed Chrome + ordinary hygiene clears these
+> targets. **Remaining ceiling test:** a hard managed-challenge/Turnstile gate and a DataDome target (the
+> toughest per research) are still unmeasured — plug designated URLs into `CLOUDFLARE_URL`/`DATADOME_URL`.
+> (LinkedIn dropped as too sensitive; x.com used instead.)
 
 ### S2 — Headed Chrome fleet + stealth baseline on macOS
 **Question:** What's our real stealth ceiling and per-tab capacity on this Mac?

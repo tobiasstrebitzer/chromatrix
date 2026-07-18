@@ -6,6 +6,7 @@
   "description": "Spike S2: macOS headed-Chrome stealth + capacity baseline — GPU/WebGL fingerprint, automation hygiene, per-tab RAM, occluded-window rendering. Logged-in target matrix deferred to post-S4. See docs/PRD.md §7.",
   "scripts": {
     "start": "node --import @swc-node/register/esm-register src/run.ts",
+    "targets": "node --import @swc-node/register/esm-register src/target-matrix.ts",
     "typecheck": "tsgo -p tsconfig.json"
   },
   "dependencies": {

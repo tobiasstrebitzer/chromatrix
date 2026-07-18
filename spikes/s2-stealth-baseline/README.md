@@ -44,9 +44,31 @@ Network is used for the RAM measurement and the secure-context fingerprint page;
 
 `--disable-blink-features=AutomationControlled` (proven here) is added to `@chromatrix/stealth`'s flag set.
 
-## Deferred to post-S4 (the decisive measurement)
+## Target matrix (logged-in, real targets) — `pnpm s2:targets`
 
-The true stealth ceiling — LinkedIn/Google logged-in behaviour and Cloudflare-Turnstile/DataDome pass/
-gated/blocked rates — needs real logged-in profiles (the S4 takeover-login tool) and real targets. S1's
-finding (the classic in-page CDP getter leak is closed on Chrome 150) means these *external* signals, not
-in-page CDP tells, now set the ceiling. Run this matrix once S4 lands.
+Connects to the already-running, logged-in Chrome from the S4 login tool (via the profile's
+`DevToolsActivePort`) and probes real targets in new tabs. Run it while `pnpm s4` is up on that profile:
+
+```bash
+PROFILE_DIR=/abs/path/.profiles/x  pnpm s2:targets
+# optional harder targets:
+CLOUDFLARE_URL=…  DATADOME_URL=…   PROFILE_DIR=/abs/path/.profiles/x  pnpm s2:targets
+```
+
+### Recorded result (x.com identity, Chrome 150, 2026-07)
+
+| target | verdict |
+|---|---|
+| x.com `/home` signed-in (auth_token cookie + logged-in DOM markers) | ✅ SIGNED IN |
+| bot.sannysoft.com automation tells | ✅ 0 failed |
+| Cloudflare (nowsecure.nl) | ✅ PASS (real content, no challenge) |
+| DataDome | ⬜ skipped — set `DATADOME_URL` to a designated target |
+
+**Read:** real headed Chrome on macOS + the promoted stealth flags clears a signed-in x.com session, an
+external automation-tell adjudicator, and a standard Cloudflare-protected page **cleanly**. This confirms
+the S1-derived thesis: with in-page CDP tells closed on Chrome 150, ordinary hygiene + real hardware is
+enough for these targets.
+
+**Honest caveat:** `nowsecure.nl` is a standard Cloudflare page, **not** a hard managed-challenge/Turnstile
+gate, and DataDome (the toughest per the research) is unmeasured. Those remain the real ceiling test — plug
+a designated Turnstile-gated and DataDome target into `CLOUDFLARE_URL`/`DATADOME_URL` to measure them.
