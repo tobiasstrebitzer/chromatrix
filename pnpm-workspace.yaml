@@ -9,7 +9,9 @@ packages:
   - spikes/*
 linkWorkspacePackages: true
 
-# Approved postinstall build scripts (native/compile steps).
+# Postinstall build scripts: true = run (native/compile steps), false = explicitly declined.
 allowBuilds:
   esbuild: true
   '@swc/core': true
+  # Telemetry phone-home pulled in transitively by NestJS deps — declined.
+  '@scarf/scarf': false

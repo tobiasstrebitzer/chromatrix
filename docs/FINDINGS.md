@@ -97,3 +97,17 @@ them via takeover and the resulting session persists.
    with **exclusive** per-agent leasing; a single-writer lock per profile.
 4. **Persistence** = the platform owns durability via the profile dir; close persistent Chrome with SIGTERM so
    cookies flush; clean stale `Singleton*` locks on reattach.
+
+## Gateway (built — these findings are now realized in `apps/gateway`)
+
+The four points above are implemented and verified end-to-end (real Chrome + real CDP):
+
+- **Mitigating mux (1)** — one embedded `CdpMux` per identity carrying `runtimeEnableSuppressInterceptor`,
+  fed already-upgraded sockets on the raw `/cdp/<id>?token=…` route bound to the underlying `http.Server`,
+  outside Nest's pipeline (PRD §6).
+- **Concurrency + ACL (3)** — the `TabPool`'s exclusive per-agent leasing becomes the mux's **live per-tab
+  scope**: an agent's raw client may evaluate in its own tab but is **denied** attaching to another agent's
+  target. The acceptance test (`pnpm --filter @chromatrix/gateway run accept`) asserts exactly this — 5/5 green.
+- **Human takeover** — S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
+- **Provisioning** — 8 MCP tools (identity/tab lifecycle + health + takeover) at `/mcp`; agents then drive raw
+  CDP over the scoped URL `AllocateTab` returns (PRD §5).

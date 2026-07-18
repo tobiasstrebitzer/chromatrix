@@ -1,7 +1,32 @@
 # chromatrix — next session handoff
 
-Updated mid-gateway-build (2026-07-18). Read [`CLAUDE.md`](../CLAUDE.md) → [`FINDINGS.md`](FINDINGS.md) →
+Updated after the gateway build (2026-07-18). Read [`CLAUDE.md`](../CLAUDE.md) → [`FINDINGS.md`](FINDINGS.md) →
 [`PRD.md`](PRD.md) first (start with **PRD §0 — Responsible use**); this doc is "what to build next and how".
+
+## The gateway is built (this session)
+
+`apps/gateway` is a running NestJS control plane, verified end-to-end against real Chrome + real CDP:
+
+- **Boot** — `apps/gateway/src/{main,bootstrap}.ts`: Nest on an `http.Server` we keep a handle to; the raw-WS
+  upgrade handler is bound to that server (PRD §6) so CDP frames bypass Nest's DI/guard/interceptor pipeline.
+  `.swcrc` added (Nest needs decorator metadata). Deps: `@nestjs/*`, `@silkweave/nestjs` + `@silkweave/mcp`
+  (the MCP adapter is an *optional peer* — must be declared explicitly), `class-validator`, `ws`.
+- **Mux wiring** — `gateway.service.ts` wraps `@chromatrix/core`'s `Orchestrator`, holds one embedded
+  `CdpMux.connect()` per identity (with `runtimeEnableSuppressInterceptor`), and a `token → {identity,agentId}`
+  table. `cdp-upgrade.ts` matches `/cdp/<identity>?token=…`, resolves the token, and `attachClient(ws, scope)`s
+  the socket. The **scope is derived live** from the `TabPool` (`allows(t)=tabs.isLeasedBy(agentId,t)`), so
+  lease/release takes effect immediately — no stored ACL.
+- **MCP provisioning surface** — `gateway.controller.ts` (+ `dto.ts`): 8 tools live at `/mcp` — CreateIdentity,
+  StartIdentity, StopIdentity, ListSessions, AllocateTab (mints the scoped `…/cdp/<id>?token=…` URL),
+  ReleaseTab, Health, StartTakeover. Provisioning-only, per PRD §5.
+- **Takeover** — `takeover.ts`: per-identity `TakeoverHub` (S4's screencast fan-out + `Input.dispatch*` promoted)
+  on the `/takeover/<id>/ws` raw-WS route, with a viewer page at `GET /takeover/<id>`.
+- **Acceptance test** — `src/acceptance.ts` (`pnpm --filter @chromatrix/gateway run accept`): provisions an
+  ephemeral identity, allocates a tab for agent A and B, connects a raw `CdpClient` to A's scoped URL, and
+  asserts A **evaluates JS in its own tab (6×7=42)**, A's `getTargets` is filtered to A's tab only, A **cannot
+  attach** to B's target ("not in this client's scope"), and a bad token is refused at the upgrade. **5/5 green.**
+- **Bug fixed in `@chromatrix/core`**: the reaper's `pgrep -f --user-data-dir=…` failed on macOS (the leading
+  `--` was read as pgrep flags); now uses the `--` option terminator.
 
 ## Where we are
 
@@ -23,42 +48,62 @@ Updated mid-gateway-build (2026-07-18). Read [`CLAUDE.md`](../CLAUDE.md) → [`F
 - Repo: git on `master`, **no remote yet**. Whole workspace **typechecks + lints clean**.
 - A real human-verified identity profile exists at `.profiles/x` (x.com, gitignored).
 
-## The next milestone — finish `apps/gateway` (the real control plane)
+## The next milestone — multi-session parallel e2e test
 
-Build the gateway on top of the now-complete packages. NestJS + `@silkweave/nestjs`, per the PRD.
-**Key constraint (PRD §6):** the CDP WebSocket mux must be mounted on the underlying `http.Server` Nest
-wraps, so raw CDP frames bypass Nest's DI/interceptor/guard pipeline; Nest handles only the management + MCP
-Action HTTP/MCP endpoints. Reference wiring: `~/projects/mini/gtm/apps/server` (`main.ts` + `app.module.ts`
-show the `SilkweaveModule.forRoot` + `trpc`/`mcp` adapters + the raw upgrade handler on `getHttpServer()`).
+Build a runnable e2e scenario that simulates **several identities running concurrently, each driven by
+multiple agents doing real work in parallel** — the load shape the platform exists for. This scales the
+single-identity `acceptance.ts` (which already proves the ACL) into a concurrency + isolation + throughput
+test. Put it at `apps/gateway/src/e2e-multi.ts` with a `pnpm --filter @chromatrix/gateway run e2e` script;
+model it on `acceptance.ts` (boot the real gateway on an ephemeral port + a **tmp** profiles root, HTTP
+provisioning, raw `CdpClient` per agent). Later it can be wrapped as a Vitest test.
 
-**Done this session (was steps 2 + the mux half of 3/4):**
-- ✅ `@chromatrix/core` domain (step 2).
-- ✅ The mux's ACL machinery (step 4) + embeddable mode (the `@chromatrix/cdp` half of step 3).
+**Shape:**
+1. **Fleet, env-configurable, small by default.** `IDENTITIES` (default 2) × `AGENTS_PER_IDENTITY` (default 2)
+   × `TABS_PER_AGENT` (default 1–2). Provision each identity (`CreateIdentity` + `StartIdentity`), then
+   `AllocateTab` for every (identity, agent, tab) triple. **Respect the S2 capacity ceiling** — a real headed
+   Chrome per identity is ~1.5–2 GB; keep the default fleet tiny and `log()` the total so nobody accidentally
+   launches 5 identities on the MacBook. Default `HEADLESS=1` for the test (headless is protocol-identical per
+   S1/S2); headed is opt-in.
+2. **Hermetic target.** Stand up a tiny in-process `http.Server` serving a deterministic HTML page (a unique
+   per-agent marker in the DOM) so the test doesn't depend on external network/anti-bot. Navigate each tab
+   there and read the marker back — no live sites in an isolation test.
+3. **Parallel work.** Drive **all agents concurrently** (`Promise.all`): each connects its raw `CdpClient` to
+   its scoped `cdpUrl`, attaches to its tab, `Page.navigate`s to the local page (+ waits for load), and
+   `Runtime.evaluate`s to read its unique marker. Assert every agent gets **its own** marker back (no
+   cross-talk) and record wall-clock — assert it's ~parallel, not serialized (total ≈ slowest agent, not the
+   sum), which is the real proof that shared-context + tab-affinity concurrency (S3) holds under load.
+4. **Isolation matrix (the core assertion).** For a sample of agents assert **both** ACL boundaries hold live:
+   an agent cannot attach to a **peer agent's** tab under the **same** identity, and cannot attach to **any**
+   tab under a **different** identity (its mux is a different upstream entirely). Also assert `getTargets` for
+   each agent returns only its own tabs.
+5. **Churn (optional, higher value).** Mid-run, `ReleaseTab` one agent's tab and assert its scope shrinks
+   immediately (the next `attachToTarget` on the released target is denied) while other agents are unaffected —
+   exercises the *live* (non-cached) scope under concurrency.
+6. **Teardown.** `handle.close()` (SIGTERM every Chrome) + `rmSync` the tmp profiles; assert **no** Chrome is
+   left bound to the tmp profiles (`findChromePidsForProfile` / `pgrep -f -- --user-data-dir=<tmp>` → 0) so the
+   reaper + supervisor shutdown is proven under a multi-Chrome fleet.
 
-**Remaining, in order (each a small, testable increment):**
+Report PASS/FAIL per check like `acceptance.ts`. Verify by actually running it against real Chrome — the point
+is observed concurrent behavior, not just types. Watch for: flat-mode `sessionId` routing under many
+simultaneous attaches (the mux's `sessionOwner` map is the thing under test), and per-identity `browserWsUrl`
+mux separation. If throughput or RAM is a problem, that's a real finding to record here, not something to hide
+behind a smaller fleet.
 
-1. **Scaffold NestJS app** in `apps/gateway` (add `@nestjs/common|core|platform-express`, `@silkweave/nestjs`,
-   `reflect-metadata`, `class-validator`, `class-transformer`; `tsconfig` with `customConditions:
-   ["@chromatrix/source"]` + `experimentalDecorators` + `emitDecoratorMetadata` + `useDefineForClassFields:false`;
-   a `main.ts` that boots Nest on an `http.Server` you also keep a handle to). Replace the placeholder
-   `apps/gateway/package.json` scripts (`dev`/`typecheck` — mirror gtm's `node --conditions=@chromatrix/source
-   --import @swc-node/register/esm-register src/main.ts`).
-2. **Wire the mux into the gateway.** On the http `upgrade` event, match `/cdp/<identity>?token=…`, resolve the
-   token → lease (agentId+identity) via a `CdpGatewayService`, `handleUpgrade` a `ws`, and hand it to that
-   identity's `CdpMux.attachClient(ws, scope)`. The **scope** is built from core: `allows(t) =
-   tabPool.isLeasedBy(agentId, t)`, `allowedTargets() = tabPool.targetsFor(agentId)`. Use
-   `runtimeEnableSuppressInterceptor` on each identity's mux (`CdpMux.connect({ browserWsUrl:
-   supervisor.browserWsUrl, interceptor })`).
-3. **silkweave management/MCP Actions** — `createIdentity`, `startIdentity`, `listSessions`, `allocateTab`
-   (→ mints a token + returns the scoped `wss://…/cdp/<identity>?token=…`), `releaseTab`, `health`,
-   `startTakeover`. MCP surface = **provisioning only** (agents then drive raw CDP; PRD §5).
-4. **Takeover endpoint** — promote S4's screencast (`Page.startScreencast` q75 ack-throttled) + `Input.dispatch*`
-   server into a gateway route driven off `orchestrator.client(id)` (and later `apps/web`).
+## Later milestone — `apps/web` (viewer + takeover SPA)
 
-Verify each increment by driving it the way the spikes do (real Chrome, real CDP), not just typecheck. The
-end-to-end acceptance test: provision an **ephemeral** identity, `allocateTab` for agent A and agent B,
-connect a raw `CdpClient` to A's scoped URL, evaluate JS in A's tab, and assert A **cannot** attach to B's
-target (the mux returns "not in this client's scope").
+The placeholder `apps/web`. Build the React/Vite SPA that consumes the gateway:
+a session/tab dashboard (drive the MCP/REST provisioning actions) and the live-view + takeover panel that
+connects to `/takeover/<id>/ws` (the gateway already serves a bare-bones viewer at `GET /takeover/<id>` — the
+SPA replaces it with a real UI). Mirror gtm's `apps/web` wiring (Vite dev proxy to the gateway, single origin).
+If the dashboard wants typed calls, add the `@silkweave/nestjs/trpc` + `typegen` adapters to the gateway (only
+`mcp` is wired today) and a `@silkweave/trpc` client in the web app.
+
+Smaller hardening follow-ups on the gateway itself, when needed:
+- A global `ValidationPipe` so the `class-validator` rules on the DTOs actually run (today handlers read the
+  body directly; validation is declared but not enforced).
+- Auth on `/mcp` + the provisioning routes (gtm gates `/mcp` at the transport via `mcp({ auth })`); currently
+  open on loopback. Add before exposing over Tailscale.
+- Token lifecycle: tokens currently live until `stopIdentity`; add release/expiry if agents churn a lot.
 
 ## Open threads (carry-over)
 
@@ -73,8 +118,9 @@ target (the mux returns "not in this client's scope").
   "fake a human" behaviour chromatrix excludes (PRD §0). The supported path for any interactive gate is human
   takeover (S4); the value we add is that a human only has to solve it *once* per identity and the session
   then persists.
-- **S1 remaining:** per-tab ACL enforcement (now folded into gateway step 4); drive the *real* agent-browser
-  binary + puppeteer-core through the mux (harder context-bookkeeping compatibility test).
+- **S1 remaining:** per-tab ACL enforcement is **done** (mux + gateway, proven by the acceptance test). Still
+  open: drive the *real* agent-browser binary + puppeteer-core through the gateway's scoped `/cdp` URL (harder
+  context-bookkeeping compatibility test — the acceptance test uses a bare `CdpClient`, not puppeteer).
 - **HSTS / TLS-session-cache cross-context leak probe** (S3 open item) — only needed if we ever use
   `createBrowserContext` for anonymity.
 - **Prod hardening (deferred to Mac mini):** LaunchAgent `KeepAlive` under auto-login (headed needs an Aqua GUI
@@ -92,3 +138,11 @@ target (the mux returns "not in this client's scope").
   reattaching. `launchChrome` in `@chromatrix/fidelity` already does both.
 - `navigator.userAgentData` / `deviceMemory` only populate in a **secure (https) context** — probe on https,
   not `about:blank`.
+- macOS `pgrep -f` reads a pattern that begins with `--` as its own flags — pass `--` first (`pgrep -f -- <pat>`).
+  Fixed in `@chromatrix/core`'s reaper.
+- NestJS needs emitted decorator metadata: SWC won't emit it from tsconfig alone, so `apps/gateway` has a
+  `.swcrc` with `legacyDecorator` + `decoratorMetadata`. The `@silkweave/nestjs/mcp` adapter dynamically
+  imports `@silkweave/mcp` — declare it as a direct dep (it's an *optional* peer of `@silkweave/nestjs`).
+- pnpm's dep-status precheck fails the whole `--filter … run` if a transitive postinstall script is
+  undecided (NestJS pulls in `@scarf/scarf` telemetry) — decide it in `pnpm-workspace.yaml` `allowBuilds`
+  (`'@scarf/scarf': false`).

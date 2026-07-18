@@ -11,8 +11,12 @@ per identity, many concurrent tabs driven by remote agents over a **mitigating C
 > gates (CAPTCHAs, managed challenges) are completed by a **human** via takeover, never auto-solved. The
 > design goal is *fidelity* (a genuine browser presenting as itself), not evasion. See [`docs/PRD.md`](docs/PRD.md) §0.
 
-Currently in the **PRD / spike phase**: the four foundational risks have been de-risked with runnable spikes,
-and the proven primitives are consolidated into `packages/`. Next is the real gateway (`apps/gateway`).
+The four foundational risks have been de-risked with runnable spikes, the proven primitives are consolidated
+into `packages/`, and the **gateway (`apps/gateway`) is now built and running**: NestJS + `@silkweave/nestjs`
+MCP provisioning surface, the raw-WS CDP mux mounted outside Nest's pipeline with a live per-tab ACL, and the
+takeover route. An end-to-end acceptance test (`pnpm --filter @chromatrix/gateway run accept`) drives real
+Chrome + real CDP and passes. Next is a **multi-session parallel e2e test** (concurrent identities × agents ×
+tabs — isolation + throughput under load), then `apps/web` (the viewer/takeover SPA). See NEXT-SESSION.md.
 
 ## Docs — read these for context
 
@@ -21,8 +25,8 @@ and the proven primitives are consolidated into `packages/`. Next is the real ga
   **Start here.**
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) — one-page consolidated summary of what every spike proved (S1–S4 +
   the compatibility test against protected sites). The fastest way to load "what do we know".
-- [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) — the continuation handoff: what to build next (`apps/gateway`)
-  and how, plus the open threads.
+- [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) — the continuation handoff: what to build next (`apps/web` +
+  the open validation threads) and how.
 - [`docs/BRIEF.md`](docs/BRIEF.md) — the original research brief that kicked this off.
 - Per-spike READMEs under `spikes/*/README.md` — how to run each spike and its recorded result.
 
@@ -32,9 +36,9 @@ and the proven primitives are consolidated into `packages/`. Next is the real ga
 packages/
   cdp/        @chromatrix/cdp     — CdpClient + CdpMux (id-remap, sessionId routing, Interceptor seam)
   fidelity/   @chromatrix/fidelity — launchChrome + fingerprint-hygiene launch flags + runtimeEnableSuppressInterceptor
-  core/       @chromatrix/core    — (skeleton) identity registry, tab pool, profile lock, orchestrator
+  core/       @chromatrix/core    — identity registry, tab pool, profile lock, reaper, supervisor, orchestrator
 apps/
-  gateway/    @chromatrix/gateway — (placeholder) NestJS: raw-WS CDP mux + silkweave mgmt/MCP API
+  gateway/    @chromatrix/gateway — NestJS: raw-WS CDP mux (outside Nest) + per-tab ACL + silkweave MCP mgmt + takeover
   web/        @chromatrix/web     — (placeholder) React/Vite viewer + takeover SPA
 spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
 ```
@@ -48,7 +52,9 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
   dev (no build step). Runtime needs `node --conditions=@chromatrix/source --import @swc-node/register/esm-register`;
   tsconfigs set `customConditions: ["@chromatrix/source"]` + `allowImportingTsExtensions`.
 - **Vitest** is the test runner (installed; no tests written yet).
-- **silkweave** (`@silkweave/*`) is the API/MCP/tRPC toolkit — the gateway will use `@silkweave/nestjs`.
+- **silkweave** (`@silkweave/*`) is the API/MCP/tRPC toolkit — the gateway uses `@silkweave/nestjs` +
+  `@silkweave/mcp` (the MCP adapter is an optional peer; add it explicitly). NestJS needs decorator metadata,
+  so `apps/gateway` carries its own `.swcrc` (`legacyDecorator` + `decoratorMetadata`) mirroring gtm's.
 - Real Chrome binary: `/Applications/Google Chrome.app` (v150). Persistent identity profiles live under
   `.profiles/<id>/` (**gitignored** — contains session cookies).
 
@@ -64,16 +70,21 @@ pnpm s2:targets    # spike S2 — logged-in target matrix (PROFILE_DIR=abs/path,
 pnpm s3            # spike S3 — shared-tab concurrency
 pnpm s4            # spike S4 — live-view + takeover login tool (START_URL=… PROFILE_DIR=… )
 pnpm s4:test       # spike S4 — automated mechanism self-test
+
+# gateway (apps/gateway) — the real control plane
+pnpm --filter @chromatrix/gateway run start    # boot the gateway (PORT=8830; MCP at /mcp, CDP at /cdp/<id>)
+pnpm --filter @chromatrix/gateway run accept   # end-to-end acceptance test (real Chrome; HEADLESS=1 for no window)
 ```
 
 ## Status at a glance
 
-| Spike | Result |
+| Component | Result |
 |---|---|
 | S1 mux | Runtime.enable getter-leak already closed on Chrome 150; proxy-side suppression works, consumer still evaluates |
 | S2 fidelity | Authentic Apple/M3 Metal WebGL confirmed; fixed `navigator.webdriver` mismatch; ~8.5 GB for v1 fleet; x.com signed-in ✓, DataDome/std-Cloudflare PASS, managed-challenge GATED (→ human takeover) |
 | S3 concurrency | shared context + tab affinity is the sound v1 model; ephemeral contexts don't inherit the login |
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
+| **gateway** | **built + green**: Nest/MCP provisioning (8 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
 
 ## Wrapup Config
 

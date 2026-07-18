@@ -12,7 +12,8 @@ const pexec = promisify(execFile)
 export async function findChromePidsForProfile(profileDir: string): Promise<number[]> {
   try {
     // pgrep -f matches the full argv. The needle is the exact flag so we never match an unrelated Chrome.
-    const { stdout } = await pexec('pgrep', ['-f', `--user-data-dir=${profileDir}`])
+    // `--` terminates option parsing so the pattern's own leading `--` isn't read as pgrep flags (BSD/macOS).
+    const { stdout } = await pexec('pgrep', ['-f', '--', `--user-data-dir=${profileDir}`])
     return stdout
       .split('\n')
       .map((s) => Number(s.trim()))
