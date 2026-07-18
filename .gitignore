@@ -4,6 +4,8 @@ dist/
 *.tsbuildinfo
 .turbo/
 .DS_Store
+# roam-code local index (binary SQLite)
+.roam/
 # Local Chrome profiles / spike scratch data
 .profiles/
 .spike-data/
