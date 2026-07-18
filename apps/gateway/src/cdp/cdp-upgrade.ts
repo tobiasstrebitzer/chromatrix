@@ -6,7 +6,9 @@
 //   /cdp/<identity>?token=…       → agent raw-CDP, attached under the live per-tab ACL scope
 //   /takeover/<identity>/ws       → human live-view + input (screencast fan-out)
 //
-// Any other upgrade falls back to `fallbackUpgrade` when provided (the Vite HMR proxy in dev), else destroyed.
+// Any other upgrade is left untouched when `rejectUnmatched` is false — in dev the Vite HMR proxy registers
+// its OWN 'upgrade' listener (http-proxy-middleware, path-filtered to SPA/HMR) and handles it; touching the
+// socket here would double-handle it and corrupt the frames. In prod nothing else handles it, so reject.
 
 import type { IncomingMessage, Server } from 'node:http'
 import type { Duplex } from 'node:stream'
@@ -18,11 +20,11 @@ import { TakeoverHub } from '../takeover/takeover.ts'
 const CDP_RE = /^\/cdp\/([a-z0-9][a-z0-9_-]{0,63})$/
 const TAKEOVER_RE = /^\/takeover\/([a-z0-9][a-z0-9_-]{0,63})\/ws$/
 
-/** @param fallbackUpgrade handles upgrades we don't own (e.g. the dev-proxy's HMR socket); dev-only. */
+/** @param rejectUnmatched reject upgrades we don't own (prod); false in dev leaves them for the Vite proxy. */
 export function mountGatewayUpgrades(
   server: Server,
   service: CdpGatewayService,
-  fallbackUpgrade?: (req: IncomingMessage, socket: Duplex, head: Buffer) => void,
+  { rejectUnmatched = true }: { rejectUnmatched?: boolean } = {},
 ): void {
   const log = new Logger('CdpUpgrade')
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 512 * 1024 * 1024 })
@@ -73,15 +75,8 @@ export function mountGatewayUpgrades(
       return
     }
 
-    if (fallbackUpgrade) {
-      try {
-        return fallbackUpgrade(req, socket, head)
-      } catch (e) {
-        log.warn(`fallback upgrade failed: ${(e as Error).message}`)
-        return socket.destroy()
-      }
-    }
-    reject(socket, 404)
+    // Not ours. In dev, leave it for the Vite HMR proxy's own 'upgrade' listener (do NOT touch the socket).
+    if (rejectUnmatched) reject(socket, 404)
   })
 }
 
