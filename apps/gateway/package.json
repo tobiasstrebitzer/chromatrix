@@ -8,6 +8,7 @@
     "dev": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "start": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "accept": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/acceptance.ts",
+    "e2e": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/e2e-multi.ts",
     "typecheck": "tsgo -p tsconfig.json"
   },
   "dependencies": {

@@ -111,3 +111,7 @@ The four points above are implemented and verified end-to-end (real Chrome + rea
 - **Human takeover** — S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
 - **Provisioning** — 8 MCP tools (identity/tab lifecycle + health + takeover) at `/mcp`; agents then drive raw
   CDP over the scoped URL `AllocateTab` returns (PRD §5).
+- **Concurrency + isolation under load** — `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents
+  × 2 tabs = 18 tabs) and proves, together: work overlaps rather than serializing (wall-clock ≪ Σ per-agent
+  time, ratio ~0.12), each tab reads back only its own marker, the per-tab ACL denies both same-identity peer
+  and cross-identity attaches, releasing a tab shrinks its scope live, and shutdown leaves zero survivor Chrome.

@@ -14,9 +14,9 @@ per identity, many concurrent tabs driven by remote agents over a **mitigating C
 The four foundational risks have been de-risked with runnable spikes, the proven primitives are consolidated
 into `packages/`, and the **gateway (`apps/gateway`) is now built and running**: NestJS + `@silkweave/nestjs`
 MCP provisioning surface, the raw-WS CDP mux mounted outside Nest's pipeline with a live per-tab ACL, and the
-takeover route. An end-to-end acceptance test (`pnpm --filter @chromatrix/gateway run accept`) drives real
-Chrome + real CDP and passes. Next is a **multi-session parallel e2e test** (concurrent identities × agents ×
-tabs — isolation + throughput under load), then `apps/web` (the viewer/takeover SPA). See NEXT-SESSION.md.
+takeover route. Two end-to-end tests drive real Chrome + real CDP and pass: `run accept` (single-identity ACL)
+and `run e2e` (multi-session: concurrent identities × agents × tabs — parallelism + isolation + teardown under
+load). Next is `apps/web` (the viewer/takeover SPA). See NEXT-SESSION.md.
 
 ## Docs — read these for context
 
@@ -73,7 +73,8 @@ pnpm s4:test       # spike S4 — automated mechanism self-test
 
 # gateway (apps/gateway) — the real control plane
 pnpm --filter @chromatrix/gateway run start    # boot the gateway (PORT=8830; MCP at /mcp, CDP at /cdp/<id>)
-pnpm --filter @chromatrix/gateway run accept   # end-to-end acceptance test (real Chrome; HEADLESS=1 for no window)
+pnpm --filter @chromatrix/gateway run accept   # single-identity acceptance test (real Chrome; HEADLESS=1 for no window)
+pnpm --filter @chromatrix/gateway run e2e      # multi-session parallel e2e (IDENTITIES/AGENTS_PER_IDENTITY/TABS_PER_AGENT; HEADLESS=0 to watch)
 ```
 
 ## Status at a glance
@@ -85,6 +86,7 @@ pnpm --filter @chromatrix/gateway run accept   # end-to-end acceptance test (rea
 | S3 concurrency | shared context + tab affinity is the sound v1 model; ephemeral contexts don't inherit the login |
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
 | **gateway** | **built + green**: Nest/MCP provisioning (8 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
+| **multi-session e2e** | **built + green**: `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents × 2 tabs = 18 tabs) — parallelism (wall ≪ Σ), per-agent marker isolation, same-identity + cross-identity ACL denial, live churn, and zero-survivor teardown all pass |
 
 ## Wrapup Config
 
