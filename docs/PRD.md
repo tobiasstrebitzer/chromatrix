@@ -175,6 +175,16 @@ can transparently rewrite an external consumer's `Runtime.enable` into isolated-
 breaking that consumer's expectations* — if not, the fallback is a "stealth-lint" that rejects/upgrades
 consumers rather than silently rewriting.
 
+> **S2 status (2026-07-18): no-login baseline BUILT & RUN — see `spikes/s2-stealth-baseline/`** (MacBook
+> Pro M3 Pro, Chrome 150). ✅ Authentic Apple/Metal WebGL confirmed (`ANGLE (Apple, ANGLE Metal Renderer:
+> Apple M3 Pro)`) — the core macOS-headed advantage. ⚠→✅ Found and fixed a real tell: plain launch leaks
+> `navigator.webdriver=true`; `--disable-blink-features=AutomationControlled` fixes it (now promoted into
+> `@chromatrix/stealth`). ✅ Anti-backgrounding flags keep occluded windows rendering (~240 frames/2s). ✅
+> Capacity: ~375 MB/tab, ~1.0 GB/identity-instance base → v1 target (5 identities + 10 tabs) ≈ 8.5 GB (fits
+> 16 GB tight, comfortable 32 GB+). **Deferred to post-S4:** the decisive logged-in LinkedIn/Google +
+> Cloudflare/DataDome pass-rate matrix (needs the S4 login tool + real targets). Given S1's finding, these
+> *external* signals now set the ceiling, not in-page CDP tells.
+
 ### S2 — Headed Chrome fleet + stealth baseline on macOS
 **Question:** What's our real stealth ceiling and per-tab capacity on this Mac?
 **Build:** launch N headed `channel=chrome` instances, distinct `--user-data-dir`, anti-backgrounding flags;

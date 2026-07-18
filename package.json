@@ -15,7 +15,8 @@
     "test": "turbo run test",
     "lint": "oxlint",
     "clean": "turbo run clean",
-    "s1": "pnpm --filter @chromatrix/spike-s1-cdp-mux run start"
+    "s1": "pnpm --filter @chromatrix/spike-s1-cdp-mux run start",
+    "s2": "pnpm --filter @chromatrix/spike-s2-stealth-baseline run start"
   },
   "devDependencies": {
     "@swc-node/register": "^1.11.1",

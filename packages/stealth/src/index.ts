@@ -12,4 +12,15 @@ export const ANTI_BACKGROUNDING_FLAGS = [
   '--disable-background-timer-throttling',
 ] as const
 
+/**
+ * Automation-hygiene flags. Proven in spike S2: a plain `--remote-debugging-port` launch leaks
+ * `navigator.webdriver = true` via the AutomationControlled blink feature; this flag flips it to false.
+ * We deliberately do NOT pass `--enable-automation` (it adds the "controlled by automation" infobar and
+ * further tells). See docs/PRD.md §7 (S2) and spikes/s2-stealth-baseline/README.md.
+ */
+export const AUTOMATION_HIDE_FLAGS = ['--disable-blink-features=AutomationControlled'] as const
+
+/** All stealth launch flags to apply to a headed identity Chrome (order-independent). */
+export const STEALTH_LAUNCH_FLAGS = [...ANTI_BACKGROUNDING_FLAGS, ...AUTOMATION_HIDE_FLAGS] as const
+
 export const STEALTH_PACKAGE = '@chromatrix/stealth' as const
