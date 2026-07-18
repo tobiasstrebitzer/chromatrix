@@ -205,6 +205,16 @@ documentation*, not "pass all four": the research is explicit that self-hosted s
 DataDome-class targets, so a DataDome block is a **scope-informing finding**, not a spike failure. What we
 must learn: where the real line is, and whether it lands where your actual use cases need it.
 
+> **S3 status (2026-07-18): BUILT & RUN — see `spikes/s3-concurrency/`.** ✅ Shared-context concurrency is
+> sound: 5 concurrent agents each in their own tab all completed, all share the login cookie, all localStorage
+> writes land (multi-session CDP robust). ❌ Forcing two agents onto ONE tab breaks the in-flight op
+> (`Inspected target navigated or closed`) → **tab affinity is mandatory** (a tab is leased to one agent at a
+> time). Shared storage/cookies are last-writer-wins → agents namespace keys, orchestrator owns shared state.
+> ✅ Per-job `Target.createBrowserContext` isolates storage/cookies **but an ephemeral context does NOT inherit
+> the identity's persistent login** (confirmed) → contexts are the wrong tool for per-job isolation under one
+> identity; v1 = **shared context + tab affinity**. Still open: dynamic HSTS / TLS-session-cache leakage
+> between default and ephemeral contexts (needs a dedicated probe).
+
 ### S3 — Session/identity manager + shared-tab concurrency
 **Question:** Does "shared tabs, one context per identity" hold up when 3 agents hit one identity at once —
 and what actually breaks (navigation stomping, storage races)? Also spike the *alternative* the brief

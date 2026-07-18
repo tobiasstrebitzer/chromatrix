@@ -18,6 +18,7 @@
     "s1": "pnpm --filter @chromatrix/spike-s1-cdp-mux run start",
     "s2": "pnpm --filter @chromatrix/spike-s2-stealth-baseline run start",
     "s2:targets": "pnpm --filter @chromatrix/spike-s2-stealth-baseline run targets",
+    "s3": "pnpm --filter @chromatrix/spike-s3-concurrency run start",
     "s4": "pnpm --filter @chromatrix/spike-s4-viewer-takeover run start",
     "s4:test": "pnpm --filter @chromatrix/spike-s4-viewer-takeover run test"
   },
