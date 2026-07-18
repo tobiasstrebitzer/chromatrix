@@ -1,0 +1,10 @@
+node_modules/
+build/
+dist/
+*.tsbuildinfo
+.turbo/
+.DS_Store
+# Local Chrome profiles / spike scratch data
+.profiles/
+.spike-data/
+*.log

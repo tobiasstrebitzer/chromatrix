@@ -1,0 +1,15 @@
+# chromatrix pnpm workspace. Follows the mini/gtm conventions: packages/ + apps/ with `workspace:*`
+# deps SYMLINKED (linkWorkspacePackages), and each publishable package exposes a `@chromatrix/source`
+# export condition so apps resolve straight to TS source (packages/*/src) in dev with no build step.
+# Packages build to build/ via tsdown only on prepack/CI (never in dev). Turbo orchestrates the graph.
+# spikes/ holds throwaway de-risking experiments (see docs/PRD.md §7); promoted into packages/ once proven.
+packages:
+  - packages/*
+  - apps/*
+  - spikes/*
+linkWorkspacePackages: true
+
+# Approved postinstall build scripts (native/compile steps).
+allowBuilds:
+  esbuild: true
+  '@swc/core': true

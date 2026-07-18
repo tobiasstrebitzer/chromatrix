@@ -1,0 +1,18 @@
+{
+  "name": "@chromatrix/spike-s1-cdp-mux",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spike S1: does a mitigating CDP mux neutralise the Runtime.enable leak for an unmodified raw-CDP consumer while it can still evaluate JS? Throwaway; promoted into packages/cdp + packages/stealth once proven. See docs/PRD.md §7.",
+  "scripts": {
+    "start": "node --import @swc-node/register/esm-register src/run.ts",
+    "typecheck": "tsgo -p tsconfig.json"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13"
+  }
+}

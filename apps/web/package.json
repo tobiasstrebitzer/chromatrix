@@ -1,0 +1,10 @@
+{
+  "name": "@chromatrix/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "chromatrix viewer/takeover SPA (React 19 + Vite + Tailwind v4). CDP Page.startScreencast render + Input.dispatch* takeover, pause->live->resume. Built during spike S4; see docs/PRD.md §4, §7.",
+  "scripts": {
+    "typecheck": "echo 'web: not yet implemented (built during S4) — see docs/PRD.md' "
+  }
+}

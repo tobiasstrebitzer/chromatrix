@@ -1,0 +1,10 @@
+{
+  "name": "@chromatrix/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover). Built after S1; see docs/PRD.md §6.",
+  "scripts": {
+    "typecheck": "echo 'gateway: not yet implemented (built after S1) — see docs/PRD.md' "
+  }
+}
