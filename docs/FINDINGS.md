@@ -117,8 +117,9 @@ The four points above are implemented and verified end-to-end (real Chrome + rea
   scope**: an agent's raw client may evaluate in its own tab but is **denied** attaching to another agent's
   target. The acceptance test (`pnpm --filter @chromatrix/gateway run accept`) asserts exactly this — 5/5 green.
 - **Human takeover** — S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
-- **Provisioning** — 8 MCP tools (identity/tab lifecycle + health + takeover) at `/mcp`; agents then drive raw
-  CDP over the scoped URL `AllocateTab` returns (PRD §5).
+- **Provisioning** — 14 MCP tools (identity/tab lifecycle + viewport + settings + health + takeover) at `/mcp`;
+  agents then drive raw CDP over the scoped URL `AllocateTab` returns (PRD §5). Identity lifecycle is four
+  distinct verbs — Create, Start, Stop, Delete — where only Delete discards the profile dir.
 - **Concurrency + isolation under load** — `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents
   × 2 tabs = 18 tabs) and proves, together: work overlaps rather than serializing (wall-clock ≪ Σ per-agent
   time, ratio ~0.12), each tab reads back only its own marker, the per-tab ACL denies both same-identity peer

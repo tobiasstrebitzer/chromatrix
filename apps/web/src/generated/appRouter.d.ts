@@ -30,6 +30,13 @@ export type AppRouter = TRPCBuiltRouter<TrpcRootTypes, {
     }
     output: unknown
   }>
+  gatewayDeleteIdentity: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      id: string
+    }
+    output: unknown
+  }>
   gatewayListSessions: TRPCQueryProcedure<{
     meta: object
     input: {}

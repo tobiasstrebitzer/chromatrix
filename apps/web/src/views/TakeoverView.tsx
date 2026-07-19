@@ -23,6 +23,9 @@ export function TakeoverView({ identity, target }: { identity?: string; target?:
 function TakeoverPicker() {
   const { sessions } = useSessionsContext()
   const navigate = useNavigate()
+  // Only running sessions can be taken over — a stopped one has no Chrome to screencast. The session list
+  // includes stopped sessions now, so this has to filter rather than take it wholesale.
+  const running = sessions?.filter((s) => s.state === 'running')
   return (
     <div className='mx-auto w-full max-w-3xl px-6 py-6'>
       <header className='mb-5'>
@@ -32,15 +35,15 @@ function TakeoverPicker() {
           complete a one-time login or clear an interactive human-verification gate.
         </p>
       </header>
-      {sessions === undefined ? (
+      {running === undefined ? (
         <p className='text-body-sm text-muted-foreground'>Loading sessions…</p>
-      ) : sessions.length === 0 ? (
+      ) : running.length === 0 ? (
         <div className='rounded-lg border border-dashed border-border-light bg-surface px-6 py-12 text-center'>
           <p className='text-body-sm text-muted-foreground'>No running sessions to take over. Start one from Sessions.</p>
         </div>
       ) : (
         <ul className='grid gap-2'>
-          {sessions.map((s) => (
+          {running.map((s) => (
             <li key={s.identity}>
               <button
                 type='button'
@@ -159,12 +162,18 @@ function Screencast({ identity, target }: { identity: string; target?: string })
           value={identity}
           onChange={(e) => void navigate({ to: '/takeover/$identity', params: { identity: e.target.value } })}
           className='h-7 rounded-md border border-border bg-bg px-2 font-mono text-label text-text outline-none focus-visible:ring-2 focus-visible:ring-accent'>
-          {(sessions ?? []).map((s) => (
-            <option key={s.identity} value={s.identity}>
-              {s.identity}
-            </option>
-          ))}
-          {!sessions?.some((s) => s.identity === identity) && <option value={identity}>{identity}</option>}
+          {/* Running only — switching to a stopped session would land on a viewer with nothing to show. The
+              fallback below still keeps the current identity selectable if it stops out from under us. */}
+          {(sessions ?? [])
+            .filter((s) => s.state === 'running')
+            .map((s) => (
+              <option key={s.identity} value={s.identity}>
+                {s.identity}
+              </option>
+            ))}
+          {!sessions?.some((s) => s.identity === identity && s.state === 'running') && (
+            <option value={identity}>{identity}</option>
+          )}
         </select>
 
         <TabPicker

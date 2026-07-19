@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { AlertTriangle, Play, Plus, X } from 'lucide-react'
+import { AlertTriangle, Plus, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { gateway } from '@/lib/useGateway'
 import { fitTakeoverViewport } from '@/lib/viewportFit'
@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/Sonner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { SessionRow } from '@/components/sessions/SessionRow'
+import { DeleteSessionDialog } from '@/components/sessions/DeleteSessionDialog'
 
 /** How often tab thumbnails refresh. One CDP screenshot per visible tab per tick — cheap, but not free. */
 const THUMBNAIL_POLL_MS = 5000
@@ -33,6 +34,15 @@ export function SessionsView() {
   const [collapsed, setCollapsed] = usePersistedState<string[]>('chromatrix.sessions.collapsed', [], (v) =>
     Array.isArray(v),
   )
+  // Headless is a property of a *launch*, not of the session, so it can't live on the identity — but re-picking
+  // it on every start would be tedious, so the dashboard remembers the last choice.
+  const [headless, setHeadless] = usePersistedState<boolean>(
+    'chromatrix.sessions.headless',
+    true,
+    (v) => typeof v === 'boolean',
+  )
+  /** Identity whose delete confirmation is open, if any. */
+  const [deleting, setDeleting] = React.useState<string | undefined>(undefined)
   // Read once: the dashboard needs to know whether a global default viewport exists before it offers its own
   // fit-the-pane size for new tabs.
   const [settings, setSettings] = React.useState<GatewaySettings | undefined>(undefined)
@@ -100,12 +110,21 @@ export function SessionsView() {
                     flash(`${s.identity}: ${h.product}`)
                   })
                 }
+                headless={headless}
+                onHeadlessChange={setHeadless}
+                onStart={() =>
+                  void run(`start:${s.identity}`, async () => {
+                    await gateway.startIdentity(s.identity, headless)
+                    flash(`Started “${s.identity}”.`)
+                  })
+                }
                 onStop={() =>
                   void run(`stop:${s.identity}`, async () => {
                     await gateway.stopIdentity(s.identity)
                     flash(`Stopped “${s.identity}”.`)
                   })
                 }
+                onDelete={() => setDeleting(s.identity)}
                 onAllocate={(agentId, url) =>
                   void run(`tab:${s.identity}`, async () => {
                     // Size precedence lives on the gateway (explicit → global default → Chrome's own). The
@@ -126,19 +145,36 @@ export function SessionsView() {
                 }
               />
             ))}
-            <StartIdentityRow
-              busy={busy === 'start'}
-              onStart={(id, headless) =>
-                run('start', async () => {
+            <CreateSessionRow
+              busy={busy === 'create'}
+              onCreate={(id) =>
+                run('create', async () => {
                   await gateway.createIdentity(id)
-                  await gateway.startIdentity(id, headless)
-                  flash(`Started “${id}”.`)
+                  flash(`Created “${id}”. Start it when you're ready.`)
                 })
               }
             />
           </div>
         )}
       </div>
+
+      {/* Mounted once at the view level rather than per row: it's a modal, so only one can ever be open, and
+          keying it by identity resets its typed-confirmation state when the target changes. */}
+      {deleting && (
+        <DeleteSessionDialog
+          key={deleting}
+          identity={deleting}
+          open
+          onOpenChange={(open) => !open && setDeleting(undefined)}
+          onConfirm={() => {
+            const id = deleting
+            void run(`delete:${id}`, async () => {
+              await gateway.deleteIdentity(id)
+              flash(`Deleted “${id}”.`)
+            })
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -172,20 +208,16 @@ function Placeholder({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The last row of the session list: start a new identity. Deliberately shaped like the "New tab" placeholder
+ * The last row of the session list: create a new session. Deliberately shaped like the "New tab" placeholder
  * card one level down — the next empty slot in the list you're already reading, rather than a separate form
- * above it. Starting an identity is a two-call sequence (create, then start); that's the gateway's business,
- * so here it is one button.
+ * above it.
+ *
+ * Creating does NOT start it. A session is a long-lived thing (its profile dir holds a real signed-in
+ * browser), so bringing one into existence and spending a Chrome process on it are separate decisions — the
+ * new row lands in the list as `stopped`, with a Start button on it.
  */
-function StartIdentityRow({
-  busy,
-  onStart,
-}: {
-  busy: boolean
-  onStart: (id: string, headless: boolean) => void
-}) {
+function CreateSessionRow({ busy, onCreate }: { busy: boolean; onCreate: (id: string) => void }) {
   const [id, setId] = React.useState('')
-  const [headless, setHeadless] = React.useState(true)
 
   return (
     <form
@@ -193,30 +225,22 @@ function StartIdentityRow({
         e.preventDefault()
         const trimmed = id.trim()
         if (!trimmed || busy) return
-        onStart(trimmed, headless)
+        onCreate(trimmed)
         setId('')
       }}
       className='flex flex-wrap items-center gap-2 bg-bg px-3 py-2.5'>
       <Plus className='size-4 shrink-0 text-fg-4' aria-hidden />
       <Input
+        name='identity'
         value={id}
         onChange={(e) => setId(e.target.value)}
         placeholder='new identity id — lowercase slug, e.g. acme-1'
         className='min-w-56 flex-1 font-mono'
         aria-label='New identity id'
       />
-      <label className='flex shrink-0 select-none items-center gap-2 text-body-sm text-fg-2'>
-        <input
-          type='checkbox'
-          checked={headless}
-          onChange={(e) => setHeadless(e.target.checked)}
-          className='size-4 accent-[var(--accent)]'
-        />
-        headless
-      </label>
       <Button type='submit' disabled={busy || !id.trim()}>
-        <Play />
-        {busy ? 'Starting…' : 'Start session'}
+        <Plus />
+        {busy ? 'Creating…' : 'Create session'}
       </Button>
     </form>
   )

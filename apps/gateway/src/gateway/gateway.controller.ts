@@ -53,6 +53,18 @@ export class GatewayController {
     return { id: body.id, stopped: true }
   }
 
+  /**
+   * Destroy an identity: stop its Chrome, then delete its profile dir. This is the only route that discards
+   * durable state — the profile dir holds the signed-in session, so there is nothing to restore afterwards.
+   */
+  @Post('identity/delete')
+  @Trpc({ kind: 'mutation' })
+  @Mcp({ name: 'delete-identity' })
+  async deleteIdentity(@Body() body: IdentityIdDto) {
+    await this.gateway.deleteIdentity(body.id)
+    return { id: body.id, deleted: true }
+  }
+
   @Get('sessions')
   @Trpc()
   @Mcp({ name: 'list-sessions' })

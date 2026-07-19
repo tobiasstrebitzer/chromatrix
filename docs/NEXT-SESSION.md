@@ -82,9 +82,19 @@ Everything below was reproduced against real Chrome, fixed, and re-verified end-
   table. `cdp-upgrade.ts` matches `/cdp/<identity>?token=…`, resolves the token, and `attachClient(ws, scope)`s
   the socket. The **scope is derived live** from the `TabPool` (`allows(t)=tabs.isLeasedBy(agentId,t)`), so
   lease/release takes effect immediately — no stored ACL.
-- **MCP provisioning surface** — `gateway.controller.ts` (+ `dto.ts`): 8 tools live at `/mcp` — CreateIdentity,
-  StartIdentity, StopIdentity, ListSessions, AllocateTab (mints the scoped `…/cdp/<id>?token=…` URL),
-  ReleaseTab, Health, StartTakeover. Provisioning-only, per PRD §5.
+- **MCP provisioning surface** — `gateway.controller.ts` (+ `dto.ts`): 14 tools live at `/mcp` — CreateIdentity,
+  StartIdentity, StopIdentity, **DeleteIdentity**, ListSessions, AllocateTab (mints the scoped
+  `…/cdp/<id>?token=…` URL), ReleaseTab, NavigateTab, Get/SetTabViewport, Get/SetDefaultViewport, Health,
+  StartTakeover. Provisioning-only, per PRD §5.
+- **Identity lifecycle is four verbs, and only one is destructive.** Create makes the profile dir (and refuses
+  an id that already exists — `mkdir -p` semantics would silently adopt another identity's logged-in profile);
+  Start/Stop launch and tear down Chrome; Delete stops and then `rm -rf`s the dir. `Orchestrator.listSessions()`
+  enumerates `IdentityRegistry.list()` (**disk**) left-joined with the in-memory session map, so a stopped
+  identity stays visible and resumable. Listing only the map — as it did originally — made Stop erase the row,
+  which is why stop and delete were indistinguishable in the dashboard.
+- **`ChromeSupervisor.stop()` awaits process exit** (SIGTERM, escalating to SIGKILL after 5s). `close()` only
+  *signals*; Chrome keeps writing to the profile dir while flushing cookies, so any caller treating stop as
+  "the profile is now free" races that flush. Deleting an identity hit exactly this and failed with ENOTEMPTY.
 - **Takeover** — `takeover.ts`: per-identity `TakeoverHub` (S4's screencast fan-out + `Input.dispatch*` promoted)
   on the `/takeover/<id>/ws` raw-WS route, with a viewer page at `GET /takeover/<id>`.
 - **Acceptance test** — `src/acceptance.ts` (`pnpm --filter @chromatrix/gateway run accept`): provisions an

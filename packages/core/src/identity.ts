@@ -3,7 +3,7 @@
 // registry is deliberately thin (the profile dir IS the durable state; we don't duplicate it in a DB) — it
 // just resolves ids to dirs, creates the dir on demand, and lists what's on disk.
 
-import { mkdirSync, readdirSync, existsSync, statSync } from 'node:fs'
+import { mkdirSync, readdirSync, existsSync, rmSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 
 /** A valid identity id: lowercase slug, filesystem- and URL-safe (it appears in scoped CDP URLs). */
@@ -42,6 +42,16 @@ export class IdentityRegistry {
     const identity = this.get(id)
     mkdirSync(identity.profileDir, { recursive: true })
     return identity
+  }
+
+  /**
+   * Delete the identity's profile dir and everything under it. Irreversible: the profile dir IS the identity,
+   * so this destroys the signed-in session (cookies, tokens, local storage), not just a record pointing at it.
+   * Callers must ensure no Chrome is bound to the dir first — deleting a live profile out from under Chrome
+   * leaves it writing into unlinked inodes.
+   */
+  remove(id: string): void {
+    rmSync(this.get(id).profileDir, { recursive: true, force: true })
   }
 
   /** Every identity with a profile dir on disk, sorted by id. */

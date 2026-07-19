@@ -18,6 +18,8 @@ export const gateway = {
   startIdentity: (id: string, headless?: boolean) =>
     trackActivity(trpc.gatewayStartIdentity.mutate({ id, headless })) as Promise<SessionInfo>,
   stopIdentity: (id: string) => trackActivity(trpc.gatewayStopIdentity.mutate({ id })),
+  /** Irreversible: stops Chrome and deletes the profile dir (the signed-in session goes with it). */
+  deleteIdentity: (id: string) => trackActivity(trpc.gatewayDeleteIdentity.mutate({ id })),
   allocateTab: (identity: string, agentId: string, url?: string, viewport?: Viewport) =>
     trackActivity(
       trpc.gatewayAllocateTab.mutate({

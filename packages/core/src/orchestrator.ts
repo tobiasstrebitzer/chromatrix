@@ -5,7 +5,7 @@
 
 import { CdpClient } from '@chromatrix/cdp'
 import { IdentityRegistry, type Identity } from './identity.ts'
-import { ChromeSupervisor, type SupervisorOptions } from './supervisor.ts'
+import { ChromeSupervisor, type SupervisorOptions, type SupervisorState } from './supervisor.ts'
 import { TabPool, type Lease, type TabPoolOptions } from './tab-pool.ts'
 
 export interface Session {
@@ -16,8 +16,10 @@ export interface Session {
 export interface SessionInfo {
   identity: string
   profileDir: string
-  state: string
+  /** `stopped` is a resting state, not an absence — the identity still exists on disk with its session intact. */
+  state: SupervisorState
   tabs: number
+  /** Empty unless the identity is running. */
   browserWsUrl: string
 }
 
@@ -85,14 +87,25 @@ export class Orchestrator {
     return this.require(id).supervisor.health()
   }
 
+  /**
+   * Every identity that exists on disk, running or not, annotated with its live state.
+   *
+   * Enumerating the registry rather than the in-memory session map is what makes a session a *long-lived*
+   * thing you start and stop. Listing only the map (as this used to) meant stopping an identity erased it from
+   * the UI while its profile — and its logged-in cookies — sat on disk, so "stop" was indistinguishable from
+   * "delete" and the durable state was unreachable.
+   */
   listSessions(): SessionInfo[] {
-    return [...this.sessions.entries()].map(([id, s]) => ({
-      identity: id,
-      profileDir: s.supervisor.identity.profileDir,
-      state: s.supervisor.status,
-      tabs: s.tabs.size,
-      browserWsUrl: safe(() => s.supervisor.browserWsUrl) ?? '',
-    }))
+    return this.registry.list().map((identity) => {
+      const s = this.sessions.get(identity.id)
+      return {
+        identity: identity.id,
+        profileDir: identity.profileDir,
+        state: s?.supervisor.status ?? 'stopped',
+        tabs: s?.tabs.size ?? 0,
+        browserWsUrl: (s && safe(() => s.supervisor.browserWsUrl)) ?? '',
+      }
+    })
   }
 
   async stopIdentity(id: string): Promise<void> {
@@ -101,6 +114,16 @@ export class Orchestrator {
     this.sessions.delete(id)
     await s.tabs.releaseAll().catch(() => {})
     await s.supervisor.stop()
+  }
+
+  /**
+   * Stop the identity (if running) and delete its profile dir — the only operation that destroys durable
+   * state. Stopping first is not optional: Chrome must release the profile and flush before the dir goes, or
+   * we unlink files out from under a live process. Irreversible; the signed-in session cannot be recovered.
+   */
+  async deleteIdentity(id: string): Promise<void> {
+    await this.stopIdentity(id)
+    this.registry.remove(id)
   }
 
   /** Stop every running identity (graceful shutdown). */

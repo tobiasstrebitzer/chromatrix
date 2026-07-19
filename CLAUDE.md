@@ -81,7 +81,9 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
   segments are each axis-aligned, so movement can only be horizontal or vertical; easing a position toward a
   moving target would cut corners diagonally. Activity is fed by `lib/activity.ts` (`trackActivity` wraps the
   gateway mutations; `listSessions` is excluded because it polls).
-- **UI dependencies are `sonner` (toasts) and `@base-ui/react` (Select)** — the same base-ui gtm builds on.
+- **UI dependencies are `sonner` (toasts) and `@base-ui/react` (Select, AlertDialog)** — the same base-ui gtm
+  builds on. Destructive confirmations use the **alert**-dialog variant deliberately: it has no click-away or
+  pointer dismissal, so an irreversible action can only be resolved by an explicit button.
   The rest of `ui/` stays hand-rolled.
 - **Toasts.** `components/ui/Sonner.tsx` themes sonner purely through
   sonner's CSS custom properties pointed at our tokens — **not** via a `theme` prop — so toasts re-theme with
@@ -132,11 +134,12 @@ pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeS
 | S2 fidelity | Authentic Apple/M3 Metal WebGL confirmed; fixed `navigator.webdriver` mismatch; ~8.5 GB for v1 fleet; x.com signed-in ✓, DataDome/std-Cloudflare PASS, managed-challenge GATED (→ human takeover) |
 | S3 concurrency | shared context + tab affinity is the sound v1 model; ephemeral contexts don't inherit the login |
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
-| **gateway** | **built + green**: Nest/MCP provisioning (8 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
+| **gateway** | **built + green**: Nest/MCP provisioning (14 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
 | **multi-session e2e** | **built + green**: `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents × 2 tabs = 18 tabs) — parallelism (wall ≪ Σ), per-agent marker isolation, same-identity + cross-identity ACL denial, live churn, and zero-survivor teardown all pass |
 | **apps/web** | **built + green**: React/Vite/Tailwind-v4 dashboard (Sessions provisioning + Takeover live-view), tRPC client to the gateway; dev-proxy + prod-serve both verified; renders in real headless Chrome with no console errors |
 | **design system** | **rebuilt + verified**: achromatic dark/gray system (Vercel-referenced), identity-matrix mark, both themes driven in a real browser |
 | **sessions UX** | **rebuilt + verified**: identities as collapsible full-width rows; tabs as cards with live 5s screenshot thumbnails; `about:blank` → "No URL loaded"; new-tab placeholder card; new-session row; thumbnail click deep-links to takeover on *that* tab |
+| **session lifecycle** | **built + verified**: create / start / stop / delete are four distinct verbs. `listSessions` enumerates the **registry (disk)** left-joined with running state, so `stopped` is a listed resting state rather than an absence — previously stop erased the row and was indistinguishable from delete. Delete is the only op that destroys durable state (stop → `rm -rf` the profile dir), gated behind a type-the-identity confirm. `createIdentity` rejects an existing id instead of silently adopting its profile |
 | **per-tab viewport** | **built + verified**: every tab is its own window (`newWindow`), sized exactly via `Browser.setWindowBounds` + measured chrome delta. Takeover has width/height + auto-fit; global default in Settings (persisted to `.profiles/settings.json`). Floor is 500×288 — Chrome won't go smaller, and we don't fake it with emulation |
 | **takeover** | **fixed + verified**: last-frame replay for late joiners, serialized cast start/stop, human-selectable target; session + tab pickers in the dashboard; input proven to drive the *selected* tab |
 | **tab lifecycle** | **fixed + verified**: no stray `about:blank` on launch (`--no-startup-window`); leases are server-held so the tab list survives a reload; per-agent stable CDP tokens; optional per-tab start URL |

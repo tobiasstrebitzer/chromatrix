@@ -118,11 +118,32 @@ export class CdpGatewayService {
 
   // ── Provisioning (the MCP/management surface calls these) ───────────────────────────────────────────────
 
+  /**
+   * Create the identity's profile dir. Does NOT launch Chrome — creating and starting are separate verbs so a
+   * session can rest stopped between runs (see `startIdentity`).
+   *
+   * Rejects an id that already exists rather than quietly succeeding: `mkdir -p` semantics would silently
+   * adopt another identity's logged-in profile, which looks like "created" and behaves like "took over".
+   */
   createIdentity(id: string): { id: string; profileDir: string } {
     assertValidIdentityId(id)
+    if (this.orchestrator.registry.exists(id)) {
+      throw new Error(`identity "${id}" already exists`)
+    }
     const identity = this.orchestrator.createIdentity(id)
     this.log.log(`created identity "${id}" → ${identity.profileDir}`)
     return { id: identity.id, profileDir: identity.profileDir }
+  }
+
+  /**
+   * Stop the identity and delete its profile dir. Irreversible — this is the one call that destroys the
+   * signed-in session, so the dashboard gates it behind a type-the-id confirmation.
+   */
+  async deleteIdentity(id: string): Promise<void> {
+    assertValidIdentityId(id)
+    await this.stopIdentity(id) // releases the mux + tokens, SIGTERMs Chrome, frees the profile lock
+    await this.orchestrator.deleteIdentity(id) // stop is idempotent; this one also removes the dir
+    this.log.log(`deleted identity "${id}"`)
   }
 
   async startIdentity(id: string, opts: { headless?: boolean } = {}): Promise<SessionInfo> {
@@ -140,8 +161,12 @@ export class CdpGatewayService {
   }
 
   /**
-   * Running sessions, each with the tabs it currently leases. The leases live in the TabPool (the gateway is
-   * the source of truth), so a dashboard reload re-renders the real tab list instead of an empty one.
+   * Every session — running *and* stopped — each with the tabs it currently leases. The leases live in the
+   * TabPool (the gateway is the source of truth), so a dashboard reload re-renders the real tab list instead
+   * of an empty one.
+   *
+   * A stopped session short-circuits: it has no Chrome to ask, so it costs no CDP round trip and reports no
+   * tabs. It still appears in the list, because its profile dir is exactly what makes it resumable.
    *
    * Each lease is enriched with the target's live `url`/`title` — the TabPool deliberately doesn't track those
    * (a tab's URL is the agent's business, and it changes without telling us), so they're read per call. That
@@ -152,6 +177,7 @@ export class CdpGatewayService {
   async listSessions(): Promise<SessionView[]> {
     return Promise.all(
       this.orchestrator.listSessions().map(async (s) => {
+        if (s.state !== 'running') return { ...s, leases: [] }
         const targets = await this.listTargets(s.identity).catch(() => [] as TargetView[])
         const byTarget = new Map(targets.map((t) => [t.targetId, t]))
         const leases = this.listTabs(s.identity).map((tab) => ({

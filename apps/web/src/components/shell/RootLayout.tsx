@@ -23,7 +23,10 @@ export function RootLayout() {
   const activeId =
     [...NAV].sort((a, b) => b.path.length - a.path.length).find((n) => pathname.startsWith(n.path))?.id ??
     'sessions'
-  const items = NAV.map((n) => (n.id === 'sessions' ? { ...n, count: sessions?.length } : n))
+  // Counted, not `sessions.length`: the list now includes stopped sessions too, so the total would overstate
+  // how much is actually live. The nav badge and the footer both mean "running right now".
+  const running = sessions?.filter((s) => s.state === 'running').length
+  const items = NAV.map((n) => (n.id === 'sessions' ? { ...n, count: running } : n))
   const activeLabel = NAV.find((n) => n.id === activeId)?.label ?? 'chromatrix'
 
   return (
@@ -40,7 +43,7 @@ export function RootLayout() {
         // we're still waiting for the first one.
         <div className='flex items-center gap-2 text-label text-muted-foreground'>
           <span className={cn('size-1.5 shrink-0 rounded-full', sessions ? 'bg-success' : 'bg-warning')} />
-          <span className='truncate font-mono'>{sessions ? `${sessions.length} running` : 'connecting…'}</span>
+          <span className='truncate font-mono'>{sessions ? `${running} running` : 'connecting…'}</span>
         </div>
       }>
       <Outlet />

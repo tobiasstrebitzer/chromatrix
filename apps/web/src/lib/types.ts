@@ -3,11 +3,18 @@
 // call boundary in lib/useGateway.ts. Keep in sync with @chromatrix/core SessionInfo + the gateway's
 // AllocatedTab.
 
+/**
+ * A session's lifecycle state. `stopped` is a resting state a long-lived session sits in between runs — the
+ * identity and its logged-in profile still exist on disk, so it appears in the list and can be started again.
+ */
+export type SessionState = 'running' | 'starting' | 'stopped'
+
 export interface SessionInfo {
   identity: string
   profileDir: string
-  state: string
+  state: SessionState
   tabs: number
+  /** Empty unless the session is running. */
   browserWsUrl: string
   /** The tabs this identity currently leases. Server-held, so a page reload re-renders the real list. */
   leases: AllocatedTab[]
