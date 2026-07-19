@@ -97,6 +97,14 @@ them via takeover and the resulting session persists.
    with **exclusive** per-agent leasing; a single-writer lock per profile.
 4. **Persistence** = the platform owns durability via the profile dir; close persistent Chrome with SIGTERM so
    cookies flush; clean stale `Singleton*` locks on reattach.
+5. **Viewport size is a real window, not an emulation override** (measured 2026-07-19). Each tab opens with
+   `newWindow: true` and is sized with `Browser.setWindowBounds` plus a per-window chrome delta measured via
+   `Page.getLayoutMetrics` — exact in one correction step, headed and headless, with nothing executed inside
+   the page. `Emulation.setDeviceMetricsOverride` was measured side by side and rejected: it yields
+   `inner 800×600` within `outer 640×480`, a viewport larger than its own window and therefore a state no real
+   display can produce. **Cost of the honest path:** Chrome won't make a window smaller than 500×375 outer
+   (500×288 content), so **phone-width viewports are out of reach** — a real constraint we accept rather than
+   fake, consistent with §0.
 
 ## Gateway (built — these findings are now realized in `apps/gateway`)
 

@@ -4,26 +4,26 @@ import { cn } from '@/lib/utils'
 
 // Native button styled with the chromatrix tokens (adapted from the gtm base-ui Button, made dependency-free).
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        // Primary CTA carries the only flourish the brand allows: the accent glow. Hover lifts toward
-        // accent-hover, never darker.
-        default: 'bg-primary text-primary-foreground shadow-(--shadow-glow) hover:bg-accent-hover',
-        outline: 'border-border bg-background shadow-xs hover:bg-muted hover:text-foreground',
+        // The primary action is the canvas inverted — near-white on dark, near-black on light. No glow, no
+        // brand hue: contrast alone is what makes it read as primary, and it leaves colour free for state.
+        default: 'bg-primary text-primary-foreground hover:bg-accent-hover',
+        outline: 'border-border bg-surface hover:border-border-strong hover:bg-surface-hover',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-surface-hover',
-        ghost: 'hover:bg-muted hover:text-foreground',
-        destructive: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
+        ghost: 'text-fg-2 hover:bg-surface-hover hover:text-foreground',
+        destructive: 'text-danger hover:bg-danger-bg',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        'default': 'h-9 gap-1.5 px-2.5',
-        'xs': "h-6 gap-1 rounded-[min(var(--radius-md),8px)] px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
-        'sm': 'h-8 gap-1 rounded-[min(var(--radius-md),10px)] px-2.5',
-        'lg': 'h-10 gap-1.5 px-2.5',
-        'icon': 'size-9',
-        'icon-sm': 'size-8 rounded-[min(var(--radius-md),10px)]',
+        'default': 'h-8 gap-1.5 px-3',
+        'xs': "h-6 gap-1 px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
+        'sm': 'h-7 gap-1 px-2.5 text-xs',
+        'lg': 'h-9 gap-1.5 px-3.5',
+        'icon': 'size-8',
+        'icon-sm': 'size-7',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

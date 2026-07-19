@@ -9,7 +9,22 @@ import { startGateway } from './bootstrap.ts'
 // Per-socket 'error' handlers are the first line (see cdp/, takeover/, @chromatrix/cdp); this net catches
 // anything they miss, LOGS the full stack so nothing is hidden, and keeps serving. Deliberately NOT in
 // bootstrap.ts — the e2e drivers run there and must still fail loudly on real bugs.
-process.on('uncaughtException', (err) => console.error('[gateway] uncaughtException — kept alive:', err))
+//
+// EXCEPTION: a failed `listen` is fatal. Keeping the process alive after EADDRINUSE produces the worst
+// possible outcome — the new gateway logs "started" and serves nothing, while an older process on the port
+// answers every request. That reads as "my code change did nothing" and costs a debugging cycle before
+// anyone thinks to check for a second gateway.
+const isFatalBindError = (err: unknown): boolean =>
+  typeof err === 'object' && err !== null && 'syscall' in err && (err as { syscall?: string }).syscall === 'listen'
+
+process.on('uncaughtException', (err) => {
+  if (isFatalBindError(err)) {
+    console.error('[gateway] fatal — could not bind:', err)
+    console.error('[gateway] another gateway is probably already running on this port.')
+    process.exit(1)
+  }
+  console.error('[gateway] uncaughtException — kept alive:', err)
+})
 process.on('unhandledRejection', (err) => console.error('[gateway] unhandledRejection — kept alive:', err))
 
 const handle = await startGateway()

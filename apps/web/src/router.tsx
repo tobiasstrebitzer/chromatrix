@@ -1,6 +1,7 @@
 import { createHashHistory, createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { RootLayout } from './components/shell/RootLayout'
 import { SessionsView } from './views/SessionsView'
+import { SettingsView } from './views/SettingsView'
 import { TakeoverView } from './views/TakeoverView'
 
 // Hash history: the dashboard is served as a static bundle by the gateway (no server-side SPA fallback for
@@ -31,15 +32,33 @@ const takeoverIndexRoute = createRoute({
 const takeoverIdentityRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/takeover/$identity',
+  // `?target=` lets Sessions link straight to the tab whose thumbnail was clicked, instead of dropping the
+  // human on whichever tab the hub happened to attach to.
+  validateSearch: (search: Record<string, unknown>): { target?: string } => ({
+    target: typeof search.target === 'string' && search.target ? search.target : undefined,
+  }),
   component: TakeoverRouteView,
 })
 
 function TakeoverRouteView() {
   const { identity } = takeoverIdentityRoute.useParams()
-  return <TakeoverView identity={identity} />
+  const { target } = takeoverIdentityRoute.useSearch()
+  return <TakeoverView identity={identity} target={target} />
 }
 
-const routeTree = rootRoute.addChildren([indexRoute, sessionsRoute, takeoverIndexRoute, takeoverIdentityRoute])
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: SettingsView,
+})
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  sessionsRoute,
+  takeoverIndexRoute,
+  takeoverIdentityRoute,
+  settingsRoute,
+])
 
 export const router = createRouter({ routeTree, history: createHashHistory() })
 

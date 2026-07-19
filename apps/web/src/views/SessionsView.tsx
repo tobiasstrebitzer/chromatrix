@@ -1,54 +1,141 @@
 import * as React from 'react'
-import { Activity, Check, Copy, Play, Plus, Square, X } from 'lucide-react'
+import { AlertTriangle, Play, Plus, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { gateway } from '@/lib/useGateway'
+import { fitTakeoverViewport } from '@/lib/viewportFit'
+import { usePollTick } from '@/lib/usePollTick'
+import { usePersistedState } from '@/lib/usePersistedState'
 import { useSessionsContext } from '@/lib/sessionsContext'
-import type { AllocatedTab, SessionInfo } from '@/lib/types'
-import { Badge } from '@/components/ui/Badge'
+import type { GatewaySettings } from '@/lib/types'
+import { toast } from '@/components/ui/Sonner'
 import { Button } from '@/components/ui/Button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
+import { SessionRow } from '@/components/sessions/SessionRow'
 
-// Sessions dashboard — the provisioning surface as a UI. Start an identity (a real headed Chrome), then per
-// running identity lease exclusive tabs for named agents; each lease hands back the scoped, single-use CDP
-// URL an agent connects to. Mirrors the gateway's tRPC actions (see lib/useGateway.ts).
+/** How often tab thumbnails refresh. One CDP screenshot per visible tab per tick — cheap, but not free. */
+const THUMBNAIL_POLL_MS = 5000
+
+/**
+ * Sessions — provisioning *and* monitoring in one surface.
+ *
+ * Each identity is a full-width row; expanding it shows its leased tabs as cards carrying a live screenshot,
+ * so this page answers "what are my agents actually looking at right now" without a trip to takeover. The
+ * thumbnails are polled stills rather than a screencast on purpose: a screencast is repaint-driven and
+ * needs the tab composited/foregrounded, which is fine for one focused tab and wrong for a whole grid.
+ */
 export function SessionsView() {
   const { sessions, error, refresh } = useSessionsContext()
-  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  const navigate = useNavigate()
+  const tick = usePollTick(THUMBNAIL_POLL_MS)
 
-  const flash = (msg: string) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(undefined), 3500)
+  const [failure, setFailure] = React.useState<string | undefined>(undefined)
+  const [busy, setBusy] = React.useState<string | undefined>(undefined)
+  const [collapsed, setCollapsed] = usePersistedState<string[]>('chromatrix.sessions.collapsed', [], (v) =>
+    Array.isArray(v),
+  )
+  // Read once: the dashboard needs to know whether a global default viewport exists before it offers its own
+  // fit-the-pane size for new tabs.
+  const [settings, setSettings] = React.useState<GatewaySettings | undefined>(undefined)
+  React.useEffect(() => {
+    void gateway.getSettings().then(setSettings, () => setSettings({}))
+  }, [])
+
+  // Confirmations are transient and go to a toast; failures stay on the page until dismissed or superseded.
+  // Auto-hiding a real error is how you lose the only explanation of why something didn't work, so a failed
+  // mutation is deliberately NOT a toast.
+  const flash = (msg: string) => toast(msg)
+  const fail = (e: unknown) => setFailure(e instanceof Error ? e.message : String(e))
+
+  const run = async (key: string, fn: () => Promise<void>) => {
+    if (busy) return
+    setBusy(key)
+    setFailure(undefined)
+    try {
+      await fn()
+      await refresh()
+    } catch (e) {
+      fail(e)
+    } finally {
+      setBusy(undefined)
+    }
   }
-  const fail = (e: unknown) => flash((e as Error).message)
+
+  const toggle = (identity: string) =>
+    setCollapsed((prev) => (prev.includes(identity) ? prev.filter((i) => i !== identity) : [...prev, identity]))
+
+  const goTakeover = (identity: string, targetId?: string) =>
+    void navigate({ to: '/takeover/$identity', params: { identity }, search: targetId ? { target: targetId } : {} })
 
   return (
-    <div className='mx-auto w-full max-w-5xl px-6 py-6'>
-      <header className='mb-5'>
-        <h1 className='text-display-sm font-semibold text-text'>Sessions</h1>
-        <p className='mt-1 text-body-sm text-muted-foreground'>
-          One real headed Chrome per identity. Start one, then lease exclusive tabs for your agents.
-        </p>
+    <div className='mx-auto w-full max-w-7xl px-6 py-6'>
+      <header className='mb-4 flex items-end justify-between gap-4'>
+        <div>
+          <h1 className='text-display-sm font-semibold tracking-tight text-text'>Sessions</h1>
+          <p className='mt-1 text-body-sm text-muted-foreground'>
+            One real Chrome per identity. Lease exclusive tabs for your agents and watch what they're doing.
+          </p>
+        </div>
       </header>
 
-      {(notice || error) && (
-        <div className='mb-4 rounded-md border border-danger/30 bg-danger-bg px-3 py-2 text-body-sm text-danger'>
-          {notice ?? `Gateway unreachable: ${error}`}
-        </div>
-      )}
+      {error && <Banner>{`Gateway unreachable — ${error}`}</Banner>}
+      {failure && <Banner onDismiss={() => setFailure(undefined)}>{failure}</Banner>}
 
-      <StartIdentityForm onDone={refresh} onError={fail} onNotice={flash} />
-
-      <div className='mt-6'>
+      <div>
         {sessions === undefined ? (
-          <p className='text-body-sm text-muted-foreground'>Loading sessions…</p>
-        ) : sessions.length === 0 ? (
-          <EmptyState />
+          <Placeholder>Loading sessions…</Placeholder>
         ) : (
-          <div className='grid gap-4 md:grid-cols-2'>
+          <div className='divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface'>
             {sessions.map((s) => (
-              <SessionCard key={s.identity} session={s} onNotice={flash} onError={fail} afterMutate={refresh} />
+              <SessionRow
+                key={s.identity}
+                session={s}
+                expanded={!collapsed.includes(s.identity)}
+                onToggle={() => toggle(s.identity)}
+                tick={tick}
+                busy={busy === `tab:${s.identity}`}
+                onTakeover={(targetId) => goTakeover(s.identity, targetId)}
+                onHealth={() =>
+                  void run(`health:${s.identity}`, async () => {
+                    const h = await gateway.health(s.identity)
+                    flash(`${s.identity}: ${h.product}`)
+                  })
+                }
+                onStop={() =>
+                  void run(`stop:${s.identity}`, async () => {
+                    await gateway.stopIdentity(s.identity)
+                    flash(`Stopped “${s.identity}”.`)
+                  })
+                }
+                onAllocate={(agentId, url) =>
+                  void run(`tab:${s.identity}`, async () => {
+                    // Size precedence lives on the gateway (explicit → global default → Chrome's own). The
+                    // dashboard only supplies the fit-the-takeover-pane size, and only when no global default
+                    // exists — otherwise it would silently outrank the user's setting.
+                    await gateway.allocateTab(
+                      s.identity,
+                      agentId,
+                      url,
+                      settings?.defaultViewport ? undefined : fitTakeoverViewport(),
+                    )
+                  })
+                }
+                onRelease={(targetId) =>
+                  void run(`release:${s.identity}`, async () => {
+                    await gateway.releaseTab(s.identity, targetId)
+                  })
+                }
+              />
             ))}
+            <StartIdentityRow
+              busy={busy === 'start'}
+              onStart={(id, headless) =>
+                run('start', async () => {
+                  await gateway.createIdentity(id)
+                  await gateway.startIdentity(id, headless)
+                  flash(`Started “${id}”.`)
+                })
+              }
+            />
           </div>
         )}
       </div>
@@ -56,252 +143,81 @@ export function SessionsView() {
   )
 }
 
-function StartIdentityForm({
-  onDone,
-  onError,
-  onNotice,
+/**
+ * A failure that stays put. Transient confirmations are toasts (see Sonner); this is only for things the user
+ * needs to still be able to read a minute later — a mutation that failed, or a gateway we can't reach.
+ */
+function Banner({ onDismiss, children }: { onDismiss?: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      role='alert'
+      className='mb-3 flex items-start gap-2 rounded-md border border-danger/25 bg-danger-bg px-3 py-2 text-body-sm text-danger'>
+      <AlertTriangle className='mt-0.5 shrink-0' />
+      <span className='min-w-0 flex-1 break-words'>{children}</span>
+      {onDismiss && (
+        <button type='button' onClick={onDismiss} aria-label='Dismiss' className='shrink-0 opacity-70 hover:opacity-100'>
+          <X className='size-4' />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Placeholder({ children }: { children: React.ReactNode }) {
+  return (
+    <div className='rounded-lg border border-dashed border-border px-6 py-12 text-center'>
+      <p className='text-body-sm text-muted-foreground'>{children}</p>
+    </div>
+  )
+}
+
+/**
+ * The last row of the session list: start a new identity. Deliberately shaped like the "New tab" placeholder
+ * card one level down — the next empty slot in the list you're already reading, rather than a separate form
+ * above it. Starting an identity is a two-call sequence (create, then start); that's the gateway's business,
+ * so here it is one button.
+ */
+function StartIdentityRow({
+  busy,
+  onStart,
 }: {
-  onDone: () => Promise<void>
-  onError: (e: unknown) => void
-  onNotice: (msg: string) => void
+  busy: boolean
+  onStart: (id: string, headless: boolean) => void
 }) {
   const [id, setId] = React.useState('')
   const [headless, setHeadless] = React.useState(true)
-  const [busy, setBusy] = React.useState(false)
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = id.trim()
-    if (!trimmed || busy) return
-    setBusy(true)
-    try {
-      await gateway.createIdentity(trimmed)
-      await gateway.startIdentity(trimmed, headless)
-      onNotice(`Started “${trimmed}”.`)
-      setId('')
-      await onDone()
-    } catch (e) {
-      onError(e)
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
-    <Card>
-      <CardContent className='pt-4'>
-        <form onSubmit={submit} className='flex flex-wrap items-center gap-3'>
-          <div className='min-w-52 flex-1'>
-            <Input
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder='identity id  (lowercase slug, e.g. acme-1)'
-              className='font-mono'
-              name='identityId'
-              aria-label='Identity id'
-            />
-          </div>
-          <label className='flex select-none items-center gap-2 text-body-sm text-fg-2'>
-            <input type='checkbox' checked={headless} onChange={(e) => setHeadless(e.target.checked)} className='size-4 accent-accent' />
-            headless
-          </label>
-          <Button type='submit' disabled={busy || !id.trim()}>
-            <Play />
-            {busy ? 'Starting…' : 'Start identity'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
-/** The next unused `agent-N` for this identity, so repeated "+ Tab" clicks don't all land on agent-1. */
-function nextAgentId(tabs: AllocatedTab[]): string {
-  const taken = new Set(tabs.map((t) => t.agentId))
-  for (let n = 1; ; n++) {
-    const candidate = `agent-${n}`
-    if (!taken.has(candidate)) return candidate
-  }
-}
-
-function SessionCard({
-  session,
-  onNotice,
-  onError,
-  afterMutate,
-}: {
-  session: SessionInfo
-  onNotice: (msg: string) => void
-  onError: (e: unknown) => void
-  afterMutate: () => Promise<void>
-}) {
-  const navigate = useNavigate()
-  const tabs = session.leases
-  const [agentId, setAgentId] = React.useState('')
-  const [url, setUrl] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
-  const suggestedAgent = nextAgentId(tabs)
-
-  const allocate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const agent = agentId.trim() || suggestedAgent
-    if (busy) return
-    setBusy(true)
-    try {
-      await gateway.allocateTab(session.identity, agent, url.trim() || undefined)
-      setAgentId('')
-      setUrl('')
-      await afterMutate()
-    } catch (e) {
-      onError(e)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const release = async (targetId: string) => {
-    try {
-      await gateway.releaseTab(session.identity, targetId)
-      await afterMutate()
-    } catch (e) {
-      onError(e)
-    }
-  }
-
-  const stop = async () => {
-    try {
-      await gateway.stopIdentity(session.identity)
-      onNotice(`Stopped “${session.identity}”.`)
-      await afterMutate()
-    } catch (e) {
-      onError(e)
-    }
-  }
-
-  const health = async () => {
-    try {
-      const h = await gateway.health(session.identity)
-      onNotice(`${session.identity}: ${h.product}`)
-    } catch (e) {
-      onError(e)
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className='min-w-0'>
-          <CardTitle className='flex items-center gap-2 font-mono'>
-            <span className='size-2 rounded-full' style={{ background: 'var(--chroma-gradient)' }} />
-            <span className='truncate'>{session.identity}</span>
-          </CardTitle>
-          <p className='mt-1 truncate text-label text-muted-foreground' title={session.profileDir}>
-            {session.profileDir}
-          </p>
-        </div>
-        <StateBadge state={session.state} />
-      </CardHeader>
-      <CardContent className='space-y-3'>
-        <div className='flex items-center gap-2 text-label text-muted-foreground'>
-          <span>{session.tabs} leased tab{session.tabs === 1 ? '' : 's'}</span>
-          <span className='text-border-strong'>·</span>
-          <span className='truncate font-mono' title={session.browserWsUrl}>
-            {session.browserWsUrl.replace(/^ws:\/\//, '')}
-          </span>
-        </div>
-
-        {tabs.length > 0 && (
-          <ul className='space-y-1.5'>
-            {tabs.map((t) => (
-              <li key={t.targetId} className='rounded-md border border-border bg-bg px-2.5 py-1.5'>
-                <div className='flex items-center gap-2'>
-                  <Badge variant='accent' mono>{t.agentId}</Badge>
-                  <span className='truncate font-mono text-label text-muted-foreground' title={t.targetId}>
-                    {t.targetId.slice(0, 12)}
-                  </span>
-                  <div className='ml-auto flex items-center gap-1'>
-                    <CopyButton value={t.cdpUrl} />
-                    <Button variant='ghost' size='icon-sm' aria-label='Release tab' title='Release tab' onClick={() => release(t.targetId)}>
-                      <X />
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form onSubmit={allocate} className='space-y-2'>
-          <div className='flex items-center gap-2'>
-            <Input
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              placeholder={suggestedAgent}
-              className='h-8 font-mono'
-              name='agentId'
-              aria-label='Agent id'
-            />
-            <Button type='submit' variant='secondary' size='sm' disabled={busy}>
-              <Plus />
-              {busy ? '…' : 'Tab'}
-            </Button>
-          </div>
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder='start url (optional) — about:blank'
-            className='h-8 font-mono'
-            name='startUrl'
-            aria-label='Start URL'
-          />
-        </form>
-
-        <div className='flex items-center gap-1.5 border-t border-border pt-3'>
-          <Button variant='outline' size='sm' onClick={() => void navigate({ to: '/takeover/$identity', params: { identity: session.identity } })}>
-            Takeover
-          </Button>
-          <Button variant='ghost' size='sm' onClick={health}>
-            <Activity />
-            Health
-          </Button>
-          <Button variant='destructive' size='sm' className='ml-auto' onClick={stop}>
-            <Square />
-            Stop
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function StateBadge({ state }: { state: string }) {
-  if (state === 'running') return <Badge variant='success' dot>running</Badge>
-  if (state === 'starting') return <Badge variant='warning' dot>starting</Badge>
-  return <Badge variant='neutral' dot>{state}</Badge>
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = React.useState(false)
-  return (
-    <Button
-      variant='ghost'
-      size='icon-sm'
-      aria-label='Copy scoped CDP URL'
-      title='Copy scoped CDP URL'
-      onClick={() => {
-        void navigator.clipboard?.writeText(value)
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 1200)
-      }}>
-      {copied ? <Check className='text-success' /> : <Copy />}
-    </Button>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className='rounded-lg border border-dashed border-border-light bg-surface px-6 py-12 text-center'>
-      <p className='text-body-sm text-muted-foreground'>No running sessions. Start an identity above to launch its Chrome.</p>
-    </div>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        const trimmed = id.trim()
+        if (!trimmed || busy) return
+        onStart(trimmed, headless)
+        setId('')
+      }}
+      className='flex flex-wrap items-center gap-2 bg-bg px-3 py-2.5'>
+      <Plus className='size-4 shrink-0 text-fg-4' aria-hidden />
+      <Input
+        value={id}
+        onChange={(e) => setId(e.target.value)}
+        placeholder='new identity id — lowercase slug, e.g. acme-1'
+        className='min-w-56 flex-1 font-mono'
+        aria-label='New identity id'
+      />
+      <label className='flex shrink-0 select-none items-center gap-2 text-body-sm text-fg-2'>
+        <input
+          type='checkbox'
+          checked={headless}
+          onChange={(e) => setHeadless(e.target.checked)}
+          className='size-4 accent-[var(--accent)]'
+        />
+        headless
+      </label>
+      <Button type='submit' disabled={busy || !id.trim()}>
+        <Play />
+        {busy ? 'Starting…' : 'Start session'}
+      </Button>
+    </form>
   )
 }

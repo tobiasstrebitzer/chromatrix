@@ -4,30 +4,38 @@ Updated after the dashboard/takeover fix pass (2026-07-19). Read [`CLAUDE.md`](.
 [`FINDINGS.md`](FINDINGS.md) → [`PRD.md`](PRD.md) first (start with **PRD §0 — Responsible use**); this doc is
 "what to build next and how".
 
-## ▶ Next session: UI/UX pass on `apps/web`
+## Design-system + Sessions UX pass (2026-07-19, later session)
 
-The dashboard is now *functionally* correct (sessions persist, tabs are server-held, takeover has session +
-tab pickers). The next pass is **UI/UX quality**, not new plumbing. Known rough edges, roughly in priority
-order:
+The dashboard was rebuilt visually and the Sessions view became a **management *and* monitoring** surface.
+All of it was driven in a real browser via `chrome-devtools-mcp` against real Chrome, not eyeballed in code.
 
-1. **Takeover is the product's showcase and looks like a debug tool.** The toolbar is two bare `<select>`s
-   plus a frame count. Wants: proper tab strip (favicon + title + agent badge, close/release inline), a real
-   connection state, fit-to-width vs 1:1 zoom, and a keyboard-focus affordance (today you must click the
-   frame first for keystrokes to land — undiscoverable).
-2. **No loading/disabled states on mutations.** "+ Tab", Stop, Release fire with no optimistic feedback; the
-   2.5 s poll is what eventually reflects reality, so the UI feels laggy. Consider invalidate-on-mutate.
-3. **Errors are a single red banner that auto-hides after 3.5 s** — fine for "started X", wrong for a real
-   failure. Split transient toasts from sticky errors.
-4. **Session card density.** Profile dir + browser WS URL are long mono strings that dominate the card; the
-   tab list has no URL/title, only a truncated targetId. Now that `listTargets` exists, show real titles.
-5. **Empty/edge states.** No tabs, identity starting, gateway unreachable, and "identity in the URL isn't
-   running" all render thin or oddly.
-6. **A11y + polish.** Selects need visible labels; the live-view `<img>` is the focus target for input, which
-   needs an explicit affordance. No dark/light QA pass has been done on the takeover view.
+- **Achromatic design system.** Retuned `styles/tokens.css` against the live Vercel dashboard (values pulled
+  by evaluating computed styles, not guessed): canvas `#000`, surfaces *lighter* than canvas (`#0a0a0a`),
+  hairline `#1f1f1f` borders, 6px radii, 32px controls. **No brand hue** — `--accent` is the inverse of the
+  canvas, so a primary button is near-white on dark / near-black on light and **colour means state**. The
+  five-stop "chroma" spectrum, the accent glow, and the `Badge` `chroma` variant are all gone.
+- **New mark.** A 3×3 grid with the leading diagonal lit — the *identity matrix*. Pure `currentColor`, no
+  gradient, no plate, so it inverts with the theme; the favicon carries its own black plate because browser
+  chrome isn't ours to theme.
+- **Sessions as rows, tabs as cards.** Each identity is a collapsible full-width row (heading + state, with
+  Takeover / Health / Stop on the right); expanding shows its tabs as cards carrying a **live screenshot
+  refreshed every 5 s**. `about:blank` renders "No URL loaded / inactive" instead of a dead frame; a
+  same-sized dashed **"New tab"** placeholder card ends the grid; clicking a thumbnail deep-links to takeover
+  **on that tab** (`?target=`, wired through `router.tsx` → `TakeoverView`).
+- **Notices split.** Transient confirmations auto-hide; real failures are sticky and dismissible (they used to
+  share one red banner that vanished after 3.5 s).
 
-Useful context for that work: the design system is ported from gtm (CSS-variable tokens in
-`src/styles`, `cn()` with an extended tailwind-merge), and `chrome-devtools-mcp` is wired in `.mcp.json` —
-drive the real dashboard with it rather than guessing (`pnpm dev`, then navigate the gateway origin).
+### Still open on the UI
+
+1. **Takeover still looks like a debug tool** — two bare `<select>`s plus a frame count. Wants a real tab
+   strip (favicon + title + agent badge, close/release inline), fit-to-width vs 1:1 zoom, and a keyboard-focus
+   affordance (today you must click the frame first for keystrokes to land — undiscoverable).
+2. **Mutations have a single global `busy` key**, so any in-flight action disables the others and there is no
+   per-control spinner. Fine at this fleet size; revisit if it starts to feel laggy.
+3. **Empty/edge states** beyond "no sessions" are still thin: identity starting, gateway unreachable mid-poll,
+   and "identity in the URL isn't running".
+4. **`listSessions` now costs one `Target.getTargets` per identity per poll** (2.5 s) to enrich leases with
+   live url/title. Cheap today; if the fleet grows, cache it or push instead of polling.
 
 ## Dashboard + takeover fixes (2026-07-19 session)
 
@@ -159,8 +167,8 @@ Follow-ups worth doing on the web app next:
   currently open on loopback. Add before exposing over Tailscale.
 - Token lifecycle: tokens live until `stopIdentity` and are now **one per (identity, agentId)** (stable, so a
   reloaded dashboard can hand back a working `cdpUrl`). Add release/expiry if agents churn a lot.
-- **Make a failed `listen` fatal.** `main.ts`'s uncaught-exception net currently keeps the process alive after
-  `EADDRINUSE`, so a second gateway "starts" but serves nothing. Fail fast on bind errors.
+- ~~**Make a failed `listen` fatal.**~~ **Done** — `main.ts` now exits 1 on a `listen` syscall failure instead
+  of letting the resilience net swallow `EADDRINUSE`.
 
 ## Open threads (carry-over)
 
@@ -183,6 +191,140 @@ Follow-ups worth doing on the web app next:
 - **Prod hardening (deferred to Mac mini):** LaunchAgent `KeepAlive` under auto-login (headed needs an Aqua GUI
   session), attach a display / dummy-HDMI so the GPU engages, Tailscale-served endpoints, per-identity profile
   location strategy.
+
+## Per-tab viewport control (2026-07-19, later session)
+
+Tabs are now individually sizable, and the mechanism was chosen by measurement rather than by preference.
+
+- **Every tab is its own browser window** (`Target.createTarget { newWindow: true }` in `TabPool.lease`). This
+  is what makes viewport a *per-tab* property at all: window bounds are per-window, so tabs sharing a window
+  would be forced to share a size.
+- **Sized via `Browser.setWindowBounds` + a measured chrome delta.** `setWindowBounds` takes *outer*
+  dimensions, so the gateway reads `Browser.getWindowBounds` and `Page.getLayoutMetrics`, computes the delta
+  for that specific window, and corrects. One step lands it **exactly** (verified headed and headless). The
+  delta is measured, never assumed — it varies with the bookmarks bar, platform and Chrome version.
+- **`Page.getLayoutMetrics`, not `Runtime.evaluate`** — nothing observable executes inside the agent's page.
+- **Rejected: `Emulation.setDeviceMetricsOverride`.** Measured side by side, it produced `inner 800×600`
+  inside `outer 640×480` — a viewport larger than its own window, impossible on real hardware. It's the easy
+  path and it is a fingerprinting tell, so it loses on the one axis this project cares most about.
+- **Floor: 500×288 content (500×375 outer).** Chrome silently clamps below that. Consequence worth knowing:
+  **phone-width viewports are not reachable** without the emulation override we rejected. The API answers with
+  the size actually achieved, and the UI surfaces "clamped to …" rather than echoing the request back.
+- **Surfaces**: takeover toolbar gets width/height + an auto-fit button that measures the live pane; a global
+  default lives in **Settings** (`POST /api/settings/default-viewport`, persisted to `.profiles/settings.json`)
+  so it applies to agents allocating over MCP too. Precedence: explicit → global default → Chrome's own.
+  With no default set, the *dashboard* sizes new tabs to fill the takeover pane (measured on the takeover view
+  and remembered in localStorage; estimated from shell constants before the first visit).
+
+Verified end-to-end in a real browser: exact sizing, honest clamping, per-tab independence through the tab
+picker, global default outranking the fit, and `run accept` (5/5) + `run e2e` (9/9) still green with 8 tabs in
+8 windows.
+
+## Animated Logo + Takeover controls (2026-07-19)
+
+**Logo** (`components/brand/Logo.tsx`) is now the primary brand asset and is animated by one rAF controller.
+
+- **Why not CSS**: each mode is expressible in CSS, but the *transitions between* them are not — swapping
+  `animation-name` snaps the element to the new animation's start value, which is the hard cut we were
+  trying to remove. The controller keeps every mode as a continuous target and eases toward it, so
+  default → activity → hover blend in any order, mid-flight.
+- **The key trick: ease the phase, not the position.** Cell positions are read straight off the ring path.
+  Consecutive ring waypoints differ on exactly one axis, so any interpolated point is axis-aligned by
+  construction. Easing a *position* toward a moving target would cut corners diagonally; advancing a *phase*
+  along that path cannot. Measured: 149/150 frames moving, max step 0.7px, zero diagonal motion (the one
+  flagged "violation" was a single frame straddling a corner, ≤0.7px split across both axes).
+- **Landing**: when activity ends the orbit runs on to the next *half* revolution rather than stopping
+  mid-segment. The two bright diagonal cells are opposite each other, so half a turn restores a visually
+  identical grid — bounding the wind-down at ~1.2s instead of a full 2.4s revolution.
+- **Modes**: default = opacity shimmer inside per-cell bands (diagonal floor 0.85 vs off-diagonal ceiling
+  0.34, so the diagonal can never be flattened); activity = orbit + damped shimmer + a green tint that each
+  cell re-rolls on its own clock, so only some are green at a time; hover = 1.15× scale plus a colour that
+  keeps re-rolling between greens, the theme foreground and greys (verified: 159 distinct colours on one
+  cell over 3s).
+- **Activity signal**: `lib/activity.ts` — a module-scope counter, `trackActivity()` wraps every user-initiated
+  gateway call. `listSessions` is deliberately **excluded** (2.5s poll would pin it to "busy" forever). There's
+  a 450ms visibility floor so a fast mutation doesn't flash for one frame.
+- Gotcha: React's `onPointerEnter` is synthesised from delegated `pointerover`, so a dispatched
+  `pointerenter` never reaches it. The component uses native listeners — more robust here, and testable.
+
+**Takeover** got the controls it was missing:
+
+- **Tab picker** is now a base-ui `Select` (`components/ui/Select.tsx`, ported from gtm's). A native
+  `<select>` can only render one flat string per row, which forced the old `[agent-1] Title` mash-up; the
+  popup shows agent badge, page title and URL as three distinct fields.
+- **Address field** — `POST /api/tab/navigate` (`Page.navigate`, resolves on *commit*, not load, so a
+  never-idle page can't hang it). The screencast contains no browser chrome, so without this a human in
+  takeover could watch a tab but never steer it. Bare hostnames get `https://` prefixed.
+- **Light mode fix**: the viewer stage was a hardcoded `bg-black/95` — correct only in dark, a hole punched
+  through the page in light. Now `--bg-code`, a recessed well in both themes.
+- **Blank tabs** render the same "No URL loaded / inactive" state as the Sessions cards, extracted to
+  `components/ui/BlankTab.tsx` so the two can't drift.
+
+## Inset shell + icon rail (2026-07-19)
+
+Ported the "inset view" and collapsible icon bar from **gtm** (`/Users/atomic/projects/mini/gtm`, whose
+`AppShell`/`Sidebar`/`frame-shine` are the reference implementation).
+
+- **Inset frame.** Root is `bg-sidebar` (the canvas); the top bar + content sit in a `rounded-xl` panel with an
+  8px gutter (`p-2 md:pl-0`, so there's a single gutter between rail and panel, not a double one). Verified:
+  12px radius, 8px top/right/bottom, 0 between rail and panel.
+- **`.frame-shine`** (globals.css) does the panel's fill *and* edge: a transparent 1px border with a 135°
+  `--shine` gradient on `border-box` over a `--bg` fill on `padding-box`. `border-image` can't follow rounded
+  corners, which is why it's done this way. **Adding a `bg-*` utility to the frame breaks it.**
+- **Token polarity flips by theme** — the whole point of the effect. Light: canvas `#f4f4f4`, panel `#fff`.
+  Dark: canvas `#131313`, panel `#000` (canvas *lighter* than panel). New tokens: `--shine`, `--frame-shadow`.
+- **`SidebarRail`** — the collapsed state is now a 48px icon rail (mark, nav icons, expand at the bottom)
+  instead of hiding the nav entirely, so navigation is always reachable. Deliberately a hard component swap,
+  not a width transition: at 48px the labels have nowhere to go and animating just clips them mid-flight.
+- **Header alignment.** Both sidebar and rail offset their header row by `mt-[9px]` — the frame's 8px margin
+  plus its 1px border — so the wordmark optically centres on the framed top bar. In the full sidebar the link
+  carries `pl-1.5` so the 16px mark lands on the same 18px optical line as the nav icons (verified: both at
+  x=18; in the rail both centre on x=24).
+- **Gotcha: `shadow-(--frame-shadow)` silently produced a transparent shadow.** Tailwind composes shadows
+  through `--tw-shadow`, and our token resolved to nothing (the light value is itself a `var()` indirection).
+  The frame's `box-shadow` is now declared inside `.frame-shine`. Computed check is the only way to catch
+  this — it looks fine until you diff it against the reference.
+
+## Toasts (2026-07-19)
+
+`sonner` added to `apps/web` — the single dependency in an otherwise hand-rolled `ui/` kit, and the first
+Radix-adjacent thing in the project. `components/ui/Sonner.tsx` wraps it and is mounted once in `App.tsx`,
+outside the router so a toast survives the navigation that may follow the mutation which fired it.
+
+- **Themed via CSS custom properties, not a `theme` prop.** shadcn's wrapper reads next-themes; we have no
+  such thing — `lib/theme.ts` flips a DOM attribute and holds no React state. Pointing sonner's
+  `--normal-bg`/`--normal-text`/`--normal-border` at our tokens means toasts re-theme automatically with
+  `[data-theme]`, with nothing to keep in sync. Verified in both themes: dark `#0a0a0a`/`#ededed`/`#292929`,
+  light `#fafafa`/`#171717`/`#e0e0e0`, 6px radius, Inter 13px, bottom-right.
+- **Where it's used:** transient confirmations in Sessions (start/stop/health), the viewport clamp notice and
+  resize errors in Takeover (which un-overloads the toolbar's status text), and Settings save/clear.
+- **Where it is deliberately NOT used:** a failed mutation in Sessions and "gateway unreachable" remain
+  **sticky in-page banners**. Auto-hiding the only explanation of why something didn't work is the failure
+  mode toasts are worst at; `Banner` is now danger-only since that's all it's for.
+- Testing note: sonner mounts **lazily** — `[data-sonner-toaster]` is absent from the DOM until the first
+  toast fires, so "is it mounted?" is not a useful check. Default duration is 4s, which is shorter than
+  screenshot round-trip latency when driving via CDP; assert on computed styles rather than trying to catch it
+  in a screenshot.
+
+## Gotchas learned in the design pass (2026-07-19)
+
+- **A failed `listen` is now fatal** (`main.ts`), closing the carry-over hardening item. It cost a real
+  debugging cycle first: a stale gateway held :8830, the new one logged "started" and served nothing, and the
+  *old* build answered every request — which reads exactly like "my code change did nothing".
+
+- **Returning a bare `Buffer` from a Nest handler silently JSON-encodes it.** `/api/tab/screenshot` answered
+  `200` with `{"type":"Buffer","data":[…]}` — a valid response no `<img>` can decode. `file -b` on the curl'd
+  output is what caught it; `curl -w '%{http_code}'` alone would have reported success. Use `StreamableFile`.
+- **`Page.captureScreenshot` works on a backgrounded tab; `Page.startScreencast` does not.** The screencast is
+  repaint-driven and needs the page composited (hence `Target.activateTarget` in the takeover path), but a
+  one-off capture asks for a fresh raster and returns fine — **verified** on a deliberately backgrounded tab,
+  ~13–37 ms, no focus stealing. That difference is what makes a grid of passive thumbnails viable at all.
+- **`CdpClient.send` has no timeout**, so any new command path needs its own or a hung page leaks a pending
+  promise forever. The screenshot path wraps at 4 s and dedupes concurrent captures per target.
+- **An `<img>` whose `src` doesn't change is never re-fetched**, `Cache-Control: no-store` or not — a polled
+  thumbnail needs a cache-busting query param or it silently freezes on frame one.
+- **Swapping `<img src>` directly strobes.** Decode the next frame into a detached `Image` and swap on load,
+  or every tick blanks the whole grid for the duration of the fetch.
 
 ## Gotchas learned this session (2026-07-19)
 

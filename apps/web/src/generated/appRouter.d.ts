@@ -41,6 +41,48 @@ export type AppRouter = TRPCBuiltRouter<TrpcRootTypes, {
       identity: string
       agentId: string
       url?: string | undefined
+      width?: number | undefined
+      height?: number | undefined
+    }
+    output: unknown
+  }>
+  gatewaySetTabViewport: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      identity: string
+      targetId: string
+      width: number
+      height: number
+    }
+    output: unknown
+  }>
+  gatewayNavigateTab: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      identity: string
+      targetId: string
+      url: string
+    }
+    output: unknown
+  }>
+  gatewayGetTabViewport: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      identity: string
+      targetId: string
+    }
+    output: unknown
+  }>
+  gatewayGetSettings: TRPCQueryProcedure<{
+    meta: object
+    input: {}
+    output: unknown
+  }>
+  gatewaySetDefaultViewport: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      width: number
+      height: number
     }
     output: unknown
   }>

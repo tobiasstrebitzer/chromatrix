@@ -28,9 +28,31 @@ export interface AllocatedTab {
   createdAt: string
   /** Scoped, agent-bound raw-CDP endpoint the agent connects to (carries the single-use token). */
   cdpUrl: string
+  /** Live page URL, read from CDP per listSessions call. Absent if the target vanished between polls. */
+  url?: string
+  /** Live page title. Empty string for a page that hasn't set one (e.g. about:blank). */
+  title?: string
 }
 
 export interface HealthResult {
   identity: string
   product: string
 }
+
+/** A tab's content-area size in CSS px. */
+export interface Viewport {
+  width: number
+  height: number
+}
+
+export interface GatewaySettings {
+  /** Applied to new tabs that don't specify a size. Unset = leave Chrome's default alone. */
+  defaultViewport?: Viewport
+}
+
+/**
+ * Chrome's minimum window size, so the UI can clamp before asking rather than showing the user a number the
+ * gateway is about to silently correct. Mirrors MIN_VIEWPORT_* in the gateway service.
+ */
+export const MIN_VIEWPORT_WIDTH = 500
+export const MIN_VIEWPORT_HEIGHT = 288

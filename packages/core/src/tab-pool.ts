@@ -34,13 +34,22 @@ export class TabPool {
     return this.leases.size
   }
 
-  /** Create a fresh tab on the shared default context and lease it exclusively to `agentId`. */
+  /**
+   * Create a fresh tab on the shared default context and lease it exclusively to `agentId`.
+   *
+   * `newWindow: true` puts every tab in its own browser window. That is what makes viewport size a *per-tab*
+   * property: window bounds are per-window, so tabs sharing a window would be forced to share a size. The
+   * alternative — `Emulation.setDeviceMetricsOverride` — is per-target but produces states impossible on real
+   * hardware (a viewport larger than its own window), which is exactly the kind of artifact this project
+   * exists to avoid. See docs/FINDINGS.md.
+   */
   async lease(agentId: string, opts: { url?: string } = {}): Promise<Lease> {
     if (this.leases.size >= this.maxTabs) {
       throw new Error(`identity "${this.identity}" tab cap reached (${this.maxTabs})`)
     }
     const { targetId } = await this.client.send<{ targetId: string }>('Target.createTarget', {
       url: opts.url ?? 'about:blank',
+      newWindow: true,
     })
     const lease: Lease = { identity: this.identity, agentId, targetId, createdAt: new Date().toISOString() }
     this.leases.set(targetId, lease)
