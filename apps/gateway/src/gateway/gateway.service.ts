@@ -34,6 +34,19 @@ interface TokenGrant {
   agentId: string
 }
 
+/** A running identity plus the tabs it currently leases — what the dashboard renders per card. */
+export interface SessionView extends SessionInfo {
+  leases: AllocatedTab[]
+}
+
+/** A live page target in an identity's Chrome, annotated with the agent leasing it (if any). */
+export interface TargetView {
+  targetId: string
+  url: string
+  title: string
+  agentId?: string
+}
+
 @Injectable()
 export class CdpGatewayService {
   private readonly log = new Logger('CdpGateway')
@@ -42,6 +55,8 @@ export class CdpGatewayService {
   private readonly muxes = new Map<string, CdpMux>()
   /** Opaque bearer token → the (identity, agent) it authenticates. The scope is derived live, not stored. */
   private readonly tokens = new Map<string, TokenGrant>()
+  /** Reverse index `identity\0agentId` → token, so an agent keeps ONE stable credential across allocations. */
+  private readonly agentTokens = new Map<string, string>()
 
   /** Public WS origin the scoped cdpUrl is built from (e.g. `ws://127.0.0.1:8830`). Set in main.ts after listen. */
   publicWsOrigin = ''
@@ -78,19 +93,47 @@ export class CdpGatewayService {
     return this.sessionInfo(id)
   }
 
-  listSessions(): SessionInfo[] {
-    return this.orchestrator.listSessions()
+  /**
+   * Running sessions, each with the tabs it currently leases. The leases live in the TabPool (the gateway is
+   * the source of truth), so a dashboard reload re-renders the real tab list instead of an empty one.
+   */
+  listSessions(): SessionView[] {
+    return this.orchestrator.listSessions().map((s) => ({ ...s, leases: this.listTabs(s.identity) }))
   }
 
-  /** Lease a fresh tab for `agentId` under `identity` and mint the scoped URL the agent connects with. */
+  /** The tabs currently leased under `identity`, each with the scoped URL its agent connects on. */
+  listTabs(identity: string): AllocatedTab[] {
+    if (!this.orchestrator.isRunning(identity)) return []
+    return this.orchestrator
+      .session(identity)
+      .tabs.list()
+      .map((lease) => this.describeTab(lease, this.tokenFor(lease.identity, lease.agentId)))
+  }
+
+  /**
+   * Live page targets in an identity's Chrome, annotated with the leasing agent. This is what the takeover
+   * viewer picks from: it lists what a human can actually look at, which is broader than the lease table
+   * (a tab the agent navigated to a popup, say, is still a real page).
+   */
+  async listTargets(identity: string): Promise<TargetView[]> {
+    if (!this.orchestrator.isRunning(identity)) return []
+    const tabs = this.orchestrator.session(identity).tabs
+    const { targetInfos } = await this.controlClient(identity).send<{
+      targetInfos: Array<{ targetId: string; type: string; url: string; title: string }>
+    }>('Target.getTargets')
+    return targetInfos
+      .filter((t) => t.type === 'page' && !t.url.startsWith('devtools://'))
+      .map((t) => ({ targetId: t.targetId, url: t.url, title: t.title, agentId: tabs.get(t.targetId)?.agentId }))
+  }
+
+  /** Lease a fresh tab for `agentId` under `identity` and hand back the scoped URL the agent connects with. */
   async allocateTab(identity: string, agentId: string, opts: { url?: string } = {}): Promise<AllocatedTab> {
     assertValidIdentityId(identity)
     if (!this.muxes.has(identity)) {
       throw new Error(`identity "${identity}" is not running — startIdentity first`)
     }
     const lease = await this.orchestrator.allocateTab(identity, agentId, opts)
-    const token = this.mintToken(identity, agentId)
-    return this.describeTab(lease, token)
+    return this.describeTab(lease, this.tokenFor(identity, agentId))
   }
 
   async releaseTab(identity: string, targetId: string): Promise<void> {
@@ -107,7 +150,12 @@ export class CdpGatewayService {
     assertValidIdentityId(id)
     this.muxes.get(id)?.close()
     this.muxes.delete(id)
-    for (const [token, grant] of this.tokens) if (grant.identity === id) this.tokens.delete(token)
+    for (const [token, grant] of this.tokens) {
+      if (grant.identity === id) {
+        this.tokens.delete(token)
+        this.agentTokens.delete(`${grant.identity}\u0000${grant.agentId}`)
+      }
+    }
     await this.orchestrator.stopIdentity(id)
   }
 
@@ -115,6 +163,7 @@ export class CdpGatewayService {
     for (const mux of this.muxes.values()) mux.close()
     this.muxes.clear()
     this.tokens.clear()
+    this.agentTokens.clear()
     await this.orchestrator.shutdown()
   }
 
@@ -152,9 +201,18 @@ export class CdpGatewayService {
     }
   }
 
-  private mintToken(identity: string, agentId: string): string {
+  /**
+   * The agent's CDP credential. Reused across that agent's allocations rather than minted per tab: an agent
+   * holds one connection for all its tabs (the scope is derived live from the leases), and a stable token is
+   * what lets `listSessions` hand back a working cdpUrl for tabs leased before the page was reloaded.
+   */
+  private tokenFor(identity: string, agentId: string): string {
+    const key = `${identity}\u0000${agentId}` // NUL separates the parts unambiguously
+    const existing = this.agentTokens.get(key)
+    if (existing) return existing
     const token = randomUUID().replaceAll('-', '')
     this.tokens.set(token, { identity, agentId })
+    this.agentTokens.set(key, token)
     return token
   }
 

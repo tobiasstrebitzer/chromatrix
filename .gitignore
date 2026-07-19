@@ -10,3 +10,12 @@ dist/
 .profiles/
 .spike-data/
 *.log
+
+# Secrets — the gateway is env-driven (PORT, VITE_DEV_URL, PUBLIC_WS_ORIGIN, …)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

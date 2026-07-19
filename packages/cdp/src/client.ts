@@ -94,7 +94,8 @@ export class CdpClient {
     })
   }
 
-  private off(method: string, cb: EventListener): void {
+  /** Unsubscribe a listener registered with `on`. Long-lived consumers MUST call this or listeners leak. */
+  off(method: string, cb: EventListener): void {
     this.listeners.get(method)?.delete(cb)
   }
 

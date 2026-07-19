@@ -2,6 +2,7 @@ import * as React from 'react'
 import { MonitorPlay } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useSessionsContext } from '@/lib/sessionsContext'
+import type { TargetSummary } from '@/lib/types'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 
@@ -55,10 +56,14 @@ type Status = 'connecting' | 'live' | 'disconnected'
 
 function Screencast({ identity }: { identity: string }) {
   const navigate = useNavigate()
+  const { sessions } = useSessionsContext()
   const imgRef = React.useRef<HTMLImageElement>(null)
   const wsRef = React.useRef<WebSocket | null>(null)
   const [status, setStatus] = React.useState<Status>('connecting')
   const [frames, setFrames] = React.useState(0)
+  const [waiting, setWaiting] = React.useState<string | null>(null)
+  const [targets, setTargets] = React.useState<TargetSummary[]>([])
+  const [activeTargetId, setActiveTargetId] = React.useState<string | undefined>(undefined)
 
   React.useEffect(() => {
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://'
@@ -68,7 +73,13 @@ function Screencast({ identity }: { identity: string }) {
     ws.onclose = () => setStatus('disconnected')
     ws.onerror = () => setStatus('disconnected')
     ws.onmessage = (e) => {
-      let m: { type?: string; data?: string }
+      let m: {
+        type?: string
+        data?: string
+        message?: string
+        targets?: TargetSummary[]
+        activeTargetId?: string
+      }
       try {
         m = JSON.parse(e.data as string)
       } catch {
@@ -76,7 +87,13 @@ function Screencast({ identity }: { identity: string }) {
       }
       if (m.type === 'frame' && m.data && imgRef.current) {
         imgRef.current.src = `data:image/jpeg;base64,${m.data}`
+        setWaiting(null)
         setFrames((n) => n + 1)
+      } else if (m.type === 'waiting') {
+        setWaiting(m.message ?? 'Waiting for a tab…')
+      } else if (m.type === 'targets') {
+        setTargets(m.targets ?? [])
+        setActiveTargetId(m.activeTargetId)
       }
     }
     return () => ws.close()
@@ -97,9 +114,43 @@ function Screencast({ identity }: { identity: string }) {
 
   return (
     <div className='flex h-full flex-col'>
-      <div className='flex items-center gap-3 border-b border-border bg-surface px-4 py-2'>
+      <div className='flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-2'>
         <StatusDot status={status} />
-        <span className='font-mono text-body-sm text-text'>{identity}</span>
+
+        <label className='sr-only' htmlFor='takeover-identity'>
+          Session
+        </label>
+        <select
+          id='takeover-identity'
+          value={identity}
+          onChange={(e) => void navigate({ to: '/takeover/$identity', params: { identity: e.target.value } })}
+          className='h-7 rounded-md border border-border bg-bg px-2 font-mono text-label text-text outline-none focus-visible:ring-2 focus-visible:ring-accent'>
+          {(sessions ?? []).map((s) => (
+            <option key={s.identity} value={s.identity}>
+              {s.identity}
+            </option>
+          ))}
+          {!sessions?.some((s) => s.identity === identity) && <option value={identity}>{identity}</option>}
+        </select>
+
+        <label className='sr-only' htmlFor='takeover-tab'>
+          Tab
+        </label>
+        <select
+          id='takeover-tab'
+          value={activeTargetId ?? ''}
+          disabled={targets.length === 0}
+          onChange={(e) => send({ type: 'attach', targetId: e.target.value })}
+          className='h-7 max-w-96 rounded-md border border-border bg-bg px-2 text-label text-text outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50'>
+          {targets.length === 0 && <option value=''>no tabs</option>}
+          {targets.map((t) => (
+            <option key={t.targetId} value={t.targetId}>
+              {t.agentId ? `[${t.agentId}] ` : ''}
+              {t.title || t.url || 'untitled'}
+            </option>
+          ))}
+        </select>
+
         <span className='text-label text-muted-foreground'>
           {status === 'live' ? `${frames} frames · click / type on the frame to drive it` : status}
         </span>
@@ -109,13 +160,20 @@ function Screencast({ identity }: { identity: string }) {
       </div>
 
       <div className='grid min-h-0 flex-1 place-items-center bg-black/95 p-4'>
+        {waiting !== null && (
+          <div className='col-start-1 row-start-1 text-center'>
+            <MonitorPlay className='mx-auto mb-3 size-8 text-muted-foreground' />
+            <p className='text-body-sm text-muted-foreground'>{waiting}</p>
+          </div>
+        )}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
         <img
           ref={imgRef}
           tabIndex={0}
           draggable={false}
           alt={`Live view of ${identity}`}
-          className='max-h-full max-w-full cursor-crosshair rounded-sm shadow-(--shadow-lg) outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-accent'
+          hidden={waiting !== null}
+          className='col-start-1 row-start-1 max-h-full max-w-full cursor-crosshair rounded-sm shadow-(--shadow-lg) outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-accent'
           onMouseMove={(e) => {
             const n = norm(e)
             send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons })

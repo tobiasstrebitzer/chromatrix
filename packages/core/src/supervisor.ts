@@ -13,7 +13,10 @@ export type SupervisorState = 'stopped' | 'starting' | 'running'
 
 export interface SupervisorOptions {
   headless?: boolean
-  /** Page the identity's window opens on (about:blank by default; tabs are created per-lease). */
+  /**
+   * Page the identity's window opens on. Omitted by default, which launches with NO startup window at all —
+   * the only tabs that ever exist are the ones the gateway/agents lease. Set this only to force a landing page.
+   */
   startUrl?: string
 }
 

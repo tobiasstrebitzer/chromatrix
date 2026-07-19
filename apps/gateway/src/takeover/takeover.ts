@@ -13,6 +13,14 @@ interface FrameMetadata {
   deviceHeight: number
 }
 
+/** A tab the human can pick in the viewer (mirrors the gateway's TargetView). */
+export interface TargetSummary {
+  targetId: string
+  url: string
+  title: string
+  agentId?: string
+}
+
 const NON_PRINTABLE: Record<string, { keyCode: number; text?: string }> = {
   Enter: { keyCode: 13, text: '\r' },
   Tab: { keyCode: 9 },
@@ -29,14 +37,41 @@ const NON_PRINTABLE: Record<string, { keyCode: number; text?: string }> = {
 export class TakeoverHub {
   private readonly viewers = new Set<WebSocket>()
   private sessionId?: string
-  private casting = false
   private lastMeta: FrameMetadata = { deviceWidth: 1, deviceHeight: 1 }
+  /**
+   * The most recent frame, verbatim, replayed to every joining viewer. Load-bearing: `Page.screencastFrame`
+   * only fires on a *repaint*, so a page that is sitting still (a login form waiting for a human — i.e. the
+   * exact thing takeover exists for) emits one frame when the cast starts and then nothing. Without this
+   * replay a viewer that joins after that first frame renders an empty <img> forever.
+   */
+  private lastFrame?: string
+  private onFrame?: (params: unknown, sessionId?: string) => void
+  private watching = false
+  /** Serializes start/stop so a disconnect+reconnect can't interleave into a live-but-frameless cast. */
+  private chain: Promise<unknown> = Promise.resolve()
+  /** The tab the human picked. Sticky across re-attaches; cleared when that tab goes away. */
+  private wantedTargetId?: string
+  /** The tab currently being cast, so viewers can highlight it in the picker. */
+  private activeTargetId?: string
 
-  constructor(private readonly client: CdpClient) {}
+  constructor(
+    private readonly client: CdpClient,
+    /** Lists the identity's viewable page targets — the source for the viewer's tab picker. */
+    private readonly listTargets: () => Promise<TargetSummary[]>,
+  ) {}
 
   async addViewer(ws: WebSocket): Promise<void> {
     this.viewers.add(ws)
-    await this.ensureCasting()
+    await this.serialize(() => this.startCasting())
+    if (this.sessionId) {
+      // Late joiner: paint it immediately from cache rather than waiting for a repaint that may never come.
+      if (this.lastFrame && ws.readyState === ws.OPEN) ws.send(this.lastFrame)
+    } else if (ws.readyState === ws.OPEN) {
+      // An identity with no tabs open is a normal state, not an error — say so and pick up the first tab
+      // that appears rather than dropping the socket.
+      ws.send(JSON.stringify({ type: 'waiting', message: 'No open tab to view yet — allocate one to take over.' }))
+    }
+    void this.pushTargets(ws)
 
     ws.on('message', (raw) => {
       let m: {
@@ -52,10 +87,15 @@ export class TakeoverHub {
         key?: string
         code?: string
         keyCode?: number
+        targetId?: string
       }
       try {
         m = JSON.parse(raw.toString())
       } catch {
+        return
+      }
+      if (m.type === 'attach' && m.targetId) {
+        void this.attachTo(m.targetId)
         return
       }
       void this.onInput(m)
@@ -63,26 +103,92 @@ export class TakeoverHub {
 
     const drop = () => {
       this.viewers.delete(ws)
-      if (this.viewers.size === 0) void this.stopCasting()
+      if (this.viewers.size === 0) {
+        void this.serialize(async () => {
+          await this.stopCasting()
+          this.unwatchPages()
+        })
+      }
     }
     ws.on('close', drop)
     // A viewer socket error must not crash the gateway (`ws` rethrows an unhandled 'error'); drop the viewer.
     ws.on('error', drop)
   }
 
-  private async ensureCasting(): Promise<void> {
-    if (this.casting) return
-    this.casting = true
+  /**
+   * Run casting state transitions one at a time. The dashboard unmounts and remounts the viewer on every
+   * client-side navigation (and twice on mount under React StrictMode), so close→open arrive back-to-back:
+   * unserialized, the new viewer's start would no-op against the still-`true` casting flag and then the old
+   * viewer's stop would tear down the cast underneath it — connected, live, and permanently blank.
+   */
+  private serialize<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.chain.then(fn, fn)
+    this.chain = next.then(
+      () => {},
+      () => {},
+    )
+    return next
+  }
+
+  /** True if this hub is still bound to the identity's current control channel (false after a stop/start). */
+  usesClient(client: CdpClient): boolean {
+    return this.client === client
+  }
+
+  /** Drop CDP listeners so a hub replaced after a restart doesn't leak into the old, dead client. */
+  dispose(): void {
+    this.unwatchPages()
+    if (this.onFrame) {
+      this.client.off('Page.screencastFrame', this.onFrame)
+      this.onFrame = undefined
+    }
+    for (const v of this.viewers) if (v.readyState === v.OPEN) v.close()
+    this.viewers.clear()
+    this.sessionId = undefined
+    this.lastFrame = undefined
+  }
+
+  /** Switch the cast to a specific tab (the viewer's picker). Sticky: re-attaches keep this choice. */
+  private async attachTo(targetId: string): Promise<void> {
+    if (targetId === this.activeTargetId) return
+    this.wantedTargetId = targetId
+    await this.serialize(async () => {
+      await this.stopCasting()
+      await this.startCasting()
+    })
+    await this.pushTargets()
+  }
+
+  /** Send the current tab list + which one is live, so every viewer's picker stays in sync. */
+  private async pushTargets(only?: WebSocket): Promise<void> {
+    let targets: TargetSummary[] = []
+    try {
+      targets = await this.listTargets()
+    } catch {
+      return // the identity may have stopped mid-flight; the next change event will resync
+    }
+    const msg = JSON.stringify({ type: 'targets', targets, activeTargetId: this.activeTargetId })
+    const to = only ? [only] : [...this.viewers]
+    for (const v of to) if (v.readyState === v.OPEN) v.send(msg)
+  }
+
+  private async startCasting(): Promise<void> {
+    if (this.sessionId) return
+    await this.watchForPages()
     const sid = await this.attachFrontPage()
-    this.sessionId = sid
-    this.client.on('Page.screencastFrame', (params, evSid) => {
+    if (!sid) return // no tab yet; the target watcher will call back here when one opens
+    const onFrame = (params: unknown, evSid?: string) => {
       if (evSid !== sid) return
       const p = params as { data: string; sessionId: number; metadata: FrameMetadata }
       void this.client.send('Page.screencastFrameAck', { sessionId: p.sessionId }, sid).catch(() => {})
       this.lastMeta = p.metadata
       const msg = JSON.stringify({ type: 'frame', data: p.data, dw: p.metadata.deviceWidth, dh: p.metadata.deviceHeight })
+      this.lastFrame = msg
       for (const v of this.viewers) if (v.readyState === v.OPEN) v.send(msg)
-    })
+    }
+    this.onFrame = onFrame
+    this.client.on('Page.screencastFrame', onFrame)
+    this.sessionId = sid
     await this.client.send(
       'Page.startScreencast',
       { format: 'jpeg', quality: 75, maxWidth: 1600, maxHeight: 1000, everyNthFrame: 1 },
@@ -91,23 +197,78 @@ export class TakeoverHub {
   }
 
   private async stopCasting(): Promise<void> {
-    if (!this.casting || !this.sessionId) return
-    await this.client.send('Page.stopScreencast', {}, this.sessionId).catch(() => {})
-    this.casting = false
+    const sid = this.sessionId
+    if (!sid) return
     this.sessionId = undefined
+    this.lastFrame = undefined // a stale frame must not be replayed into the next, possibly different, cast
+    if (this.onFrame) {
+      this.client.off('Page.screencastFrame', this.onFrame) // else every start/stop cycle leaks a listener
+      this.onFrame = undefined
+    }
+    await this.client.send('Page.stopScreencast', {}, sid).catch(() => {})
+    await this.client.send('Target.detachFromTarget', { sessionId: sid }).catch(() => {})
   }
 
-  private async attachFrontPage(): Promise<string> {
-    const { targetInfos } = await this.client.send<{ targetInfos: Array<{ targetId: string; type: string }> }>(
-      'Target.getTargets',
-    )
-    const page = targetInfos.find((t) => t.type === 'page')
-    if (!page) throw new Error('takeover: no page target to attach to')
+  /**
+   * Watch for tabs opening so a viewer attached to an identity with no tabs starts casting the moment one
+   * appears, and so a cast whose tab was closed/released re-attaches to whatever is left.
+   */
+  private async watchForPages(): Promise<void> {
+    if (this.watching) return
+    this.watching = true
+    await this.client.send('Target.setDiscoverTargets', { discover: true }).catch(() => {})
+    this.client.on('Target.targetCreated', this.onTargetChange)
+    this.client.on('Target.targetDestroyed', this.onTargetChange)
+  }
+
+  private unwatchPages(): void {
+    if (!this.watching) return
+    this.watching = false
+    this.client.off('Target.targetCreated', this.onTargetChange)
+    this.client.off('Target.targetDestroyed', this.onTargetChange)
+  }
+
+  private readonly onTargetChange = (): void => {
+    if (this.viewers.size === 0) return
+    void this.serialize(async () => {
+      // A destroyed tab leaves a dead session behind; drop it so we re-pick a live one.
+      if (this.sessionId && !(await this.sessionIsLive())) await this.stopCasting()
+      if (!this.sessionId) await this.startCasting()
+    }).then(() => this.pushTargets())
+  }
+
+  private async sessionIsLive(): Promise<boolean> {
+    if (!this.sessionId) return false
+    return await this.client
+      .send('Runtime.evaluate', { expression: '1', returnByValue: true }, this.sessionId)
+      .then(() => true)
+      .catch(() => false)
+  }
+
+  private async attachFrontPage(): Promise<string | undefined> {
+    const { targetInfos } = await this.client.send<{
+      targetInfos: Array<{ targetId: string; type: string; url: string }>
+    }>('Target.getTargets')
+    const pages = targetInfos.filter((t) => t.type === 'page' && !t.url.startsWith('devtools://'))
+    // The human's pick wins whenever that tab still exists. Otherwise prefer a tab that has actually
+    // navigated somewhere: getTargets order is not specified, so picking the first page can land on a blank
+    // one and show an empty screen while the real tab is right there.
+    const page =
+      (this.wantedTargetId ? pages.find((t) => t.targetId === this.wantedTargetId) : undefined) ??
+      pages.find((t) => t.url !== '' && t.url !== 'about:blank') ??
+      pages[0]
+    if (!page) {
+      this.activeTargetId = undefined
+      return undefined
+    }
+    // Foreground the tab: a backgrounded page is not composited, so it never repaints and never emits frames.
+    await this.client.send('Target.activateTarget', { targetId: page.targetId }).catch(() => {})
     const { sessionId } = await this.client.send<{ sessionId: string }>('Target.attachToTarget', {
       targetId: page.targetId,
       flatten: true,
     })
     await this.client.send('Page.enable', {}, sessionId)
+    this.activeTargetId = page.targetId
     return sessionId
   }
 

@@ -62,9 +62,15 @@ export function mountGatewayUpgrades(
       const identity = takeover[1]
       if (!service.isRunning(identity)) return reject(socket, 404)
       wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
+        // Rebuild the hub if the identity was stopped and restarted — the old one holds a dead control client.
+        const control = service.controlClient(identity)
         let hub = takeoverHubs.get(identity)
+        if (hub && !hub.usesClient(control)) {
+          hub.dispose()
+          hub = undefined
+        }
         if (!hub) {
-          hub = new TakeoverHub(service.controlClient(identity))
+          hub = new TakeoverHub(control, () => service.listTargets(identity))
           takeoverHubs.set(identity, hub)
         }
         void hub.addViewer(ws).catch((e) => {

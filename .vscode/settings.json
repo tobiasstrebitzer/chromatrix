@@ -7,6 +7,7 @@
     "**/node_modules": true,
     "**/.turbo": true,
     "**/build": true,
+    "**/dist": true,
     ".profiles": true,
     ".roam": true
   }

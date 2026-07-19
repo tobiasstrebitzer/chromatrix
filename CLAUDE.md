@@ -67,6 +67,9 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
   an extended tailwind-merge for the custom text scale, Inter + JetBrains Mono via `@fontsource`.
 - Real Chrome binary: `/Applications/Google Chrome.app` (v150). Persistent identity profiles live under
   `.profiles/<id>/` (**gitignored** — contains session cookies).
+- **`chrome-devtools-mcp`** is wired in `.mcp.json`: drive the dashboard in a real browser (navigate,
+  screenshot, read the console, evaluate) instead of guessing at UI behaviour. Run the gateway yourself
+  (`pnpm dev`) and point it at the gateway origin — that combination is how the takeover bugs were found.
 
 ## Running things
 
@@ -102,6 +105,8 @@ pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeS
 | **gateway** | **built + green**: Nest/MCP provisioning (8 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
 | **multi-session e2e** | **built + green**: `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents × 2 tabs = 18 tabs) — parallelism (wall ≪ Σ), per-agent marker isolation, same-identity + cross-identity ACL denial, live churn, and zero-survivor teardown all pass |
 | **apps/web** | **built + green**: React/Vite/Tailwind-v4 dashboard (Sessions provisioning + Takeover live-view) on the gtm design system, tRPC client to the gateway; dev-proxy + prod-serve both verified; renders in real headless Chrome with no console errors |
+| **takeover** | **fixed + verified**: last-frame replay for late joiners, serialized cast start/stop, human-selectable target; session + tab pickers in the dashboard; input proven to drive the *selected* tab |
+| **tab lifecycle** | **fixed + verified**: no stray `about:blank` on launch (`--no-startup-window`); leases are server-held so the tab list survives a reload; per-agent stable CDP tokens; optional per-tab start URL |
 
 ## Wrapup Config
 

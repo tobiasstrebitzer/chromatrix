@@ -15,25 +15,12 @@ import { Input } from '@/components/ui/Input'
 export function SessionsView() {
   const { sessions, error, refresh } = useSessionsContext()
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
-  // Leased tabs are tracked client-side (the gateway lists sessions, not per-tab detail) so we can show the
-  // scoped URL to copy and offer a release control.
-  const [tabsByIdentity, setTabsByIdentity] = React.useState<Record<string, AllocatedTab[]>>({})
 
   const flash = (msg: string) => {
     setNotice(msg)
     window.setTimeout(() => setNotice(undefined), 3500)
   }
   const fail = (e: unknown) => flash((e as Error).message)
-
-  const onAllocated = (tab: AllocatedTab) =>
-    setTabsByIdentity((m) => ({ ...m, [tab.identity]: [...(m[tab.identity] ?? []), tab] }))
-  const onReleased = (identity: string, targetId: string) =>
-    setTabsByIdentity((m) => ({ ...m, [identity]: (m[identity] ?? []).filter((t) => t.targetId !== targetId) }))
-  const onStopped = (identity: string) =>
-    setTabsByIdentity((m) => {
-      const { [identity]: _drop, ...rest } = m
-      return rest
-    })
 
   return (
     <div className='mx-auto w-full max-w-5xl px-6 py-6'>
@@ -60,17 +47,7 @@ export function SessionsView() {
         ) : (
           <div className='grid gap-4 md:grid-cols-2'>
             {sessions.map((s) => (
-              <SessionCard
-                key={s.identity}
-                session={s}
-                tabs={tabsByIdentity[s.identity] ?? []}
-                onAllocated={onAllocated}
-                onReleased={onReleased}
-                onStopped={onStopped}
-                onNotice={flash}
-                onError={fail}
-                afterMutate={refresh}
-              />
+              <SessionCard key={s.identity} session={s} onNotice={flash} onError={fail} afterMutate={refresh} />
             ))}
           </div>
         )}
@@ -120,6 +97,7 @@ function StartIdentityForm({
               onChange={(e) => setId(e.target.value)}
               placeholder='identity id  (lowercase slug, e.g. acme-1)'
               className='font-mono'
+              name='identityId'
               aria-label='Identity id'
             />
           </div>
@@ -137,37 +115,42 @@ function StartIdentityForm({
   )
 }
 
+/** The next unused `agent-N` for this identity, so repeated "+ Tab" clicks don't all land on agent-1. */
+function nextAgentId(tabs: AllocatedTab[]): string {
+  const taken = new Set(tabs.map((t) => t.agentId))
+  for (let n = 1; ; n++) {
+    const candidate = `agent-${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
 function SessionCard({
   session,
-  tabs,
-  onAllocated,
-  onReleased,
-  onStopped,
   onNotice,
   onError,
   afterMutate,
 }: {
   session: SessionInfo
-  tabs: AllocatedTab[]
-  onAllocated: (t: AllocatedTab) => void
-  onReleased: (identity: string, targetId: string) => void
-  onStopped: (identity: string) => void
   onNotice: (msg: string) => void
   onError: (e: unknown) => void
   afterMutate: () => Promise<void>
 }) {
   const navigate = useNavigate()
+  const tabs = session.leases
   const [agentId, setAgentId] = React.useState('')
+  const [url, setUrl] = React.useState('')
   const [busy, setBusy] = React.useState(false)
+  const suggestedAgent = nextAgentId(tabs)
 
   const allocate = async (e: React.FormEvent) => {
     e.preventDefault()
-    const agent = agentId.trim() || 'agent-1'
+    const agent = agentId.trim() || suggestedAgent
     if (busy) return
     setBusy(true)
     try {
-      const tab = await gateway.allocateTab(session.identity, agent)
-      onAllocated(tab)
+      await gateway.allocateTab(session.identity, agent, url.trim() || undefined)
+      setAgentId('')
+      setUrl('')
       await afterMutate()
     } catch (e) {
       onError(e)
@@ -179,7 +162,6 @@ function SessionCard({
   const release = async (targetId: string) => {
     try {
       await gateway.releaseTab(session.identity, targetId)
-      onReleased(session.identity, targetId)
       await afterMutate()
     } catch (e) {
       onError(e)
@@ -189,7 +171,6 @@ function SessionCard({
   const stop = async () => {
     try {
       await gateway.stopIdentity(session.identity)
-      onStopped(session.identity)
       onNotice(`Stopped “${session.identity}”.`)
       await afterMutate()
     } catch (e) {
@@ -250,18 +231,29 @@ function SessionCard({
           </ul>
         )}
 
-        <form onSubmit={allocate} className='flex items-center gap-2'>
+        <form onSubmit={allocate} className='space-y-2'>
+          <div className='flex items-center gap-2'>
+            <Input
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+              placeholder={suggestedAgent}
+              className='h-8 font-mono'
+              name='agentId'
+              aria-label='Agent id'
+            />
+            <Button type='submit' variant='secondary' size='sm' disabled={busy}>
+              <Plus />
+              {busy ? '…' : 'Tab'}
+            </Button>
+          </div>
           <Input
-            value={agentId}
-            onChange={(e) => setAgentId(e.target.value)}
-            placeholder='agent id'
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder='start url (optional) — about:blank'
             className='h-8 font-mono'
-            aria-label='Agent id'
+            name='startUrl'
+            aria-label='Start URL'
           />
-          <Button type='submit' variant='secondary' size='sm' disabled={busy}>
-            <Plus />
-            {busy ? '…' : 'Tab'}
-          </Button>
         </form>
 
         <div className='flex items-center gap-1.5 border-t border-border pt-3'>

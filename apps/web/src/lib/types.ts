@@ -9,6 +9,16 @@ export interface SessionInfo {
   state: string
   tabs: number
   browserWsUrl: string
+  /** The tabs this identity currently leases. Server-held, so a page reload re-renders the real list. */
+  leases: AllocatedTab[]
+}
+
+/** A tab the takeover viewer can attach to, pushed over the takeover socket. */
+export interface TargetSummary {
+  targetId: string
+  url: string
+  title: string
+  agentId?: string
 }
 
 export interface AllocatedTab {

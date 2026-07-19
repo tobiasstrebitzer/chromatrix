@@ -1,7 +1,65 @@
 # chromatrix — next session handoff
 
-Updated after the gateway build (2026-07-18). Read [`CLAUDE.md`](../CLAUDE.md) → [`FINDINGS.md`](FINDINGS.md) →
-[`PRD.md`](PRD.md) first (start with **PRD §0 — Responsible use**); this doc is "what to build next and how".
+Updated after the dashboard/takeover fix pass (2026-07-19). Read [`CLAUDE.md`](../CLAUDE.md) →
+[`FINDINGS.md`](FINDINGS.md) → [`PRD.md`](PRD.md) first (start with **PRD §0 — Responsible use**); this doc is
+"what to build next and how".
+
+## ▶ Next session: UI/UX pass on `apps/web`
+
+The dashboard is now *functionally* correct (sessions persist, tabs are server-held, takeover has session +
+tab pickers). The next pass is **UI/UX quality**, not new plumbing. Known rough edges, roughly in priority
+order:
+
+1. **Takeover is the product's showcase and looks like a debug tool.** The toolbar is two bare `<select>`s
+   plus a frame count. Wants: proper tab strip (favicon + title + agent badge, close/release inline), a real
+   connection state, fit-to-width vs 1:1 zoom, and a keyboard-focus affordance (today you must click the
+   frame first for keystrokes to land — undiscoverable).
+2. **No loading/disabled states on mutations.** "+ Tab", Stop, Release fire with no optimistic feedback; the
+   2.5 s poll is what eventually reflects reality, so the UI feels laggy. Consider invalidate-on-mutate.
+3. **Errors are a single red banner that auto-hides after 3.5 s** — fine for "started X", wrong for a real
+   failure. Split transient toasts from sticky errors.
+4. **Session card density.** Profile dir + browser WS URL are long mono strings that dominate the card; the
+   tab list has no URL/title, only a truncated targetId. Now that `listTargets` exists, show real titles.
+5. **Empty/edge states.** No tabs, identity starting, gateway unreachable, and "identity in the URL isn't
+   running" all render thin or oddly.
+6. **A11y + polish.** Selects need visible labels; the live-view `<img>` is the focus target for input, which
+   needs an explicit affordance. No dark/light QA pass has been done on the takeover view.
+
+Useful context for that work: the design system is ported from gtm (CSS-variable tokens in
+`src/styles`, `cn()` with an extended tailwind-merge), and `chrome-devtools-mcp` is wired in `.mcp.json` —
+drive the real dashboard with it rather than guessing (`pnpm dev`, then navigate the gateway origin).
+
+## Dashboard + takeover fixes (2026-07-19 session)
+
+Everything below was reproduced against real Chrome, fixed, and re-verified end-to-end:
+
+- **No more stray `about:blank` tab.** `launchChrome` always appended a positional URL arg, so every identity
+  opened an unleased page target. Now `--no-startup-window` when no `startUrl` is given: browser stays alive,
+  DevTools endpoint still printed, **zero** page targets until something leases one (verified headed + headless).
+- **Takeover "no visual" — three compounding bugs**, none headless-specific (headless just made it
+  deterministic, because a static page never repaints):
+  - `Page.screencastFrame` only fires on a *repaint*, so a still page emits one frame and then nothing —
+    any viewer joining after it saw an empty `<img>` forever. The hub now caches the last frame and replays
+    it to each joining viewer.
+  - Start/stop raced: the dashboard unmounts/remounts the viewer on every SPA navigation (twice under
+    StrictMode), so the new viewer's start no-op'd against a still-true `casting` flag and the old viewer's
+    stop then tore the cast down — connected, "live", permanently blank. Transitions are now serialized.
+  - `attachFrontPage` took the first `type === 'page'` from `Target.getTargets`, whose order is unspecified,
+    so it could attach to the blank tab. Now prefers a navigated tab, honours the human's pick, and calls
+    `Target.activateTarget` (a backgrounded page isn't composited → never repaints).
+  - Also: a leaked `Page.screencastFrame` listener per cast cycle, and a hub holding a dead control client
+    after stop→start (now rebuilt via `usesClient`/`dispose`). `CdpClient.off` is public for this.
+- **Tabs survive a reload.** `listSessions` now returns `leases[]` from the `TabPool` (server is the source of
+  truth); the dashboard's local tab state is gone. This required tokens to become **one stable credential per
+  `(identity, agentId)`** instead of a fresh one per allocation — otherwise a reconstructed list can't hand
+  back a working `cdpUrl` (and the token table grew unboundedly).
+- **Tab provisioning UX.** "+ Tab" suggests the next free `agent-N` (was hardcoded `agent-1` whenever the
+  field was blank); the optional **start URL** is wired through (backend already supported it).
+- **Takeover controls.** Session picker + tab picker. The tab list is pushed over the takeover socket
+  (`{type:'targets'}`) and re-pushed on target changes — no polling. Selecting sends `{type:'attach',targetId}`;
+  the choice is sticky across re-attaches. Verified input lands on the *selected* tab and leaves others alone.
+- **Graceful no-tab state.** Removing the stray tab means a fresh identity has nothing to view; the hub sends
+  `{type:'waiting'}` and auto-attaches to the first tab that appears instead of erroring.
 
 ## The gateway is built (this session)
 
@@ -99,7 +157,10 @@ Follow-ups worth doing on the web app next:
   body directly; validation is declared but not enforced).
 - Auth on `/mcp` + `/trpc` + the provisioning routes (gtm gates `/mcp` at the transport via `mcp({ auth })`);
   currently open on loopback. Add before exposing over Tailscale.
-- Token lifecycle: tokens currently live until `stopIdentity`; add release/expiry if agents churn a lot.
+- Token lifecycle: tokens live until `stopIdentity` and are now **one per (identity, agentId)** (stable, so a
+  reloaded dashboard can hand back a working `cdpUrl`). Add release/expiry if agents churn a lot.
+- **Make a failed `listen` fatal.** `main.ts`'s uncaught-exception net currently keeps the process alive after
+  `EADDRINUSE`, so a second gateway "starts" but serves nothing. Fail fast on bind errors.
 
 ## Open threads (carry-over)
 
@@ -123,7 +184,26 @@ Follow-ups worth doing on the web app next:
   session), attach a display / dummy-HDMI so the GPU engages, Tailscale-served endpoints, per-identity profile
   location strategy.
 
-## Gotchas learned this session
+## Gotchas learned this session (2026-07-19)
+
+- **`Page.startScreencast` is repaint-driven.** It is not a video stream: a static page yields exactly one
+  frame. Any screencast fan-out must cache the last frame for late joiners, or they see nothing.
+- **A backgrounded/occluded page is not composited**, so it never repaints and never emits frames — call
+  `Target.activateTarget` before casting.
+- **React StrictMode double-mounts effects in dev**, so a WS-owning component produces close→open in quick
+  succession. Any server-side per-connection state machine must serialize its transitions or it will
+  interleave into a live-but-dead state.
+- **`Target.getTargets` order is unspecified** — never pick "the first page" and assume it's the real one.
+- **Chrome launches a startup window unless told not to.** A positional URL arg (even `about:blank`) creates a
+  page target; `--no-startup-window` keeps the browser alive with none and still prints the DevTools endpoint.
+- **Stale dev pages are noisy neighbours.** A browser tab left on a killed Vite dev server retries
+  `ws://<origin>/` ~1×/s forever; those upgrades hit the gateway and look like phantom app traffic. When a
+  console error can't be traced to the bundle, check for another tab before suspecting your own code
+  (`grep -c "new WebSocket" dist/assets/*.js` settles it fast).
+- **An `EADDRINUSE` at `listen` is swallowed** by the entrypoint's process-level resilience net — the gateway
+  logs "started" and serves nothing. Consider making listen failure fatal (see hardening follow-ups).
+
+## Gotchas learned in earlier sessions
 
 - pnpm `--filter <pkg> run <script>` runs with **cwd = the package dir** — pass **absolute** paths for env
   like `PROFILE_DIR`.
