@@ -195,8 +195,14 @@ function Screencast({ identity, target }: { identity: string; target?: string })
       </div>
 
       {/* The viewer stage is a recessed well inside the frame, not a hardcoded black box — black is only
-          correct in the dark theme, and in light it read as a hole punched through the page. */}
-      <div ref={paneRef} className='grid min-h-0 flex-1 place-items-center bg-[var(--bg-code)] p-4'>
+          correct in the dark theme, and in light it read as a hole punched through the page.
+
+          Deliberately unpadded: the stage runs from the toolbar's edge to the frame's, and the frame's own
+          `overflow-hidden rounded-xl` (AppShell) clips the bottom corners, so the live view sits in the panel
+          rather than floating inside it. The padding was also silently wrong for auto-fit — `clientWidth`
+          INCLUDES padding, so the fit sized Chrome's window to the padded box while `max-w-full` capped the
+          image at the content box, leaving the stream permanently downscaled by the padding. */}
+      <div ref={paneRef} className='grid min-h-0 flex-1 place-items-center overflow-hidden bg-[var(--bg-code)]'>
         {waiting !== null && (
           <div className='col-start-1 row-start-1 text-center'>
             <MonitorPlay className='mx-auto mb-3 size-8 text-muted-foreground' />
@@ -204,7 +210,7 @@ function Screencast({ identity, target }: { identity: string; target?: string })
           </div>
         )}
         {blankTab && (
-          <BlankTab className='col-start-1 row-start-1 size-full rounded-sm ring-1 ring-border' />
+          <BlankTab className='col-start-1 row-start-1 size-full' />
         )}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
         <img
@@ -213,7 +219,10 @@ function Screencast({ identity, target }: { identity: string; target?: string })
           draggable={false}
           alt={`Live view of ${identity}`}
           hidden={waiting !== null || blankTab}
-          className='col-start-1 row-start-1 max-h-full max-w-full cursor-crosshair rounded-sm shadow-(--shadow-lg) outline-none ring-1 ring-border focus-visible:ring-2 focus-visible:ring-accent'
+          // No radius, ring, or shadow: those framed it as a screenshot sitting *on* the stage. Now it fills
+          // the stage and the panel's own radius does the clipping. The focus ring is inset so it isn't the
+          // one thing the frame clips away — it's the only cue that keystrokes will land on the page.
+          className='col-start-1 row-start-1 max-h-full max-w-full cursor-crosshair outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset'
           onMouseMove={(e) => {
             const n = norm(e)
             send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons })
