@@ -15,3 +15,11 @@ allowBuilds:
   '@swc/core': true
   # Telemetry phone-home pulled in transitively by NestJS deps — declined.
   '@scarf/scarf': false
+
+minimumReleaseAgeExclude:
+  - '@silkweave/auth@4.4.0'
+  - '@silkweave/core@4.4.0'
+  - '@silkweave/mcp@4.4.0'
+  - '@silkweave/nestjs@4.4.0'
+  - '@silkweave/trpc@4.4.0'
+  - '@silkweave/typegen@4.4.0'

@@ -2,18 +2,20 @@
 // Chrome supervisors + tab leasing) and adds the two things the domain layer deliberately doesn't know
 // about: (1) a per-identity CdpMux (upstream-only, embedded — fed already-upgraded sockets by the raw
 // `upgrade` handler, never a self-hosted server) carrying the Runtime.enable-suppression interceptor, and
-// (2) the token→lease table that turns an `allocateTab` into a scoped, single-use `…/cdp/<id>?token=…` URL.
+// (2) the derived per-agent token that turns an `allocateTab` into a scoped `…/cdp/<id>/<agentId>?token=…` URL.
 //
-// The per-tab ACL is NOT stored — it is derived live from the TabPool on every attach, so lease/release
-// takes effect immediately: a client's scope `allows(t)` iff its agent currently leases target `t`.
-// See docs/PRD.md §4/§6 and NEXT-SESSION §2–3.
+// NOTHING about authorization is stored. The token is `HMAC(accessToken, identity ‖ agentId)`, recomputed on
+// each upgrade rather than looked up; the per-tab ACL is derived live from the TabPool on every attach, so
+// lease/release takes effect immediately: a client's scope `allows(t)` iff its agent currently leases target
+// `t`. See docs/PRD.md §4/§6 and NEXT-SESSION §2–3.
 
-import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Injectable, Logger } from '@nestjs/common'
 import { CdpClient, CdpMux, type ClientScope } from '@chromatrix/cdp'
+import { deriveAgentToken, tokensMatch } from '@chromatrix/shared'
 import { runtimeEnableSuppressInterceptor } from '@chromatrix/fidelity'
+import { getAccessToken } from '../auth/auth.ts'
 import {
   IdentityRegistry,
   Orchestrator,
@@ -69,11 +71,6 @@ export interface AllocatedTab {
   title?: string
 }
 
-interface TokenGrant {
-  identity: string
-  agentId: string
-}
-
 /** A running identity plus the tabs it currently leases — what the dashboard renders per card. */
 export interface SessionView extends SessionInfo {
   leases: AllocatedTab[]
@@ -93,10 +90,6 @@ export class CdpGatewayService {
   private readonly orchestrator: Orchestrator
   /** One upstream mux per running identity (created on start, closed on stop). */
   private readonly muxes = new Map<string, CdpMux>()
-  /** Opaque bearer token → the (identity, agent) it authenticates. The scope is derived live, not stored. */
-  private readonly tokens = new Map<string, TokenGrant>()
-  /** Reverse index `identity\0agentId` → token, so an agent keeps ONE stable credential across allocations. */
-  private readonly agentTokens = new Map<string, string>()
   /** In-flight screenshot per `identity targetId`, so a slow page can't stack up attaches under polling. */
   private readonly captures = new Map<string, Promise<Buffer>>()
   /** Gateway-wide settings, persisted beside the profiles so they survive a restart. */
@@ -229,7 +222,7 @@ export class CdpGatewayService {
    * exceed it, and stacking attaches per tab is how you get a Chrome full of orphaned sessions.
    */
   captureTab(identity: string, targetId: string): Promise<Buffer> {
-    const key = `${identity} ${targetId}`
+    const key = `${identity}\u0000${targetId}`
     const inFlight = this.captures.get(key)
     if (inFlight) return inFlight
     const capture = this.doCaptureTab(identity, targetId).finally(() => this.captures.delete(key))
@@ -412,34 +405,41 @@ export class CdpGatewayService {
     assertValidIdentityId(id)
     this.muxes.get(id)?.close()
     this.muxes.delete(id)
-    for (const [token, grant] of this.tokens) {
-      if (grant.identity === id) {
-        this.tokens.delete(token)
-        this.agentTokens.delete(`${grant.identity}\u0000${grant.agentId}`)
-      }
-    }
+    // Agent tokens are NOT revoked here: they are derived rather than stored, so there is nothing to
+    // delete. A token outliving its identity grants nothing on its own — the ACL is computed from live
+    // TabPool leases, and stopping has just destroyed them. See @chromatrix/shared/token.
     await this.orchestrator.stopIdentity(id)
   }
 
   async shutdown(): Promise<void> {
     for (const mux of this.muxes.values()) mux.close()
     this.muxes.clear()
-    this.tokens.clear()
-    this.agentTokens.clear()
     await this.orchestrator.shutdown()
   }
 
   // ── Raw-CDP upgrade path (the http `upgrade` handler calls this) ─────────────────────────────────────────
 
-  /** Resolve a `/cdp/<identity>?token=…` upgrade to the mux + the live per-tab ACL scope, or throw. */
-  resolveCdpUpgrade(identity: string, token: string | undefined): { mux: CdpMux; scope: ClientScope } {
+  /**
+   * Resolve a `/cdp/<identity>/<agentId>?token=…` upgrade to the mux + the live per-tab ACL scope, or throw.
+   *
+   * With derived tokens there is no table to look the caller up in, so the flow inverts: the client *claims*
+   * an agentId and the token proves the claim. Recomputing the HMAC for (identity, claimedAgent) and comparing
+   * in constant time is equivalent to the old lookup — a caller who cannot forge the HMAC cannot assert an
+   * agentId that isn't theirs, and the identity is bound in because it is an HMAC input.
+   */
+  resolveCdpUpgrade(
+    identity: string,
+    agentId: string | undefined,
+    token: string | undefined,
+  ): { mux: CdpMux; scope: ClientScope } {
+    if (!agentId) throw new Error('missing agent')
     if (!token) throw new Error('missing token')
-    const grant = this.tokens.get(token)
-    if (!grant) throw new Error('unknown or expired token')
-    if (grant.identity !== identity) throw new Error(`token is not valid for identity "${identity}"`)
+    if (!tokensMatch(token, this.tokenFor(identity, agentId))) {
+      throw new Error(`token is not valid for agent "${agentId}" on identity "${identity}"`)
+    }
     const mux = this.muxes.get(identity)
     if (!mux) throw new Error(`identity "${identity}" is not running`)
-    return { mux, scope: this.scopeFor(identity, grant.agentId) }
+    return { mux, scope: this.scopeFor(identity, agentId) }
   }
 
   /** Control CDP client for a running identity — used by the takeover route. */
@@ -464,27 +464,29 @@ export class CdpGatewayService {
   }
 
   /**
-   * The agent's CDP credential. Reused across that agent's allocations rather than minted per tab: an agent
-   * holds one connection for all its tabs (the scope is derived live from the leases), and a stable token is
-   * what lets `listSessions` hand back a working cdpUrl for tabs leased before the page was reloaded.
+   * The agent's CDP credential — `HMAC(accessToken, identity ‖ agentId)`, derived rather than stored.
+   *
+   * One credential per (identity, agent), not per tab: an agent holds one connection for all its tabs and the
+   * scope is derived live from its leases. Deriving instead of minting means the token table is gone and the
+   * value survives a gateway restart, so an agent reconnecting with a URL it was handed an hour ago still
+   * works. See @chromatrix/shared/token for what that trades away (per-agent revocation).
    */
   private tokenFor(identity: string, agentId: string): string {
-    const key = `${identity}\u0000${agentId}` // NUL separates the parts unambiguously
-    const existing = this.agentTokens.get(key)
-    if (existing) return existing
-    const token = randomUUID().replaceAll('-', '')
-    this.tokens.set(token, { identity, agentId })
-    this.agentTokens.set(key, token)
-    return token
+    return deriveAgentToken(getAccessToken(), identity, agentId)
   }
 
   private describeTab(lease: Lease, token: string): AllocatedTab {
+    // The agent is named in the PATH, not the query: it is part of what is being addressed (whose scope this
+    // connection attaches under), not a credential. It also has to be stated explicitly at all, because the
+    // agentId cannot be recovered from the HMAC — the client names itself and the token proves the claim.
+    // Percent-encoded since agentId is an opaque caller-chosen string.
+    const agent = encodeURIComponent(lease.agentId)
     return {
       identity: lease.identity,
       agentId: lease.agentId,
       targetId: lease.targetId,
       createdAt: lease.createdAt,
-      cdpUrl: `${this.publicWsOrigin}/cdp/${lease.identity}?token=${token}`,
+      cdpUrl: `${this.publicWsOrigin}/cdp/${lease.identity}/${agent}?token=${token}`,
     }
   }
 

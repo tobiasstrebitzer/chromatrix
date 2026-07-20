@@ -8,7 +8,13 @@
     "**/.turbo": true,
     "**/build": true,
     "**/dist": true,
-    ".profiles": true,
     ".roam": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/.dart_tool": true,
+    ".profiles": true,
   }
 }

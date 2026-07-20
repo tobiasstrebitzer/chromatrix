@@ -3,8 +3,20 @@
 // mux, not Nest routes. So we bind our own handler to the underlying http.Server's `upgrade` event (ahead of
 // anything Nest does with upgrades) and hand matched sockets straight to the per-identity CdpMux / TakeoverHub.
 //
-//   /cdp/<identity>?token=…       → agent raw-CDP, attached under the live per-tab ACL scope
-//   /takeover/<identity>/ws       → human live-view + input (screencast fan-out)
+//   /cdp/<identity>/<agentId>?token=…  → agent raw-CDP, attached under the live per-tab ACL scope
+//   /takeover/<identity>/ws            → human live-view + input (screencast fan-out)
+//
+// Path carries the resource (which browser, attaching as whom); the query carries only the credential.
+//
+// Both are authenticated here rather than by a Nest guard, and that is not a shortcut: a WebSocket handshake
+// arrives on the http.Server's `upgrade` event, which Express — and therefore every Nest guard, pipe, and
+// interceptor — never sees. Rejecting before the upgrade completes also gives a real `HTTP/1.1 401`, which is
+// a better failure than accepting a socket and closing it. The two paths use DIFFERENT credentials on purpose:
+//
+//   • /takeover → the global access token. It is an operator surface (live view + trusted input), so it is
+//     gated by the same credential as the dashboard and the API.
+//   • /cdp      → the per-agent derived token. An agent must NOT hold the operator credential; its token
+//     authorises exactly one (identity, agent) pair and nothing else.
 //
 // Any other upgrade is left untouched when `rejectUnmatched` is false — in dev the Vite HMR proxy registers
 // its OWN 'upgrade' listener (http-proxy-middleware, path-filtered to SPA/HMR) and handles it; touching the
@@ -15,10 +27,23 @@ import type { Duplex } from 'node:stream'
 import { Logger } from '@nestjs/common'
 import { WebSocketServer, type WebSocket } from 'ws'
 import type { CdpGatewayService } from '../gateway/gateway.service.ts'
+import { tokenFromRequest, verifyAccessToken } from '../auth/auth.ts'
 import { TakeoverHub } from '../takeover/takeover.ts'
 
-const CDP_RE = /^\/cdp\/([a-z0-9][a-z0-9_-]{0,63})$/
-const TAKEOVER_RE = /^\/takeover\/([a-z0-9][a-z0-9_-]{0,63})\/ws$/
+// `/cdp/<identity>/<agentId>` — both are *resource* coordinates (which browser, attaching as whom), so they
+// live in the path; only the credential rides in the query. agentId is percent-encoded because, unlike
+// identity, it is an opaque caller-chosen string with no charset contract.
+const CDP_RE = /^\/cdp\/([a-z0-9]+(?:-[a-z0-9]+)*)\/([^/]{1,256})$/
+const TAKEOVER_RE = /^\/takeover\/([a-z0-9]+(?:-[a-z0-9]+)*)\/ws$/
+
+/** Percent-decode a path segment, treating malformed input as absent rather than throwing on the socket. */
+function decodeSegment(segment: string): string | undefined {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return undefined
+  }
+}
 
 /** @param rejectUnmatched reject upgrades we don't own (prod); false in dev leaves them for the Vite proxy. */
 export function mountGatewayUpgrades(
@@ -42,11 +67,14 @@ export function mountGatewayUpgrades(
     const cdp = CDP_RE.exec(path)
     if (cdp) {
       const identity = cdp[1]
+      const agent = decodeSegment(cdp[2])
       const token = url.searchParams.get('token') ?? undefined
       let resolved
       try {
-        resolved = service.resolveCdpUpgrade(identity, token)
+        resolved = service.resolveCdpUpgrade(identity, agent, token)
       } catch (e) {
+        // The message names the identity and agent but never the token — this line is the one thing that runs
+        // on every rejected attach, so it is exactly where a credential would end up in the logs forever.
         log.warn(`cdp upgrade rejected for "${identity}": ${(e as Error).message}`)
         return reject(socket, 403)
       }
@@ -60,6 +88,14 @@ export function mountGatewayUpgrades(
     const takeover = TAKEOVER_RE.exec(path)
     if (takeover) {
       const identity = takeover[1]
+      // Cookie first: the dashboard is the expected client and `new WebSocket()` cannot set an Authorization
+      // header, so the cookie set at login is how a browser authenticates here. The query param is the fallback
+      // for a non-browser viewer, which is also why it must never be logged.
+      const presented = tokenFromRequest(req) ?? url.searchParams.get('token') ?? undefined
+      if (!verifyAccessToken(presented)) {
+        log.warn(`takeover upgrade rejected for "${identity}": missing or invalid access token`)
+        return reject(socket, 401)
+      }
       if (!service.isRunning(identity)) return reject(socket, 404)
       wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
         // Rebuild the hub if the identity was stopped and restarted — the old one holds a dead control client.
@@ -86,8 +122,9 @@ export function mountGatewayUpgrades(
   })
 }
 
+const STATUS_TEXT: Record<number, string> = { 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found' }
+
 function reject(socket: Duplex, status: number): void {
-  const text = status === 403 ? 'Forbidden' : 'Not Found'
-  socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\n\r\n`)
+  socket.write(`HTTP/1.1 ${status} ${STATUS_TEXT[status] ?? 'Error'}\r\nConnection: close\r\n\r\n`)
   socket.destroy()
 }

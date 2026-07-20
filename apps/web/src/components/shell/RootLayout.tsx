@@ -1,5 +1,6 @@
-import { Boxes, MonitorPlay, Settings } from 'lucide-react'
+import { Boxes, LogOut, MonitorPlay, Settings } from 'lucide-react'
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import { logout, notifyAuthExpired } from '@/lib/auth'
 import { useSessionsContext } from '@/lib/sessionsContext'
 import { cn } from '@/lib/utils'
 import { AppShell } from './AppShell'
@@ -44,6 +45,17 @@ export function RootLayout() {
         <div className='flex items-center gap-2 text-label text-muted-foreground'>
           <span className={cn('size-1.5 shrink-0 rounded-full', sessions ? 'bg-success' : 'bg-warning')} />
           <span className='truncate font-mono'>{sessions ? `${running} running` : 'connecting…'}</span>
+          <div className='min-w-0 flex-1' />
+          {/* Sign-out sits with the connection status because both describe the *link* to the gateway rather
+              than anything in the app. Icon-only: it's a rare action and the footer is one line tall. */}
+          <button
+            type='button'
+            onClick={() => void logout().then(notifyAuthExpired)}
+            aria-label='Sign out'
+            title='Sign out'
+            className='shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-text'>
+            <LogOut className='size-3.5' />
+          </button>
         </div>
       }>
       <Outlet />

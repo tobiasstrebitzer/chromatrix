@@ -120,3 +120,9 @@ export class IdentityRefDto {
   @IsString()
   identity!: string
 }
+
+export class AccessTokenDto {
+  @ApiProperty({ description: 'The gateway access token, traded for a session cookie by the dashboard.' })
+  @IsString()
+  token!: string
+}

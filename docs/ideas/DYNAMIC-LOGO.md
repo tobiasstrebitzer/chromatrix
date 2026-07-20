@@ -1,0 +1,66 @@
+# Dynamic Logo
+- Increase fidelity of our already dynamic logo
+- Based on number of identities and tabs, and their activity, we could draw an adjusting visual representation of our "matrix".
+
+## Core Idea Visualization
+
+### 0 Sessions 0 tabs
+```
+┌───┐
+│   │
+└───┘
+```
+
+### 1 Session 0 tabs
+```
+╔═══╗
+║   ║
+╚═══╝
+```
+
+### 1 Session 1 tab
+```
+╔═══╗
+║ ⊙ ║
+╚═══╝
+```
+
+### 2 Sessions with 2 tabs and 1 tab
+```
+╔═══╦═══╗
+║ ⊙ ║ ⊙ ║
+║   ╠═══╝
+║ ⊙ ║
+╚═══╝
+```
+
+### 5 Sessions. 1 session with 2 tabs and 1 session with 1 tab, 3 empty sessions
+```
+╔═══╦═══╦═══╗
+║ ⊙ ║ ⊙ ║   ║
+║   ╠═══╬═══╣
+║ ⊙ ║   ║   ║
+╚═══╩═══╩═══╝
+```
+
+### 9 Sessions with 1 Tab Each
+```
+╔═══╦═══╦═══╗
+║ ⊙ ║ ⊙ ║ ⊙ ║
+╠═══╬═══╬═══╣
+║ ⊙ ║ ⊙ ║ ⊙ ║
+╠═══╬═══╬═══╣
+║ ⊙ ║ ⊙ ║ ⊙ ║
+╚═══╩═══╩═══╝
+```
+
+### 3 Sessions with 3 Tabs Each
+```
+╔═══╦═══╦═══╗
+║ ⊙ ║ ⊙ ║ ⊙ ║
+║   ║   ║   ║
+║ ⊙ ║ ⊙ ║ ⊙ ║
+║   ║   ║   ║
+║ ⊙ ║ ⊙ ║ ⊙ ║
+╚═══╩═══╩═══╝
+```

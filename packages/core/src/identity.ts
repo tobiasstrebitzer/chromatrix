@@ -6,17 +6,36 @@
 import { mkdirSync, readdirSync, existsSync, rmSync, statSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 
-/** A valid identity id: lowercase slug, filesystem- and URL-safe (it appears in scoped CDP URLs). */
-const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
+/**
+ * A valid identity id: a lowercase kebab slug, filesystem- and URL-safe.
+ *
+ * Deliberately narrow. The id is a path segment in `/cdp/<identity>/<agentId>` and a directory name under
+ * `.profiles/`, so it should need no escaping in either — one canonical spelling, readable in a URL, safe on
+ * disk. Underscores are excluded so there is exactly one separator rather than two interchangeable ones
+ * (`work_twitter` and `work-twitter` being different identities is a footgun, not a feature). A trailing
+ * separator is excluded too, so ids can't differ only by punctuation at the end.
+ */
+const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 export interface Identity {
   readonly id: string
   readonly profileDir: string
 }
 
+/** Bounded so the id stays a comfortable path segment and directory name on every filesystem. */
+export const MAX_IDENTITY_ID_LENGTH = 64
+
 export function assertValidIdentityId(id: string): void {
+  // Length is checked separately from shape so the two failures read differently — "too long" and "has a
+  // character that isn't allowed" are different mistakes and deserve different messages.
+  if (id.length > MAX_IDENTITY_ID_LENGTH) {
+    throw new Error(`invalid identity id "${id}" — ${id.length} chars, max is ${MAX_IDENTITY_ID_LENGTH}`)
+  }
   if (!ID_RE.test(id)) {
-    throw new Error(`invalid identity id "${id}" — must match ${ID_RE} (lowercase slug, ≤64 chars)`)
+    throw new Error(
+      `invalid identity id "${id}" — must be a lowercase kebab slug: letters and digits separated by single ` +
+        `dashes (e.g. "work-twitter"), no underscores, spaces, uppercase, or leading/trailing dashes`,
+    )
   }
 }
 

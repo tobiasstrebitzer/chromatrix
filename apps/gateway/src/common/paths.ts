@@ -1,10 +1,14 @@
-// Path resolution shared by the module + acceptance test. The identity registry needs an ABSOLUTE profiles
-// root; default to `<repo>/.profiles` (gitignored — holds session cookies), overridable via
-// CHROMATRIX_PROFILES for prod/Mac-mini profile-location strategies (NEXT-SESSION open thread).
+// Path resolution shared by the module + e2e drivers. The identity registry needs an ABSOLUTE profiles root.
+//
+// The source of truth is now @chromatrix/shared's config (`profilesDir` in ~/.config/chromatrix/config.json,
+// or CHROMATRIX_PROFILES in the environment — the same env var as before). The schema enforces absoluteness,
+// so the check that used to live here has moved there. Default remains `<repo>/.profiles` (gitignored — holds
+// session cookies), which is what makes a dev checkout work with no config file at all.
 
 import { existsSync } from 'node:fs'
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { loadConfig } from '@chromatrix/shared'
 
 /** Walk up from this file until the workspace root (the dir holding pnpm-workspace.yaml). */
 export function repoRoot(): string {
@@ -19,10 +23,5 @@ export function repoRoot(): string {
 }
 
 export function profilesRoot(): string {
-  const override = process.env.CHROMATRIX_PROFILES?.trim()
-  if (override) {
-    if (!isAbsolute(override)) throw new Error(`CHROMATRIX_PROFILES must be absolute, got "${override}"`)
-    return override
-  }
-  return join(repoRoot(), '.profiles')
+  return loadConfig().profilesDir ?? join(repoRoot(), '.profiles')
 }

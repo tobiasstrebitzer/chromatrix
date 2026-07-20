@@ -11,13 +11,12 @@ per identity, many concurrent tabs driven by remote agents over a **mitigating C
 > gates (CAPTCHAs, managed challenges) are completed by a **human** via takeover, never auto-solved. The
 > design goal is *fidelity* (a genuine browser presenting as itself), not evasion. See [`docs/PRD.md`](docs/PRD.md) §0.
 
-The four foundational risks have been de-risked with runnable spikes, the proven primitives are consolidated
-into `packages/`, and the **gateway (`apps/gateway`) is now built and running**: NestJS + `@silkweave/nestjs`
-MCP provisioning surface, the raw-WS CDP mux mounted outside Nest's pipeline with a live per-tab ACL, and the
-takeover route. Two end-to-end tests drive real Chrome + real CDP and pass: `run accept` (single-identity ACL)
-and `run e2e` (multi-session: concurrent identities × agents × tabs — parallelism + isolation + teardown under
-load). The **`apps/web` dashboard is now built too** (React/Vite/Tailwind-v4 on the gtm design system, tRPC to
-the gateway, single-origin dev-proxy/prod-serve). What remains is validation + prod hardening. See NEXT-SESSION.md.
+The four foundational risks are de-risked with runnable spikes, the proven primitives live in `packages/`, and
+all four client surfaces are built and green: the **gateway** (NestJS + `@silkweave/nestjs`, raw-WS CDP mux
+outside Nest's pipeline with a live per-tab ACL, takeover), the **dashboard** (`apps/web`), the **CLI**
+(`apps/cli`), and **MCP** for agents. Every surface is gated by a single access token, and the whole thing is
+ready to run remotely. What remains is validation + prod hardening — see
+[`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md).
 
 ## Docs — read these for context
 
@@ -26,8 +25,9 @@ the gateway, single-origin dev-proxy/prod-serve). What remains is validation + p
   **Start here.**
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) — one-page consolidated summary of what every spike proved (S1–S4 +
   the compatibility test against protected sites). The fastest way to load "what do we know".
-- [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) — the continuation handoff: what to build next (`apps/web` +
-  the open validation threads) and how.
+- [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) — the continuation handoff: **open threads only** (validation,
+  prod hardening, UI polish) plus the accumulated **gotchas**. Deliberately holds no "what's built" inventory —
+  that's the status table at the bottom of this file.
 - [`docs/BRIEF.md`](docs/BRIEF.md) — the original research brief that kicked this off.
 - Per-spike READMEs under `spikes/*/README.md` — how to run each spike and its recorded result.
 
@@ -38,11 +38,15 @@ packages/
   cdp/        @chromatrix/cdp     — CdpClient + CdpMux (id-remap, sessionId routing, Interceptor seam)
   fidelity/   @chromatrix/fidelity — launchChrome + fingerprint-hygiene launch flags + runtimeEnableSuppressInterceptor
   core/       @chromatrix/core    — identity registry, tab pool, profile lock, reaper, supervisor, orchestrator
+  shared/     @chromatrix/shared  — config schema (zod) + resolution, access-token primitives. Lean by policy:
+                                    zod is the ONLY runtime dep, because the published CLI depends on this
 apps/
   gateway/    @chromatrix/gateway — NestJS: raw-WS CDP mux (outside Nest) + per-tab ACL + silkweave tRPC/MCP mgmt + takeover
-              src/{gateway,cdp,takeover,common,e2e}/ — grouped by concern (not flat)
+              src/{gateway,auth,cdp,takeover,common,e2e}/ — grouped by concern (not flat)
   web/        @chromatrix/web     — React 19 + Vite + Tailwind v4 dashboard (Sessions + Takeover), achromatic design system, tRPC client
               src/{styles,lib,components/{brand,shell,ui,sessions},views,generated}/
+  cli/        @chromatrix/cli     — remote CLI over the gateway's MCP surface via silkweave `cliProxy`.
+                                    ~45 lines, NO per-command code: commands are derived from `tools/list`
 spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
 ```
 
@@ -97,8 +101,26 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
   this UI always means something. The one sanctioned exception is the Logo's green, which is confined to
   brand expression (activity tint + hover flare) and is deliberately *not* a design token, so it can't leak
   into the UI proper.
+- **One access token gates everything.** There is a single credential for the whole gateway; what varies is
+  only how a client can *carry* it, and the transport dictates that — `Authorization: Bearer` for programmatic
+  clients, an **HttpOnly cookie** for the dashboard (`<img src>` and `new WebSocket()` cannot set headers), and
+  `?token=` on the raw-WS upgrades (no CDP client can set a handshake header). All paths converge on one
+  constant-time comparison in `auth/auth.ts`. It is minted on first boot and printed **once**.
+  - Guarding is per-surface because the surfaces differ: a global `APP_GUARD` covers `/api/*`; silkweave's
+    `auth` gates `/trpc` + `/mcp` **at the transport** (a per-method guard cannot close `tools/list`); and
+    `/cdp` + `/takeover` check themselves, because a WS handshake never reaches a Nest guard.
+  - `cookieToBearer` bridges the cookie to a bearer header for the silkweave transports, and **must** be
+    registered before Nest initialises — see the gotcha in NEXT-SESSION.
+- **Agents never hold the operator credential.** `/cdp` uses a *derived* per-agent token,
+  `HMAC(accessToken, identity ‖ agentId)` — recomputed, never stored, so it survives a restart and there is no
+  token table. It is one-way, which is the whole point: an agent can drive its tabs but cannot recover the
+  token that would let it delete every identity. The trade is no per-agent revocation (rotate globally).
+- **Config: `~/.config/chromatrix/config.json`, overridden by `CHROMATRIX_*` env** (`_TOKEN`, `_HOST`,
+  `_PORT`, `_GATEWAY_URL`, `_PUBLIC_ORIGIN`, `_PROFILES`, `_CONFIG`). Note bare `PORT`/`HOST` are **not** read.
+  The file is written `0600` and holds the token; the gateway warns if it is readable beyond its owner.
 - Real Chrome binary: `/Applications/Google Chrome.app` (v150). Persistent identity profiles live under
-  `.profiles/<id>/` (**gitignored** — contains session cookies).
+  `.profiles/<id>/` (**gitignored** — contains session cookies). Identity ids are lowercase kebab slugs
+  (`^[a-z0-9]+(-[a-z0-9]+)*$`, ≤64) so they need no escaping as a path segment or a directory name.
 - **`chrome-devtools-mcp`** is wired in `.mcp.json`: drive the dashboard in a real browser (navigate,
   screenshot, read the console, evaluate) instead of guessing at UI behaviour. Run the gateway yourself
   (`pnpm dev`) and point it at the gateway origin — that combination is how the takeover bugs were found.
@@ -117,13 +139,19 @@ pnpm s4            # spike S4 — live-view + takeover login tool (START_URL=…
 pnpm s4:test       # spike S4 — automated mechanism self-test
 
 # gateway (apps/gateway) — the real control plane
-pnpm --filter @chromatrix/gateway run start    # boot the gateway (PORT=8830; API /api, tRPC /trpc, MCP /mcp, CDP /cdp/<id>)
-pnpm --filter @chromatrix/gateway run accept   # single-identity acceptance test (real Chrome; HEADLESS=1 for no window)
+pnpm --filter @chromatrix/gateway run start    # boot (CHROMATRIX_PORT=8830; /api, /trpc, /mcp, /cdp/<identity>/<agentId>)
+pnpm --filter @chromatrix/gateway run accept   # acceptance test: ACL + the full auth perimeter (HEADLESS=1 for no window)
 pnpm --filter @chromatrix/gateway run e2e      # multi-session parallel e2e (IDENTITIES/AGENTS_PER_IDENTITY/TABS_PER_AGENT; HEADLESS=0 to watch)
 
 # dashboard (apps/web)
 pnpm dev                                       # dev: Vite (:5181) + gateway proxying to it for HMR — open the gateway origin
 pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeStatic serves apps/web/dist on one port
+
+# CLI (apps/cli) — remote client; commands are derived from the gateway's MCP tools, so this list is never stale
+pnpm --filter @chromatrix/cli run start -- --help
+pnpm --filter @chromatrix/cli run start -- create-identity --id work-twitter
+pnpm --filter @chromatrix/cli run start -- capture-tab --identity work-twitter --target-id ABC > shot.jpg
+# point it at a remote gateway: CHROMATRIX_GATEWAY_URL=https://mac-mini.tailnet.ts.net CHROMATRIX_TOKEN=…
 ```
 
 ## Status at a glance
@@ -134,7 +162,10 @@ pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeS
 | S2 fidelity | Authentic Apple/M3 Metal WebGL confirmed; fixed `navigator.webdriver` mismatch; ~8.5 GB for v1 fleet; x.com signed-in ✓, DataDome/std-Cloudflare PASS, managed-challenge GATED (→ human takeover) |
 | S3 concurrency | shared context + tab affinity is the sound v1 model; ephemeral contexts don't inherit the login |
 | S4 takeover | screencast + `isTrusted` input proven; used for a real human x.com login |
-| **gateway** | **built + green**: Nest/MCP provisioning (14 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
+| **gateway** | **built + green**: Nest/MCP provisioning (15 tools) + raw-WS CDP mux outside Nest + live per-tab ACL + takeover route; acceptance test proves agent A evaluates in its tab and is **denied** attaching to agent B's target |
+| **auth** | **built + verified (10/10 acceptance)**: one access token across `/api` (global guard), `/trpc` + `/mcp` (silkweave, gated at the transport so `tools/list` is closed), and `/takeover` (self-checked — a WS handshake never reaches a guard). `/cdp` uses a **derived** per-agent token, `HMAC(accessToken, identity ‖ agentId)`: one-way, so an agent can't recover the operator credential; recomputed, so no token table and it survives a restart. Dashboard signs in for an **HttpOnly cookie**, bridged to a bearer header for silkweave |
+| **config** | **built + verified**: `~/.config/chromatrix/config.json` (zod-validated, `0600`) overridden by `CHROMATRIX_*` env. Token minted on first boot and printed once. Bare `PORT`/`HOST` are no longer read |
+| **apps/cli** | **built + verified**: remote CLI over MCP via silkweave `cliProxy` — all 15 commands derived from `tools/list`, **zero per-command code**. Full remote scenario passes (create → start → allocate → navigate → capture → list → delete), including `capture-tab > shot.jpg` yielding a real JPEG via silkweave binary resources |
 | **multi-session e2e** | **built + green**: `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents × 2 tabs = 18 tabs) — parallelism (wall ≪ Σ), per-agent marker isolation, same-identity + cross-identity ACL denial, live churn, and zero-survivor teardown all pass |
 | **apps/web** | **built + green**: React/Vite/Tailwind-v4 dashboard (Sessions provisioning + Takeover live-view), tRPC client to the gateway; dev-proxy + prod-serve both verified; renders in real headless Chrome with no console errors |
 | **design system** | **rebuilt + verified**: achromatic dark/gray system (Vercel-referenced), identity-matrix mark, both themes driven in a real browser |
@@ -143,6 +174,7 @@ pnpm --filter @chromatrix/web run build        # prod build → gateway's ServeS
 | **per-tab viewport** | **built + verified**: every tab is its own window (`newWindow`), sized exactly via `Browser.setWindowBounds` + measured chrome delta. Takeover has width/height + auto-fit; global default in Settings (persisted to `.profiles/settings.json`). Floor is 500×288 — Chrome won't go smaller, and we don't fake it with emulation |
 | **takeover** | **fixed + verified**: last-frame replay for late joiners, serialized cast start/stop, human-selectable target; session + tab pickers in the dashboard; input proven to drive the *selected* tab |
 | **tab lifecycle** | **fixed + verified**: no stray `about:blank` on launch (`--no-startup-window`); leases are server-held so the tab list survives a reload; per-agent stable CDP tokens; optional per-tab start URL |
+| **screenshots** | **upgraded + verified**: `/api/tab/screenshot` is a silkweave **binary resource**, so one route serves three shapes — raw `image/jpeg` for the dashboard's `<img src>`, a real MCP `image` block an agent can see, and raw bytes on piped stdout for the CLI. Verified over MCP against real Chrome (valid JPEG magic, 9.7 KB) |
 
 ## Wrapup Config
 

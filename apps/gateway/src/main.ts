@@ -2,6 +2,7 @@
 // takeover routes bound to the SAME underlying http.Server — CDP frames bypass Nest's DI/guard/interceptor
 // pipeline entirely (PRD §6, the "mitigating mux, not transparent proxy" crux). One process, one port.
 
+import { configPath } from '@chromatrix/shared'
 import { startGateway } from './bootstrap.ts'
 
 // Last-resort resilience for the long-lived process: a stray socket error (a client vanishing mid-frame, a
@@ -43,6 +44,24 @@ console.log(' chromatrix · gateway')
 console.log('════════════════════════════════════════════════════════════════')
 console.log(`  Dashboard  : ${http}${process.env.VITE_DEV_URL ? '   (dev: proxied to Vite HMR)' : '   (serving apps/web/dist)'}`)
 console.log(`  API        : ${http}/api   ·   tRPC ${http}/trpc   ·   MCP ${http}/mcp`)
-console.log(`  CDP mux    : ${handle.gateway.publicWsOrigin}/cdp/<identity>?token=…`)
+console.log(`  CDP mux    : ${handle.gateway.publicWsOrigin}/cdp/<identity>/<agentId>?token=…`)
 console.log(`  Takeover   : ${http}/#/takeover/<identity>   (screencast WS: /takeover/<identity>/ws)`)
-console.log('  Ctrl-C to stop.\n')
+
+// The token is printed ONLY on the boot that minted it. Echoing a live credential to the terminal on every
+// start would put it in scrollback, screen shares, and `tee`'d logs for the lifetime of the machine — but not
+// printing it on first run would leave the operator with no way to learn it except reading the config file.
+if (handle.tokenInit?.created) {
+  console.log('\n  ── first run ──────────────────────────────────────────────')
+  console.log(`  Access token: ${handle.accessToken}`)
+  console.log(`  Saved to ${configPath()} (0600). This is the only time it is printed.`)
+  console.log('  Use it as `Authorization: Bearer …`, or paste it into the dashboard to sign in.')
+} else {
+  console.log(`\n  Access token: configured (${configPath()})`)
+}
+if (handle.tokenInit?.exposed) {
+  console.log(`  ⚠  ${configPath()} is readable beyond its owner — it holds the access token. chmod 600 it.`)
+}
+if (handle.host === '0.0.0.0') {
+  console.log('  ⚠  Bound to 0.0.0.0 — reachable off-host. Ensure this is a trusted network (e.g. Tailscale).')
+}
+console.log('\n  Ctrl-C to stop.\n')

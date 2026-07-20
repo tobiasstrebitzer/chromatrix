@@ -13,6 +13,7 @@ import {
   Query,
   StreamableFile,
 } from '@nestjs/common'
+import { ApiQuery } from '@nestjs/swagger'
 import { Mcp, Trpc } from '@silkweave/nestjs'
 import { CdpGatewayService } from './gateway.service.ts'
 import {
@@ -142,18 +143,34 @@ export class GatewayController {
   /**
    * Live JPEG of one tab — the dashboard's tab cards poll this so the Sessions view doubles as a monitor.
    *
-   * The only route here that is neither tRPC nor MCP, on purpose: it answers with image bytes, so an `<img
-   * src>` is both the simplest client and the most efficient wire format (no base64 inflation, browser-managed
-   * decode). Agents have no use for it — they drive their own tabs over the scoped CDP URL.
+   * This route serves the same bytes three different ways, which is the whole point of silkweave resources:
+   *   • REST  — raw `image/jpeg`, so an `<img src>` is the client (no base64 inflation, browser-managed decode)
+   *   • MCP   — a real `image` content block an agent can actually see, not a JSON blob of numbers
+   *   • CLI   — raw bytes on stdout when piped: `chromatrix capture-tab … > shot.jpg`
+   *
+   * The `StreamableFile` with an explicit `type` is what drives all three: silkweave normalises a typed
+   * StreamableFile into an `ActionResource`, and the mime being a raster image is what selects the MCP image
+   * block. Without the type it would fall back to an opaque octet-stream blob.
+   *
+   * Not `@Trpc`: the dashboard consumes this as an `<img src>`, which is strictly better than the base64
+   * envelope tRPC would hand back, so a tRPC procedure here would be dead weight on every client bundle.
    */
   @Get('tab/screenshot')
   @Header('Cache-Control', 'no-store')
+  @Header('Content-Type', 'image/jpeg')
+  @ApiQuery({ name: 'identity', description: 'Running identity that owns the tab.' })
+  @ApiQuery({ name: 'targetId', description: 'CDP target id of the tab to capture.' })
+  @Mcp({ name: 'capture-tab' })
   async screenshot(@Query('identity') identity: string, @Query('targetId') targetId: string) {
     if (!identity || !targetId) throw new NotFoundException('identity and targetId are required')
     try {
       // StreamableFile, not the raw Buffer: Nest hands a bare Buffer to res.json(), which serializes it as
       // {"type":"Buffer","data":[…]} — a valid 200 that no <img> can decode.
-      return new StreamableFile(await this.gateway.captureTab(identity, targetId), { type: 'image/jpeg' })
+      return new StreamableFile(await this.gateway.captureTab(identity, targetId), {
+        type: 'image/jpeg',
+        // Names the artifact for the CLI's auto-named file and the MCP resource uri tail.
+        disposition: `inline; filename="${identity}-${targetId.slice(0, 8)}.jpg"`,
+      })
     } catch (err) {
       // A closed tab / stopped identity is the common case under polling, not an incident: 404 lets the card
       // fall back to its placeholder without painting the error strip red on every tick.

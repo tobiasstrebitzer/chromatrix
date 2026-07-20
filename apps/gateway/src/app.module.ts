@@ -6,6 +6,7 @@
 
 import { join } from 'node:path'
 import { Module } from '@nestjs/common'
+import { APP_GUARD } from '@nestjs/core'
 import { ServeStaticModule } from '@nestjs/serve-static'
 import { SilkweaveModule } from '@silkweave/nestjs'
 import { mcp } from '@silkweave/nestjs/mcp'
@@ -13,7 +14,17 @@ import { trpc } from '@silkweave/nestjs/trpc'
 import { typegen } from '@silkweave/nestjs/typegen'
 import { GatewayController } from './gateway/gateway.controller.ts'
 import { CdpGatewayService } from './gateway/gateway.service.ts'
+import { AccessTokenGuard, verifyAccessToken } from './auth/auth.ts'
+import { AuthController } from './auth/auth.controller.ts'
 import { profilesRoot, repoRoot } from './common/paths.ts'
+
+/**
+ * Token check for the silkweave transports. Shaped as silkweave's `verifyToken` contract (an `AuthInfo` on
+ * success, `undefined` on failure) but backed by the same constant-time comparison the Nest guard uses — one
+ * credential, one comparison, three call sites.
+ */
+const verifyToken = async (token: string) =>
+  verifyAccessToken(token) ? { token, clientId: 'chromatrix-operator', scopes: ['operator'] } : undefined
 
 @Module({
   imports: [
@@ -34,17 +45,26 @@ import { profilesRoot, repoRoot } from './common/paths.ts'
       },
       adapters: [
         // @Trpc()-decorated controller methods → tRPC procedures under /trpc (the web app's typed client).
-        trpc({ basePath: '/trpc' }),
+        trpc({ basePath: '/trpc', auth: { required: true, verifyToken } }),
         // The same methods (where @Mcp'd) → MCP tools under /mcp. Provisioning-only surface (PRD §5): agents
         // then drive raw CDP over the scoped URL AllocateTab returns.
-        mcp({ basePath: '/mcp' }),
+        //
+        // Auth goes on the ADAPTER, not on the controller methods: `tools/list` is a transport-level call with
+        // no controller method behind it, so a per-method guard would leave the tool catalogue readable to
+        // anyone. Gating here closes discovery and invocation together.
+        mcp({ basePath: '/mcp', auth: { required: true, verifyToken } }),
         // Emit the AppRouter type into the web app on every boot (committed; regenerated on boot).
         typegen({ path: join(repoRoot(), 'apps', 'web', 'src', 'generated', 'appRouter.d.ts') }),
       ],
     }),
   ],
-  controllers: [GatewayController],
-  providers: [{ provide: CdpGatewayService, useFactory: () => new CdpGatewayService(profilesRoot()) }],
+  controllers: [GatewayController, AuthController],
+  providers: [
+    { provide: CdpGatewayService, useFactory: () => new CdpGatewayService(profilesRoot()) },
+    // Global rather than per-controller so a route added later is protected by DEFAULT. The opposite
+    // arrangement fails silently — a new provisioning route ships unauthenticated and nothing complains.
+    { provide: APP_GUARD, useClass: AccessTokenGuard },
+  ],
   exports: [CdpGatewayService],
 })
 export class AppModule {}

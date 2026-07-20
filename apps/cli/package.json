@@ -1,0 +1,23 @@
+{
+  "name": "@chromatrix/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "chromatrix CLI — a thin remote client over the gateway's MCP surface (@silkweave/mcp cliProxy). Every @Mcp tool the gateway exposes becomes a command automatically; there is no per-command code here by design.",
+  "bin": { "chromatrix": "./src/index.ts" },
+  "scripts": {
+    "start": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/index.ts",
+    "typecheck": "tsgo -p tsconfig.json"
+  },
+  "dependencies": {
+    "@chromatrix/shared": "workspace:*",
+    "@silkweave/core": "^4.4.0",
+    "@silkweave/mcp": "^4.4.0",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.11.1",
+    "@swc/core": "^1.15.41",
+    "@types/node": "^22.10.0"
+  }
+}

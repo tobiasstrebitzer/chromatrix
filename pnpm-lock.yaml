@@ -33,6 +33,31 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)
 
+  apps/cli:
+    dependencies:
+      '@chromatrix/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@silkweave/core':
+        specifier: ^4.4.0
+        version: 4.4.0(zod@3.25.76)
+      '@silkweave/mcp':
+        specifier: ^4.4.0
+        version: 4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1)
+      commander:
+        specifier: ^13.1.0
+        version: 13.1.0
+    devDependencies:
+      '@swc-node/register':
+        specifier: ^1.11.1
+        version: 1.12.0(@swc/core@1.15.43)(@swc/types@0.1.27)(typescript@6.0.3)
+      '@swc/core':
+        specifier: ^1.15.41
+        version: 1.15.43
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+
   apps/gateway:
     dependencies:
       '@chromatrix/cdp':
@@ -44,6 +69,9 @@ importers:
       '@chromatrix/fidelity':
         specifier: workspace:*
         version: link:../../packages/fidelity
+      '@chromatrix/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -60,17 +88,17 @@ importers:
         specifier: ^11.0.0
         version: 11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)
       '@silkweave/mcp':
-        specifier: ^4.2.0
-        version: 4.2.0(cors@2.8.6)(express@5.2.1)
+        specifier: ^4.4.0
+        version: 4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1)
       '@silkweave/nestjs':
-        specifier: ^4.2.0
-        version: 4.2.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(@nestjs/swagger@11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2))(@silkweave/mcp@4.2.0(cors@2.8.6)(express@5.2.1))(@silkweave/trpc@4.2.0(typescript@6.0.3))(@silkweave/typegen@4.2.0)(@trpc/server@11.18.0(typescript@6.0.3))(class-validator@0.14.4)(rxjs@7.8.2)
+        specifier: ^4.4.0
+        version: 4.4.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(@nestjs/swagger@11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2))(@silkweave/mcp@4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1))(@silkweave/trpc@4.4.0(typescript@6.0.3))(@silkweave/typegen@4.4.0)(@trpc/server@11.18.0(typescript@6.0.3))(class-validator@0.14.4)(rxjs@7.8.2)
       '@silkweave/trpc':
-        specifier: ^4.2.0
-        version: 4.2.0(typescript@6.0.3)
+        specifier: ^4.4.0
+        version: 4.4.0(typescript@6.0.3)
       '@silkweave/typegen':
-        specifier: ^4.2.0
-        version: 4.2.0
+        specifier: ^4.4.0
+        version: 4.4.0
       '@trpc/server':
         specifier: ^11.7.1
         version: 11.18.0(typescript@6.0.3)
@@ -80,6 +108,9 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
       http-proxy-middleware:
         specifier: ^3.0.3
         version: 3.0.7
@@ -99,6 +130,9 @@ importers:
       '@swc/core':
         specifier: ^1.15.41
         version: 1.15.43
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
@@ -219,6 +253,25 @@ importers:
       '@chromatrix/cdp':
         specifier: workspace:*
         version: link:../cdp
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      rimraf:
+        specifier: ^6.1.3
+        version: 6.1.3
+      tsdown:
+        specifier: ^0.21.10
+        version: 0.21.10(@typescript/native-preview@7.0.0-dev.20260707.2)(oxc-resolver@11.24.2)(typescript@6.0.3)
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)
+
+  packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -1407,16 +1460,16 @@ packages:
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
-  '@silkweave/auth@4.2.0':
-    resolution: {integrity: sha512-HViHgREOIQqmA58+QD/sD7Xgox3wqtJGpdKGppK3RHqihCd9xTwESP4AnN+3szhm+G8KEsova50Hb7LIwxkBmQ==}
+  '@silkweave/auth@4.4.0':
+    resolution: {integrity: sha512-gavL8hv5upLatcUw4I6RzfvWKtnS41ta1aoU1i1sMXQsXL//LQUvmdeqE3l+1BlylEXQic/zqP3LOrbKWMGpkg==}
 
-  '@silkweave/core@4.2.0':
-    resolution: {integrity: sha512-jFjSps3CNjb3222+sQeL+rkrIGsBpXq66by7dxY6oESenkRx1+Da9KuEVNSc3rR/6WTsF4+tfQXMRAt7L6d+Qw==}
+  '@silkweave/core@4.4.0':
+    resolution: {integrity: sha512-MuIMeEIH73KZ+WCm5XXvJFAtv7DMWSM0XUXjcVY/re38xdbnGqQEupcbVyaDvMsdaNYNYZgWYEo12JYP71WxjQ==}
     peerDependencies:
       zod: ^3.25.0
 
-  '@silkweave/mcp@4.2.0':
-    resolution: {integrity: sha512-l/MAq/RbzX7bxfDj5U6dfpIUlVojc4dBTMg2TmOsatAF3LXnNxC+BBKDKep7auux/+FLqI/iI/cc56mjuqrGNg==}
+  '@silkweave/mcp@4.4.0':
+    resolution: {integrity: sha512-bwQ5z9Kxh29h00EsfAsM1Fn4Tej1e8snP8pqHZNtqt5re+gy8akBwcmQTyQZ65OsSFu1YYXj3saMt+DtepvepQ==}
     peerDependencies:
       commander: ^13.1.0
       cors: ^2.8.5
@@ -1429,15 +1482,15 @@ packages:
       express:
         optional: true
 
-  '@silkweave/nestjs@4.2.0':
-    resolution: {integrity: sha512-njiqqzbsKj/hElMmaMxIpy+7ER1+Sv2tGEiWcoZkLwDb5HU/9WF+mIvCtEPQx7YobwCHLzAztOQMIX6NjZoI8Q==}
+  '@silkweave/nestjs@4.4.0':
+    resolution: {integrity: sha512-zU3C+Ce+eUIzeXTzylOg11cwpQRurC5Wj86E4lpTTI/QNW6dcZrxidIDY5rTMHzXHJk3inlMekL+iPJq0mkt4w==}
     peerDependencies:
       '@nestjs/common': ^10.0.0 || ^11.0.0
       '@nestjs/core': ^10.0.0 || ^11.0.0
       '@nestjs/swagger': ^7.0.0 || ^8.0.0 || ^11.0.0
-      '@silkweave/mcp': ^4.2.0
-      '@silkweave/trpc': ^4.2.0
-      '@silkweave/typegen': ^4.2.0
+      '@silkweave/mcp': ^4.4.0
+      '@silkweave/trpc': ^4.4.0
+      '@silkweave/typegen': ^4.4.0
       '@trpc/server': ^11.7.1
       class-validator: ^0.14.0 || ^0.15.0
       rxjs: ^7.0.0
@@ -1455,11 +1508,11 @@ packages:
       class-validator:
         optional: true
 
-  '@silkweave/trpc@4.2.0':
-    resolution: {integrity: sha512-+iH0ufocHKUbiEkKmO75Jm1nXS223cuDH6ia9VGt0XIfcTuWn56fo6XTUXb2YnoZtt+VoWUR/fLO7D5bT9AmJA==}
+  '@silkweave/trpc@4.4.0':
+    resolution: {integrity: sha512-GfxEus8xZZ8d+qtKYcY8Tz6G3NWx/Er0ULNcQYMUEKmF22HS4fY5vMLRjPnG0pVcStmQJWYuYkASsAcpApmDgw==}
 
-  '@silkweave/typegen@4.2.0':
-    resolution: {integrity: sha512-JpKLb/kcJRlqREAjJyrbHX4O5S7LVWDayuPVUfpDW0LQtPsKNNuLFbaqunH50eT2bcsIn2CzWaqviCi7x6DLRQ==}
+  '@silkweave/typegen@4.4.0':
+    resolution: {integrity: sha512-uJnnU0Wt3uecvECWuOhlkHYZP0iEgl2f+Tr1SKX7DkpB+hhEsonY6NQ3fYrEewt25yX+06DsJmXYgCDwVuxdcA==}
 
   '@swc-node/core@1.15.0':
     resolution: {integrity: sha512-WAerrrl087WgenB92XG4Th2t0NQFfMNLYSe0sW2cEMMqM/LQmP4rozsDJl0vuzTrbewjpKQryxFXI+aYig/dBg==}
@@ -1741,14 +1794,29 @@ packages:
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
 
+  '@types/body-parser@1.19.6':
+    resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
+
+  '@types/connect@3.4.38':
+    resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/express-serve-static-core@5.1.2':
+    resolution: {integrity: sha512-d3KvEXBSo/lOAMc2u6fkyDHBvetBHeqD7wm/AcXfLpSOQwlmG9D/aQ0SFswVjv05p7ullQS7Mjohj6/VdbZuTg==}
+
+  '@types/express@5.0.6':
+    resolution: {integrity: sha512-sKYVuV7Sv9fbPIt/442koC7+IIwK5olP1KWeD88e/idgoJqDm3JV/YUiPwkoKK92ylff2MGxSz1CSjsXelx0YA==}
+
+  '@types/http-errors@2.0.5':
+    resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
 
   '@types/http-proxy@1.17.17':
     resolution: {integrity: sha512-ED6LB+Z1AVylNTu7hdzuBqOgMnvG/ld6wGCG8wFnAzKX5uyW2K3WD52v0gnLCTK/VLpXtKckgWuyScYK6cSPaw==}
@@ -1759,6 +1827,12 @@ packages:
   '@types/node@22.20.1':
     resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
 
+  '@types/qs@6.15.1':
+    resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
+
+  '@types/range-parser@1.2.7':
+    resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
+
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
@@ -1766,6 +1840,12 @@ packages:
 
   '@types/react@19.2.17':
     resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
+
+  '@types/send@1.2.1':
+    resolution: {integrity: sha512-arsCikDvlU99zl1g69TcAB3mzZPpxgw0UQnaHeC1Nwb015xp8bknZv5rIfri9xTOcMuaVgvabfIRA7PSZVuZIQ==}
+
+  '@types/serve-static@2.2.0':
+    resolution: {integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==}
 
   '@types/validator@13.15.10':
     resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
@@ -1963,6 +2043,10 @@ packages:
 
   colorette@2.0.20:
     resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
+
+  commander@13.1.0:
+    resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
+    engines: {node: '>=18'}
 
   concat-stream@2.0.0:
     resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
@@ -3777,36 +3861,37 @@ snapshots:
 
   '@scarf/scarf@1.4.0': {}
 
-  '@silkweave/auth@4.2.0(zod@3.25.76)':
+  '@silkweave/auth@4.4.0(zod@3.25.76)':
     dependencies:
-      '@silkweave/core': 4.2.0(zod@3.25.76)
+      '@silkweave/core': 4.4.0(zod@3.25.76)
       jose: 6.2.3
     transitivePeerDependencies:
       - zod
 
-  '@silkweave/core@4.2.0(zod@3.25.76)':
+  '@silkweave/core@4.4.0(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
 
-  '@silkweave/mcp@4.2.0(cors@2.8.6)(express@5.2.1)':
+  '@silkweave/mcp@4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@3.25.76)
-      '@silkweave/auth': 4.2.0(zod@3.25.76)
-      '@silkweave/core': 4.2.0(zod@3.25.76)
+      '@silkweave/auth': 4.4.0(zod@3.25.76)
+      '@silkweave/core': 4.4.0(zod@3.25.76)
       change-case: 5.4.4
       zod: 3.25.76
     optionalDependencies:
+      commander: 13.1.0
       cors: 2.8.6
       express: 5.2.1
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@silkweave/nestjs@4.2.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(@nestjs/swagger@11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2))(@silkweave/mcp@4.2.0(cors@2.8.6)(express@5.2.1))(@silkweave/trpc@4.2.0(typescript@6.0.3))(@silkweave/typegen@4.2.0)(@trpc/server@11.18.0(typescript@6.0.3))(class-validator@0.14.4)(rxjs@7.8.2)':
+  '@silkweave/nestjs@4.4.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(@nestjs/swagger@11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2))(@silkweave/mcp@4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1))(@silkweave/trpc@4.4.0(typescript@6.0.3))(@silkweave/typegen@4.4.0)(@trpc/server@11.18.0(typescript@6.0.3))(class-validator@0.14.4)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/core': 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@silkweave/core': 4.2.0(zod@3.25.76)
+      '@silkweave/core': 4.4.0(zod@3.25.76)
       change-case: 5.4.4
       cors: 2.8.6
       express: 5.2.1
@@ -3814,18 +3899,18 @@ snapshots:
       zod: 3.25.76
     optionalDependencies:
       '@nestjs/swagger': 11.4.6(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)
-      '@silkweave/mcp': 4.2.0(cors@2.8.6)(express@5.2.1)
-      '@silkweave/trpc': 4.2.0(typescript@6.0.3)
-      '@silkweave/typegen': 4.2.0
+      '@silkweave/mcp': 4.4.0(commander@13.1.0)(cors@2.8.6)(express@5.2.1)
+      '@silkweave/trpc': 4.4.0(typescript@6.0.3)
+      '@silkweave/typegen': 4.4.0
       '@trpc/server': 11.18.0(typescript@6.0.3)
       class-validator: 0.14.4
     transitivePeerDependencies:
       - supports-color
 
-  '@silkweave/trpc@4.2.0(typescript@6.0.3)':
+  '@silkweave/trpc@4.4.0(typescript@6.0.3)':
     dependencies:
-      '@silkweave/auth': 4.2.0(zod@3.25.76)
-      '@silkweave/core': 4.2.0(zod@3.25.76)
+      '@silkweave/auth': 4.4.0(zod@3.25.76)
+      '@silkweave/core': 4.4.0(zod@3.25.76)
       '@trpc/server': 11.18.0(typescript@6.0.3)
       change-case: 5.4.4
       cors: 2.8.6
@@ -3833,9 +3918,9 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@silkweave/typegen@4.2.0':
+  '@silkweave/typegen@4.4.0':
     dependencies:
-      '@silkweave/core': 4.2.0(zod@3.25.76)
+      '@silkweave/core': 4.4.0(zod@3.25.76)
       change-case: 5.4.4
       zod: 3.25.76
 
@@ -4062,14 +4147,38 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@types/body-parser@1.19.6':
+    dependencies:
+      '@types/connect': 3.4.38
+      '@types/node': 22.20.1
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
 
+  '@types/connect@3.4.38':
+    dependencies:
+      '@types/node': 22.20.1
+
   '@types/deep-eql@4.0.2': {}
 
   '@types/estree@1.0.9': {}
+
+  '@types/express-serve-static-core@5.1.2':
+    dependencies:
+      '@types/node': 22.20.1
+      '@types/qs': 6.15.1
+      '@types/range-parser': 1.2.7
+      '@types/send': 1.2.1
+
+  '@types/express@5.0.6':
+    dependencies:
+      '@types/body-parser': 1.19.6
+      '@types/express-serve-static-core': 5.1.2
+      '@types/serve-static': 2.2.0
+
+  '@types/http-errors@2.0.5': {}
 
   '@types/http-proxy@1.17.17':
     dependencies:
@@ -4081,6 +4190,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/qs@6.15.1': {}
+
+  '@types/range-parser@1.2.7': {}
+
   '@types/react-dom@19.2.3(@types/react@19.2.17)':
     dependencies:
       '@types/react': 19.2.17
@@ -4088,6 +4201,15 @@ snapshots:
   '@types/react@19.2.17':
     dependencies:
       csstype: 3.2.3
+
+  '@types/send@1.2.1':
+    dependencies:
+      '@types/node': 22.20.1
+
+  '@types/serve-static@2.2.0':
+    dependencies:
+      '@types/http-errors': 2.0.5
+      '@types/node': 22.20.1
 
   '@types/validator@13.15.10': {}
 
@@ -4288,6 +4410,8 @@ snapshots:
   clsx@2.1.1: {}
 
   colorette@2.0.20: {}
+
+  commander@13.1.0: {}
 
   concat-stream@2.0.0:
     dependencies:

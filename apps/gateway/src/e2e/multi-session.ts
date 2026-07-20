@@ -97,12 +97,14 @@ async function main(): Promise<void> {
   process.env.CHROMATRIX_PROFILES = profiles
   const { startGateway } = await import('../bootstrap.ts')
   const page = await startPageServer()
-  const handle = await startGateway({ port: 0 })
+  // An explicit token, so the run neither reads nor writes the developer's real ~/.config/chromatrix.
+  const accessToken = 'test-access-token-multi-session'
+  const handle = await startGateway({ port: 0, accessToken })
   const base = `http://${handle.host}:${handle.port}/api`
   const post = async (path: string, body: unknown) => {
     const res = await fetch(`${base}${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
       body: JSON.stringify(body),
     })
     if (!res.ok) throw new Error(`${path} → ${res.status} ${await res.text()}`)
