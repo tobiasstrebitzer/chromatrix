@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "CDP client + flat-session multiplexer for chromatrix: one upstream connection to Chrome, N downstream clients, per-client command-id remapping, event routing by sessionId, per-tab ACLs, and a pluggable message-interception layer (the mitigating-mux core). Populated by promoting spikes/s1-cdp-mux once proven.",
+  "description": "CDP client + flat-session multiplexer for chromatrix: one upstream connection to Chrome, N downstream clients, per-client command-id remapping, event routing by sessionId, per-tab ACLs, and a pluggable message-interception layer (the mitigating-mux core). Proven in spike S1 (now retired) and promoted here.",
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
   "files": ["build"],

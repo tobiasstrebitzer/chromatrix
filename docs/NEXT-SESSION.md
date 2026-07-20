@@ -13,11 +13,14 @@ cost a debugging cycle to rediscover.
 
 ### Validation (highest value, needs a human)
 
-- **Empirical `cf_clearance` persistence test.** Launch `pnpm s4` on a *real* Cloudflare managed-challenge
-  site **for which you have authorization to automate** (nopecha's demo always re-challenges, so pick a real
-  target from the actual use case), have a **person** solve the checkbox once by hand, then re-run
-  `pnpm s2:targets` with the same `PROFILE_DIR` and watch it flip **GATED → PASS** with `cf_clearance`
-  present. Validates the human-in-the-loop-takeover + persistent-session model end to end. (PRD §0/§3/§4.)
+- **Empirical `cf_clearance` persistence test.** Now run through the real product (the standalone S4/S2 spike
+  tools are retired): boot the gateway (`pnpm --filter @chromatrix/gateway run start`), `create-identity` +
+  `start-session`, open **Takeover** in the dashboard on a *real* Cloudflare managed-challenge site **for which
+  you have authorization to automate** (nopecha's demo always re-challenges, so pick a real target from the
+  actual use case), and have a **person** solve the checkbox once by hand. Then run `pnpm fidelity:check` with
+  `PROFILE_DIR=<that identity's .profiles/<id>>` (or `CDP_URL=` the running gateway Chrome) and watch the
+  Cloudflare row flip **GATED → PASS** with `cf_clearance` present. Validates the human-in-the-loop-takeover +
+  persistent-session model end to end. (PRD §0/§3/§4.)
 - **Human-verification gates stay human (explicit non-goal).** We do **not** build automated solving of
   CAPTCHAs / Turnstile / managed challenges — auto-solving a human-verification gate is exactly the "fake a
   human" behaviour chromatrix excludes (PRD §0). The supported path is human takeover (S4); the value we add
@@ -131,9 +134,9 @@ Durable, expensively-learned details. Roughly grouped; all still current.
   nothing. Write `\u0000` as an escape. (One had crept into `gateway.service.ts`.)
 - pnpm `--filter <pkg> run <script>` runs with **cwd = the package dir** — pass **absolute** paths for env
   like `PROFILE_DIR`.
-- Apps/spikes importing workspace packages at source must run with
-  `node --conditions=@chromatrix/source --import @swc-node/register/esm-register` and set `customConditions` +
-  `allowImportingTsExtensions` in their tsconfig.
+- Apps (and runnable eval scripts like `pnpm fidelity:check`) importing workspace packages at source must run
+  with `node --conditions=@chromatrix/source --import @swc-node/register/esm-register` and set
+  `customConditions` + `allowImportingTsExtensions` in their tsconfig.
 - macOS `pgrep -f` reads a pattern beginning with `--` as its own flags — pass `--` first. Fixed in the reaper.
 - pnpm's dep-status precheck fails the whole `--filter … run` if a transitive postinstall script is undecided
   (NestJS pulls in `@scarf/scarf` telemetry) — decide it in `pnpm-workspace.yaml` `allowBuilds`.

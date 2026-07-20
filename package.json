@@ -15,12 +15,7 @@
     "test": "turbo run test",
     "lint": "oxlint",
     "clean": "turbo run clean",
-    "s1": "pnpm --filter @chromatrix/spike-s1-cdp-mux run start",
-    "s2": "pnpm --filter @chromatrix/spike-s2-fidelity-baseline run start",
-    "s2:targets": "pnpm --filter @chromatrix/spike-s2-fidelity-baseline run targets",
-    "s3": "pnpm --filter @chromatrix/spike-s3-concurrency run start",
-    "s4": "pnpm --filter @chromatrix/spike-s4-viewer-takeover run start",
-    "s4:test": "pnpm --filter @chromatrix/spike-s4-viewer-takeover run test"
+    "fidelity:check": "pnpm --filter @chromatrix/fidelity run check"
   },
   "devDependencies": {
     "@swc-node/register": "^1.11.1",

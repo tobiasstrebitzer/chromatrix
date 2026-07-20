@@ -1,8 +1,10 @@
 # chromatrix — spike findings (consolidated)
 
-One page of what the S1–S4 spikes established. Detail lives in each `spikes/*/README.md`; the architectural
-consequences are folded into [`PRD.md`](PRD.md). Dev machine: MacBook Pro **M3 Pro**, real Google
-**Chrome 150**, residential IP.
+One page of what the S1–S4 spikes established. The spikes were throwaway de-risking experiments; they served
+their purpose and have been **retired** — their proven primitives live in `packages/` + `apps/`, their
+fidelity assertions live on as `pnpm fidelity:check` (see S1/S2 below), and this page plus [`PRD.md`](PRD.md)
+is the record of what they proved. The spike code itself is recoverable from git history if ever needed.
+Dev machine: MacBook Pro **M3 Pro**, real Google **Chrome 150**, residential IP.
 
 ## Responsible use (read this first)
 
@@ -34,18 +36,19 @@ use. The cases it does **not** silently clear are the **interactive human-verifi
 managed challenge / Turnstile) — and that is correct: those are meant to verify a human, so a human completes
 them via takeover and the resulting session persists.
 
-## S1 — mitigating CDP mux (`pnpm s1`)
+## S1 — mitigating CDP mux (now `packages/cdp` + `pnpm fidelity:check`)
 
 - **Chrome 150 closed the classic in-page `Runtime.enable` getter-trap leak.** `Runtime.consoleAPICalled`
-  now serializes accessor properties as `{type:"accessor"}` **without invoking the getter** (verified in
-  `spikes/s1-cdp-mux/src/diag2.ts`). The one clean in-page CDP tell the research relied on is gone here.
+  now serializes accessor properties as `{type:"accessor"}` **without invoking the getter**. The one clean
+  in-page CDP tell the research relied on is gone here. This check is now a standing probe —
+  `probeRuntimeEnableGetterTrap` in `@chromatrix/fidelity`, run by `pnpm fidelity:check`.
 - **Proxy-side protocol hygiene works.** The mux blocks `Runtime.enable` from ever reaching Chrome for an
   *unmodified* raw-CDP consumer, yet that consumer still gets an execution context and evaluates JS (via a
   synthesized isolated world). Multiplexing two consumers passes.
 - **Consequence:** keep the mux (cheap, transparent handshake-surface reduction), but it is not load-bearing
   on current Chrome — running the genuine browser is what matters.
 
-## S2 — headed Chrome baseline + capacity (`pnpm s2`, `pnpm s2:targets`)
+## S2 — headed Chrome baseline + capacity (now `pnpm fidelity:check`)
 
 - **Authentic Apple/Metal WebGL confirmed:** `ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro)` — authentic
   because it *is* a real Mac's GPU. This is the core reason to run a genuine headed browser on a Mac rather
@@ -63,7 +66,7 @@ them via takeover and the resulting session persists.
   by design it shouldn't: a managed challenge is a human-verification gate, handled via human takeover
   (S4), not bypassed. (Caveat: the nopecha demo always challenges; verdicts vary by IP/geo/day.)
 
-## S3 — shared-tab concurrency (`pnpm s3`)
+## S3 — shared-tab concurrency (now realized in `packages/core` + the gateway `e2e`)
 
 - **Shared context per identity is sound:** 5 concurrent agents, each in its own tab, all completed, all share
   the login cookie, all localStorage writes land. Multi-session CDP is robust.
@@ -73,7 +76,7 @@ them via takeover and the resulting session persists.
   wrong tool for per-job isolation under a logged-in identity. v1 = **shared context + exclusive tab leasing**.
 - **Still open:** dynamic HSTS / TLS-session-cache leakage between default and ephemeral contexts (needs a probe).
 
-## S4 — live view + human takeover (`pnpm s4`, `pnpm s4:test`)
+## S4 — live view + human takeover (now the gateway `/takeover` route + dashboard)
 
 - CDP `Page.startScreencast` (JPEG q75, ack-throttled, fanned out to all viewers) + `Input.dispatch*`.
 - **Injected input is `isTrusted`** — because it goes through the browser's real input pipeline, the same one

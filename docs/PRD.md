@@ -164,13 +164,18 @@ path deliberately outside Nest.
 **RESOLVED — CLI deferred** (not in v1). **RESOLVED — add Vitest** as a deliberate deviation from gtm (this
 system is too behavior-heavy — fidelity probes, mux correctness, handshake verification — to spike without tests).
 
-## 7. Spike plan (the actual next step)
+## 7. Spike plan (executed — spikes now retired)
 
 Four spikes, mapping to the four requirement pillars. Sequence: **S1 + S2 first** (the risky foundation),
-then S3, then S4. Each spike has a crisp success gate. Suggested location: `spikes/` (throwaway, not the
-final package layout).
+then S3, then S4. Each spike had a crisp success gate.
 
-> **S1 status (2026-07-18): first cut BUILT & RUN — see `spikes/s1-cdp-mux/`.** Two findings on the real
+> **All four spikes have been run, their findings folded into the design, and their code retired.** The
+> proven primitives live in `packages/` + `apps/`; the durable fidelity assertions live on as
+> `pnpm fidelity:check` (`@chromatrix/fidelity`'s probes + live target matrix); [`FINDINGS.md`](FINDINGS.md)
+> is the consolidated record. The status notes below are kept as the historical de-risking log — their
+> `see spikes/…` pointers now resolve in **git history**, not the working tree.
+
+> **S1 status (2026-07-18): first cut BUILT & RUN — spike retired, see git history.** Two findings on the real
 > Chrome 150 binary: (1) the classic in-page `Runtime.enable` **getter-trap leak is already CLOSED on Chrome
 > 150** — `consoleAPICalled` serializes accessors as `{type:"accessor"}` without invoking them (verified via
 > `diag2.ts`); the research's expectation that this variant still leaks was based on older builds (137–148).
@@ -198,7 +203,7 @@ can transparently rewrite an external consumer's `Runtime.enable` into isolated-
 breaking that consumer's expectations* — if not, the fallback is a "fidelity-lint" that rejects/upgrades
 consumers rather than silently rewriting.
 
-> **S2 status (2026-07-18): no-login baseline BUILT & RUN — see `spikes/s2-fidelity-baseline/`** (MacBook
+> **S2 status (2026-07-18): no-login baseline BUILT & RUN — now `pnpm fidelity:check`** (MacBook
 > Pro M3 Pro, Chrome 150). ✅ Authentic Apple/Metal WebGL confirmed (`ANGLE (Apple, ANGLE Metal Renderer:
 > Apple M3 Pro)`) — the core macOS-headed advantage. ⚠→✅ Found and fixed a real tell: plain launch leaks
 > `navigator.webdriver=true`; `--disable-blink-features=AutomationControlled` fixes it (now promoted into
@@ -206,7 +211,7 @@ consumers rather than silently rewriting.
 > Capacity: ~375 MB/tab, ~1.0 GB/identity-instance base → v1 target (5 identities + 10 tabs) ≈ 8.5 GB (fits
 > 16 GB tight, comfortable 32 GB+).
 >
-> **Target matrix RUN (2026-07-18, human-verified x.com login via S4, `pnpm s2:targets`):** ✅ x.com `/home`
+> **Target matrix RUN (2026-07-18, human-verified x.com login via S4, now `pnpm fidelity:check`):** ✅ x.com `/home`
 > signed in (auth_token + logged-in DOM markers, persisted profile); ✅ bot.sannysoft.com **0** automation
 > tells failed; ✅ Cloudflare (nowsecure.nl) PASS (real content, no challenge). This confirms the S1 thesis
 > end-to-end: with in-page CDP tells closed on Chrome 150, real headed Chrome + ordinary hygiene clears these
@@ -239,7 +244,7 @@ finding**, not a spike failure. What we must learn: where the real line is, and 
 authorized use cases need it. Interactive human-verification gates are handled by human takeover (S4), not
 worked around.
 
-> **S3 status (2026-07-18): BUILT & RUN — see `spikes/s3-concurrency/`.** ✅ Shared-context concurrency is
+> **S3 status (2026-07-18): BUILT & RUN — spike retired, see git history.** ✅ Shared-context concurrency is
 > sound: 5 concurrent agents each in their own tab all completed, all share the login cookie, all localStorage
 > writes land (multi-session CDP robust). ❌ Forcing two agents onto ONE tab breaks the in-flight op
 > (`Inspected target navigated or closed`) → **tab affinity is mandatory** (a tab is leased to one agent at a
@@ -260,14 +265,15 @@ affinity); a clear verdict on whether per-job `createBrowserContext` is worth it
 fingerprint and can't persist. Resolve the flagged unknowns: do **dynamic HSTS / TLS-session caches leak**
 between the persistent default context and CDP contexts?
 
-> **S4 status (2026-07-18): BUILT & self-tested — see `spikes/s4-viewer-takeover/`.** CDP
+> **S4 status (2026-07-18): BUILT & self-tested — now the gateway `/takeover` route + dashboard.** CDP
 > `Page.startScreencast` (JPEG q75, ack-throttled) fanned out to all viewers + `Input.dispatch*` for control.
 > Automated gates pass: screencast frames flow (138/1.5s), injected mouse click fires the page handler with
 > **`isTrusted === true`**, injected keyboard types into a focused input; a server smoke confirms the HTTP
-> viewer + WS frame bridge. `pnpm s4` runs the interactive login tool (headed Chrome + a local
-> `http://127.0.0.1:<port>` viewer you drive by hand); `PROFILE_DIR=…` makes the login persist → a reusable
-> identity profile. Human-driven real login (LinkedIn/Google) is the remaining manual step, and it's what
-> unblocks the deferred S2 target matrix. Out of scope held: WebRTC/neko, pause→live→resume agent handoff.
+> viewer + WS frame bridge. The interactive login flow the spike prototyped is now the product's
+> **Takeover** view (dashboard) over the gateway `/takeover/<id>` route: a human drives a headed identity
+> Chrome by hand and the login persists to that identity's profile → a reusable identity. Human-driven real
+> login is the remaining manual step, and it's what unblocks the `pnpm fidelity:check` target matrix against a
+> signed-in profile. Out of scope held: WebRTC/neko, pause→live→resume agent handoff.
 
 ### S4 — Viewer / takeover (also the login-bootstrap tool)
 **Question:** Is CDP screencast + input-injection good enough for manual login and occasional takeover?

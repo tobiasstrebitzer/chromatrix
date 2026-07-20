@@ -11,7 +11,9 @@ per identity, many concurrent tabs driven by remote agents over a **mitigating C
 > gates (CAPTCHAs, managed challenges) are completed by a **human** via takeover, never auto-solved. The
 > design goal is *fidelity* (a genuine browser presenting as itself), not evasion. See [`docs/PRD.md`](docs/PRD.md) §0.
 
-The four foundational risks are de-risked with runnable spikes, the proven primitives live in `packages/`, and
+The four foundational risks were de-risked with runnable spikes (since retired — their primitives are promoted
+into `packages/` + `apps/`, their fidelity assertions live on as `pnpm fidelity:check`, and what they proved
+is recorded in [`docs/FINDINGS.md`](docs/FINDINGS.md)), the proven primitives live in `packages/`, and
 all four client surfaces are built and green: the **gateway** (NestJS + `@silkweave/nestjs`, raw-WS CDP mux
 outside Nest's pipeline with a live per-tab ACL, takeover), the **dashboard** (`apps/web`), the **CLI**
 (`apps/cli`), and **MCP** for agents. Every surface is gated by a single access token, and the whole thing is
@@ -29,7 +31,8 @@ ready to run remotely. What remains is validation + prod hardening — see
   prod hardening, UI polish) plus the accumulated **gotchas**. Deliberately holds no "what's built" inventory —
   that's the status table at the bottom of this file.
 - [`docs/BRIEF.md`](docs/BRIEF.md) — the original research brief that kicked this off.
-- Per-spike READMEs under `spikes/*/README.md` — how to run each spike and its recorded result.
+  (The S1–S4 spikes that de-risked this are retired; their results are consolidated in FINDINGS.md and the
+  spike code is recoverable from git history.)
 
 ## Layout
 
@@ -47,7 +50,6 @@ apps/
               src/{styles,lib,components/{brand,shell,ui,sessions},views,generated}/
   cli/        @chromatrix/cli     — remote CLI over the gateway's MCP surface via silkweave `cliProxy`.
                                     ~45 lines, NO per-command code: commands are derived from `tools/list`
-spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-takeover  (throwaway, proven)
 ```
 
 ## Toolchain & conventions (mirrors `~/projects/mini/gtm`)
@@ -55,7 +57,7 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
 - **pnpm 11** workspace, **Node 24**, ESM everywhere. **Turbo** orchestrates `build`/`typecheck`/`test`/`dev`.
 - **TypeScript via `tsgo`** (`@typescript/native-preview`) for typecheck — **no `tsc`**. **oxlint** only (no Prettier/ESLint).
 - Libraries build with **tsdown** (ESM + `.d.mts`), **only on prepack/CI** — never in dev.
-- **`@chromatrix/source` export condition**: apps/spikes resolve workspace packages straight to TS source in
+- **`@chromatrix/source` export condition**: apps (and runnable eval scripts) resolve workspace packages straight to TS source in
   dev (no build step). Runtime needs `node --conditions=@chromatrix/source --import @swc-node/register/esm-register`;
   tsconfigs set `customConditions: ["@chromatrix/source"]` + `allowImportingTsExtensions`.
 - **Vitest** is the test runner (installed; no tests written yet).
@@ -131,12 +133,11 @@ spikes/       s1-cdp-mux · s2-fidelity-baseline · s3-concurrency · s4-viewer-
 pnpm install
 pnpm lint          # oxlint
 pnpm typecheck     # turbo → tsgo per package
-pnpm s1            # spike S1 — mitigating CDP mux (HEADLESS=1 to hide the window)
-pnpm s2            # spike S2 — headed fidelity + capacity baseline
-pnpm s2:targets    # spike S2 — logged-in target matrix (PROFILE_DIR=abs/path, optional CLOUDFLARE_URL/DATADOME_URL)
-pnpm s3            # spike S3 — shared-tab concurrency
-pnpm s4            # spike S4 — live-view + takeover login tool (START_URL=… PROFILE_DIR=… )
-pnpm s4:test       # spike S4 — automated mechanism self-test
+
+# fidelity eval (packages/fidelity) — the promoted S1/S2 assertions: WebGL renderer, automation fingerprint,
+# Runtime.enable getter-trap, + an optional live anti-bot target matrix (x.com/sannysoft/Cloudflare/DataDome)
+pnpm fidelity:check                                          # self-check only (launches a headed Chrome; HEADLESS=1 to hide)
+PROFILE_DIR=abs/.profiles/<id> pnpm fidelity:check           # + target matrix vs a signed-in profile (optional CLOUDFLARE_URL/DATADOME_URL)
 
 # gateway (apps/gateway) — the real control plane
 pnpm --filter @chromatrix/gateway run start    # boot (CHROMATRIX_PORT=8830; /api, /trpc, /mcp, /cdp/<identity>/<agentId>)

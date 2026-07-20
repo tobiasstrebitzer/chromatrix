@@ -15,7 +15,7 @@ export const ANTI_BACKGROUNDING_FLAGS = [
  * Automation-hygiene flags. Proven in spike S2: a plain `--remote-debugging-port` launch leaks
  * `navigator.webdriver = true` via the AutomationControlled blink feature; this flag flips it to false.
  * We deliberately do NOT pass `--enable-automation` (it adds the "controlled by automation" infobar and
- * further tells). See docs/PRD.md §7 (S2) and spikes/s2-fidelity-baseline/README.md.
+ * further tells). See docs/PRD.md §7 (S2); re-verify anytime with `pnpm fidelity:check`.
  */
 export const AUTOMATION_HIDE_FLAGS = ['--disable-blink-features=AutomationControlled'] as const
 
