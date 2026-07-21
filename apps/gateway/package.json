@@ -1,9 +1,9 @@
 {
   "name": "@chromatrix/gateway",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover). Built after S1; see docs/PRD.md §6. Not yet publishable — see docs/NEXT-SESSION.md.",
+  "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover) + the bundled dashboard. Run it with `npx @chromatrix/gateway`.",
+  "keywords": ["chromatrix", "chrome-devtools-protocol", "cdp", "gateway", "mcp", "browser-automation"],
   "license": "MIT",
   "author": "Tobias Strebitzer",
   "repository": {
@@ -11,11 +11,20 @@
     "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
     "directory": "apps/gateway"
   },
+  "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/apps/gateway#readme",
+  "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
+  "publishConfig": { "access": "public" },
+  "bin": { "chromatrix-gateway": "./build/main.mjs" },
+  "files": ["build", "web"],
   "scripts": {
     "dev": "VITE_DEV_URL=http://localhost:5181 node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "start": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "accept": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/e2e/acceptance.ts",
     "e2e": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/e2e/multi-session.ts",
+    "clean": "rimraf build web",
+    "build": "tsdown",
+    "bundle-web": "pnpm --filter @chromatrix/web run build && rimraf web && cp -R ../web/dist ./web",
+    "prepack": "pnpm clean && pnpm build && pnpm bundle-web",
     "typecheck": "tsgo -p tsconfig.json"
   },
   "dependencies": {
@@ -46,6 +55,9 @@
     "@swc/core": "^1.15.41",
     "@types/express": "^5.0.6",
     "@types/node": "^22.10.0",
-    "@types/ws": "^8.5.13"
+    "@types/ws": "^8.5.13",
+    "rimraf": "^6.1.3",
+    "tsdown": "^0.21.10",
+    "unplugin-swc": "^1.5.8"
   }
 }

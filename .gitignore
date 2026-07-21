@@ -19,3 +19,5 @@ dist/
 *.key
 *.p12
 *.pfx
+# The dashboard copy prepack bundles into the published gateway package
+apps/gateway/web/

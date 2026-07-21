@@ -7,7 +7,7 @@
     },
     "prepack": {
       "dependsOn": ["^prepack"],
-      "outputs": ["build/**"]
+      "outputs": ["build/**", "web/**"]
     },
     "typecheck": {
       "outputs": []

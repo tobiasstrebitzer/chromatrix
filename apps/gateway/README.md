@@ -2,10 +2,17 @@
 
 The [chromatrix](../../README.md) control plane: NestJS + `@silkweave/nestjs`, serving a raw-WS CDP mux
 mounted at the underlying `http.Server` (outside Nest's request pipeline) alongside MCP/tRPC provisioning
-and the takeover route. One process, one port. Not published to npm yet — see
-[Publishing](#publishing) below.
+and the takeover route. One process, one port.
 
 ## Run it
+
+From an npm install (the dashboard ships inside the package):
+
+```sh
+npx @chromatrix/gateway
+```
+
+From a dev checkout:
 
 ```sh
 pnpm install
@@ -20,7 +27,8 @@ and serves:
 - `/mcp` — the agent-facing MCP surface (15 tools; provisioning-only, see the root README)
 - `/cdp/<identity>/<agentId>` — the raw-WS CDP mux, per-agent scoped and ACL'd
 - `/takeover/<identity>` — the human-takeover screencast + input WS
-- `/` — the dashboard SPA (dev: proxied to Vite HMR; prod: `apps/web/dist`, served static)
+- `/` — the dashboard SPA (dev: proxied to Vite HMR; prod: served static — `apps/web/dist` in a checkout,
+  the bundled `web/` dir in the published package)
 
 One access token gates every surface — `Authorization: Bearer` for programmatic clients, an HttpOnly cookie
 for the dashboard, `?token=` on the raw-WS upgrades. See [`CLAUDE.md`](../../CLAUDE.md) for the full auth
@@ -33,12 +41,12 @@ pnpm --filter @chromatrix/gateway run accept   # ACL + auth-perimeter acceptance
 pnpm --filter @chromatrix/gateway run e2e      # concurrent multi-identity/agent/tab fleet e2e
 ```
 
-## Publishing
+## Packaging
 
-This app is **not yet publishable** to npm: it resolves the workspace root and `apps/web/dist` by walking up
-from its own file to find `pnpm-workspace.yaml`, and writes tRPC types into `apps/web/src/generated/` on
-every boot — both assume a monorepo checkout, not an installed package. Packaging it as a standalone
-`npx @chromatrix/gateway` (bundling the dashboard, decoupling the repo-root-relative paths) is tracked in
-[`docs/NEXT-SESSION.md`](../../docs/NEXT-SESSION.md). Until then, run it from a clone as above.
+`prepack` builds the server bundle (tsdown + SWC — SWC because Nest's DI and the ValidationPipe need
+`emitDecoratorMetadata`, which oxc doesn't produce) and copies the built dashboard into `web/`, which ships
+in the package. At runtime the gateway detects which shape it's in: a dev checkout serves `apps/web/dist`,
+regenerates the tRPC types on boot, and defaults profiles to `<repo>/.profiles`; an npm install serves the
+bundled `web/`, skips typegen, and defaults profiles to `~/.local/share/chromatrix/profiles`.
 
 Part of the [chromatrix](../../README.md) monorepo — see the root README for the full architecture.

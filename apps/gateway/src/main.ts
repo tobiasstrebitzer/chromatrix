@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Gateway entrypoint. Boots NestJS (management REST + silkweave MCP under /mcp) plus the raw-WS CDP mux +
 // takeover routes bound to the SAME underlying http.Server — CDP frames bypass Nest's DI/guard/interceptor
 // pipeline entirely (PRD §6, the "mitigating mux, not transparent proxy" crux). One process, one port.
@@ -42,7 +43,7 @@ const http = `http://${handle.host}:${handle.port}`
 console.log('\n════════════════════════════════════════════════════════════════')
 console.log(' chromatrix · gateway')
 console.log('════════════════════════════════════════════════════════════════')
-console.log(`  Dashboard  : ${http}${process.env.VITE_DEV_URL ? '   (dev: proxied to Vite HMR)' : '   (serving apps/web/dist)'}`)
+console.log(`  Dashboard  : ${http}${process.env.VITE_DEV_URL ? '   (dev: proxied to Vite HMR)' : ''}`)
 console.log(`  API        : ${http}/api   ·   tRPC ${http}/trpc   ·   MCP ${http}/mcp`)
 console.log(`  CDP mux    : ${handle.gateway.publicWsOrigin}/cdp/<identity>/<agentId>?token=…`)
 console.log(`  Takeover   : ${http}/#/takeover/<identity>   (screencast WS: /takeover/<identity>/ws)`)

@@ -5,7 +5,7 @@
 // Today that is config resolution + the access token. Anything added later must clear the same bar: needed by
 // at least two of {gateway, cli, web, core}, and cheap to install.
 
-export { configDir, configPath } from './paths.ts'
+export { configDir, configPath, dataDir } from './paths.ts'
 export {
   ConfigError,
   ConfigSchema,
