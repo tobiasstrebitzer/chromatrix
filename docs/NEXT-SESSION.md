@@ -61,9 +61,18 @@ cost a debugging cycle to rediscover.
   (`core`, `fidelity`, `cli`, `gateway`) to `0.1.0`, publishing, then reverting manifest + lockfile (a pnpm
   run during prepack absorbs the pins into `pnpm-lock.yaml` - revert that too). Future releases: either repeat
   the pin-publish-revert dance, or move to `pnpm publish` / CI Trusted Publishing which rewrite correctly.
-- **CI: GitHub Actions + npm Trusted Publisher.** Queue a release workflow (build → typecheck → test → publish
-  via OIDC Trusted Publishing, no long-lived npm token in CI) - this also dissolves the workspace-protocol
-  gotcha above if the workflow publishes with pnpm.
+- **Releases now run in CI via npm Trusted Publishing (2026-07-21).** `.github/workflows/publish.yml` fires on a
+  `vX.Y.Z` tag push and runs `pnpm publish -r --access public` under OIDC (no `NPM_TOKEN`; provenance is
+  generated automatically). Because it uses `pnpm publish` (not `npm publish`), the `workspace:*` gotcha above
+  is **dissolved** - pnpm rewrites those to real versions at pack time, so no more pin-publish-revert dance.
+  `pnpm publish -r` also skips versions already on the registry, so re-pushing a tag is safe.
+- **Release flow:** bump all six package versions (aligned) + root `version`, commit, `git tag vX.Y.Z`, push
+  the tag. Prerelease tags (`v0.2.0-rc.1`) publish under the `next` dist-tag. CI (`ci.yml`) lints + typechecks +
+  builds on every push/PR to master.
+- **One-time npm setup (per package, required before the first CI publish):** on npmjs.com, for EACH of the six
+  packages, Settings -> Trusted Publishing -> add a GitHub Actions publisher: repo `tobiasstrebitzer/chromatrix`,
+  workflow `publish.yml` (leave environment blank). Until every package has this, its publish step 401s. The
+  packages already exist (published via keybridge), so this is additive; keybridge remains the manual fallback.
 
 ---
 

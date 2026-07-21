@@ -84,7 +84,7 @@ parallel e2e, `HEADLESS=0` to watch).
 | session lifecycle | **built + verified**: create/start/stop/delete are four distinct verbs; `listSessions` left-joins the on-disk registry with running state so `stopped` is a resting state, not an absence |
 | per-tab viewport, screenshots | **built + verified**: every tab is its own sized window (floor 500×288, no emulation fakery); `/api/tab/screenshot` is one silkweave binary resource serving `<img>`, MCP image block, and CLI stdout |
 | multi-session e2e | **built + green**: concurrent fleet (3 identities × 3 agents × 2 tabs) - parallelism, isolation, ACL denial, zero-survivor teardown |
-| publishing + docs | **all six packages LIVE on npm at 0.1.0** (public, MIT, `chromatrix` org); `gateway` bundles the dashboard so `npx @chromatrix/gateway` is standalone. Published via keybridge + gatekeeper; note the `workspace:*` npm-publish gotcha in `docs/NEXT-SESSION.md` first. `apps/docs` (Astro) auto-deploys to GitHub Pages on push |
+| publishing + docs | **all six packages LIVE on npm at 0.1.0** (public, MIT, `chromatrix` org); `gateway` bundles the dashboard so `npx @chromatrix/gateway` is standalone. **Release = push a `vX.Y.Z` tag** -> `.github/workflows/publish.yml` publishes via npm Trusted Publishing (OIDC, no token; `pnpm publish -r` rewrites `workspace:*`). `apps/docs` (Astro) auto-deploys to GitHub Pages on push |
 | gateway hardening | **built + verified**: global ValidationPipe (malformed DTO body → 400 at the edge) + sliding-window login throttle (429 + Retry-After, keyed by socket address); 13/13 acceptance |
 | takeover UI | **built + verified in real Chrome**: browser-style tab strip (favicon/title/agent badge, inline release), Fit vs 1:1 zoom, keyboard-focus pill + auto-focus, per-control busy states on Sessions |
 
@@ -92,8 +92,8 @@ parallel e2e, `HEADLESS=0` to watch).
 
 - check: `pnpm lint && pnpm typecheck` (test: skip - no tests yet; Vitest is wired for when there are)
 - push: yes (`origin` = `git@github.com:tobiasstrebitzer/chromatrix.git`); version_bump: no (pre-release, stays 0.1.0 across all packages until told otherwise)
-- publish: yes, manual only - `keybridge` after a `/gatekeeper` pass, with explicit confirmation before any
-  `npm publish`/`keybridge publish` runs
+- publish: **CI Trusted Publishing** - bump versions, commit, tag `vX.Y.Z`, push the tag; `publish.yml`
+  builds + publishes via OIDC. Do a `/gatekeeper` pass before tagging; confirm the version bump first
 - docs: `docs/` notes (PRD, FINDINGS, NEXT-SESSION), this CLAUDE.md as index, `apps/docs` public site (GitHub Pages), root + per-package READMEs for the pitch
 - frontend_smoke: `pnpm --filter @chromatrix/web run build`, load the served dashboard in real Chrome, assert React mounts with no console errors
 - co_authored_by: no (global - `includeCoAuthoredBy: false` in ~/.claude/settings.json)

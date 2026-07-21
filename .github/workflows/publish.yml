@@ -1,0 +1,55 @@
+name: Publish
+
+# Publishes every public workspace package to npm via Trusted Publishing (OIDC).
+# Triggered when a vX.Y.Z tag is pushed (see the release flow in CLAUDE.md / docs/NEXT-SESSION.md).
+# There is NO NPM_TOKEN: auth comes from the OIDC id-token below, exchanged for a short-lived
+# publish credential. Each package must have a Trusted Publisher configured on npmjs.com pointing at
+# this repo + this workflow file (tobiasstrebitzer/chromatrix .github/workflows/publish.yml).
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# id-token: write lets GitHub Actions mint the OIDC token npm exchanges for publish credentials.
+# Without it, Trusted Publishing cannot work. Provenance attestation is generated automatically.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build + publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      # registry-url writes an ~/.npmrc pointing at npmjs; the auth-token placeholder it leaves is
+      # dropped by pnpm >= 11.1.0 so OIDC takes over (this repo pins pnpm@11.8.0 via packageManager,
+      # which action-setup picks up automatically).
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint + typecheck
+        run: pnpm lint && pnpm typecheck
+
+      # pnpm publish -r walks every public workspace package, runs its prepack (clean + build, and
+      # bundle-web for the gateway), rewrites workspace:* deps to real versions, and skips versions
+      # already on the registry - so re-running a tag is safe. --no-git-checks is required on a
+      # detached tag checkout. Prerelease tags (v0.2.0-rc.1, ...) publish under the `next` dist-tag
+      # so an RC never becomes npm's `latest`; stable tags stay `latest`.
+      - name: Publish
+        run: pnpm publish -r --access public --no-git-checks ${{ contains(github.ref_name, '-') && '--tag next' || '' }}

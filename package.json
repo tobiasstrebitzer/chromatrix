@@ -24,7 +24,8 @@
     "test": "turbo run test",
     "lint": "oxlint",
     "clean": "turbo run clean",
-    "fidelity:check": "pnpm --filter @chromatrix/fidelity run check"
+    "fidelity:check": "pnpm --filter @chromatrix/fidelity run check",
+    "publish:all": "pnpm publish -r --access public"
   },
   "devDependencies": {
     "@swc-node/register": "^1.11.1",
