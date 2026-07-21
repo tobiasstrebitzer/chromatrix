@@ -1,9 +1,14 @@
 {
   "name": "@chromatrix/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "chromatrix CLI - a thin remote client over the gateway's MCP surface (@silkweave/mcp cliProxy). Every @Mcp tool the gateway exposes becomes a command automatically; there is no per-command code here by design.",
-  "keywords": ["chromatrix", "cli", "chrome-devtools-protocol", "mcp"],
+  "keywords": [
+    "chromatrix",
+    "cli",
+    "chrome-devtools-protocol",
+    "mcp"
+  ],
   "license": "MIT",
   "author": "Tobias Strebitzer",
   "repository": {
@@ -13,9 +18,15 @@
   },
   "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/apps/cli#readme",
   "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
-  "publishConfig": { "access": "public" },
-  "bin": { "chromatrix": "./build/index.mjs" },
-  "files": ["build"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "chromatrix": "./build/index.mjs"
+  },
+  "files": [
+    "build"
+  ],
   "scripts": {
     "clean": "rimraf build",
     "build": "tsdown",

@@ -1,6 +1,6 @@
 {
   "name": "@chromatrix/docs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "chromatrix documentation site: Astro static build styled on the dashboard's achromatic design system, deployed to GitHub Pages.",

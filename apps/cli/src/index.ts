@@ -41,7 +41,7 @@ if (!config.token) {
 await silkweave({
   name: 'chromatrix',
   description: `chromatrix gateway CLI - ${base}`,
-  version: '0.1.0',
+  version: '0.1.1',
 })
   .adapter(
     cliProxy({

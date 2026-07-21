@@ -1,9 +1,16 @@
 {
   "name": "@chromatrix/gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover) + the bundled dashboard. Run it with `npx @chromatrix/gateway`.",
-  "keywords": ["chromatrix", "chrome-devtools-protocol", "cdp", "gateway", "mcp", "browser-automation"],
+  "keywords": [
+    "chromatrix",
+    "chrome-devtools-protocol",
+    "cdp",
+    "gateway",
+    "mcp",
+    "browser-automation"
+  ],
   "license": "MIT",
   "author": "Tobias Strebitzer",
   "repository": {
@@ -13,9 +20,16 @@
   },
   "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/apps/gateway#readme",
   "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
-  "publishConfig": { "access": "public" },
-  "bin": { "chromatrix-gateway": "./build/main.mjs" },
-  "files": ["build", "web"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "chromatrix-gateway": "./build/main.mjs"
+  },
+  "files": [
+    "build",
+    "web"
+  ],
   "scripts": {
     "dev": "VITE_DEV_URL=http://localhost:5181 node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "start": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",

@@ -1,9 +1,14 @@
 {
   "name": "@chromatrix/fidelity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Browser-fidelity layer for chromatrix: Chrome launch flags, CDP leak-mitigation policies (Runtime.enable suppression + isolated-world emulation), fingerprint hygiene, and verification probes (Runtime.enable getter-trap, WebGL renderer assertions) run by `pnpm fidelity:check`. Proven in spikes S1/S2 (now retired) and promoted here.",
-  "keywords": ["chrome", "browser-fingerprinting", "chrome-devtools-protocol", "headed-chrome"],
+  "keywords": [
+    "chrome",
+    "browser-fingerprinting",
+    "chrome-devtools-protocol",
+    "headed-chrome"
+  ],
   "license": "MIT",
   "author": "Tobias Strebitzer",
   "repository": {
@@ -13,10 +18,14 @@
   },
   "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/packages/fidelity#readme",
   "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
-  "files": ["build"],
+  "files": [
+    "build"
+  ],
   "exports": {
     ".": {
       "@chromatrix/source": "./src/index.ts",

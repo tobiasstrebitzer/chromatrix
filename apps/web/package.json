@@ -1,6 +1,6 @@
 {
   "name": "@chromatrix/web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "chromatrix dashboard SPA: React 19 + Vite + Tailwind v4, consumed through the NestJS gateway over tRPC. Sessions/tabs provisioning + live-view takeover (CDP screencast + Input.dispatch*).",
