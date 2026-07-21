@@ -44,12 +44,14 @@ export class Orchestrator {
   }
 
   /**
-   * Start (or return the already-running) session for an identity: launches Chrome + control channel.
-   * Per-call `opts` (e.g. `headless`) override the orchestrator's construction-time defaults for this launch.
+   * Start a session for an identity: launches Chrome + control channel. Rejects if the identity is already
+   * running — silently returning the existing session would let a caller's `opts` (e.g. `headless`) be
+   * ignored with no signal that nothing changed. Call `stopIdentity` first to relaunch with different flags.
    */
   async startIdentity(id: string, opts: SupervisorOptions = {}): Promise<Session> {
-    const existing = this.sessions.get(id)
-    if (existing) return existing
+    if (this.sessions.has(id)) {
+      throw new Error(`identity "${id}" is already running — stop it first to relaunch with different flags`)
+    }
     const identity = this.registry.create(id)
     const supervisor = new ChromeSupervisor(identity, { ...this.options, ...opts })
     await supervisor.start()

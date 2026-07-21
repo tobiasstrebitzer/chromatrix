@@ -5,6 +5,7 @@
 
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   Header,
@@ -41,9 +42,21 @@ export class GatewayController {
 
   @Post('identity/start')
   @Trpc({ kind: 'mutation' })
-  @Mcp({ name: 'start-identity' })
+  @Mcp({
+    name: 'start-identity',
+    description:
+      'Launch Chrome for an identity. Errors if the identity is already running — call stop-identity ' +
+      'first to relaunch with different flags (e.g. headless).',
+  })
   async startIdentity(@Body() body: StartIdentityDto) {
-    return this.gateway.startIdentity(body.id, { headless: body.headless })
+    try {
+      return await this.gateway.startIdentity(body.id, { headless: body.headless })
+    } catch (err) {
+      // Already-running is a conflict, not a server fault — 409 lets a caller branch on it instead of
+      // parsing a message string.
+      if (err instanceof Error && /already running/.test(err.message)) throw new ConflictException(err.message)
+      throw err
+    }
   }
 
   @Post('identity/stop')
