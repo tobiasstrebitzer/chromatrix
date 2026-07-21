@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "description": "chromatrix dashboard SPA: React 19 + Vite + Tailwind v4, consumed through the NestJS gateway over tRPC. Sessions/tabs provisioning + live-view takeover (CDP screencast + Input.dispatch*).",
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "apps/web"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

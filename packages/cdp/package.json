@@ -1,9 +1,19 @@
 {
   "name": "@chromatrix/cdp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "CDP client + flat-session multiplexer for chromatrix: one upstream connection to Chrome, N downstream clients, per-client command-id remapping, event routing by sessionId, per-tab ACLs, and a pluggable message-interception layer (the mitigating-mux core). Proven in spike S1 (now retired) and promoted here.",
+  "keywords": ["chrome-devtools-protocol", "cdp", "chrome", "browser-automation", "multiplexer"],
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "packages/cdp"
+  },
+  "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/packages/cdp#readme",
+  "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
+  "publishConfig": { "access": "public" },
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
   "files": ["build"],

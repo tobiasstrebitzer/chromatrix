@@ -3,6 +3,13 @@
     "chrome-devtools": {
       "command": "npx",
       "args": ["chrome-devtools-mcp@latest"]
+    },
+    "chromatrix": {
+      "type": "http",
+      "url": "${CHROMATRIX_GATEWAY_URL}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CHROMATRIX_TOKEN}"
+      }
     }
   }
 }

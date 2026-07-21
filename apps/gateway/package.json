@@ -3,7 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover). Built after S1; see docs/PRD.md §6.",
+  "description": "chromatrix gateway (NestJS + @silkweave/nestjs): raw-WS CDP mux mounted at the underlying http.Server (outside Nest's pipeline) + silkweave mgmt/MCP Actions (provision/allocate/health/takeover). Built after S1; see docs/PRD.md §6. Not yet publishable — see docs/NEXT-SESSION.md.",
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "apps/gateway"
+  },
   "scripts": {
     "dev": "VITE_DEV_URL=http://localhost:5181 node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",
     "start": "node --conditions=@chromatrix/source --import @swc-node/register/esm-register src/main.ts",

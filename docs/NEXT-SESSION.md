@@ -59,7 +59,20 @@ cost a debugging cycle to rediscover.
    "identity in the URL isn't running".
 4. **`listSessions` costs one `Target.getTargets` per identity per poll** (2.5 s) to enrich leases with live
    url/title. Cheap today; cache or push if the fleet grows.
-5. **Dynamic logo** — see [`ideas/DYNAMIC-LOGO.md`](ideas/DYNAMIC-LOGO.md).
+
+### Publishing (2026-07-21)
+
+- `@chromatrix/cdp`, `@chromatrix/core`, `@chromatrix/fidelity`, `@chromatrix/shared`, and `@chromatrix/cli`
+  are prepped for npm (public, MIT, `files`/build metadata set) but not yet published — first publish goes
+  through `keybridge` after a manual `/gatekeeper` pass and explicit confirmation.
+- **Package `@chromatrix/gateway` for npm.** It currently resolves the workspace root and `apps/web/dist` by
+  walking up from its own file to find `pnpm-workspace.yaml`, and writes tRPC types into
+  `apps/web/src/generated/` on every boot — both assume a monorepo checkout. A standalone
+  `npx @chromatrix/gateway` needs the dashboard bundled into the published package and those repo-root-relative
+  paths decoupled (fall back to `import.meta.url`-relative asset paths when no workspace root is found).
+- **CI: GitHub Actions + npm Trusted Publisher.** Queue a release workflow (build → typecheck → test → publish
+  via OIDC Trusted Publishing, no long-lived npm token in CI) for the packages above once the first manual
+  publish has been verified.
 
 ---
 

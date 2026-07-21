@@ -1,9 +1,19 @@
 {
   "name": "@chromatrix/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Domain core for chromatrix: identity registry, session/tab-pool orchestration, single-writer profile locking, health checks, and the orphaned-Chrome-tree reaper. Consumed by apps/gateway. Populated after S1/S3.",
+  "keywords": ["chrome", "browser-automation", "chrome-devtools-protocol", "orchestration"],
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/packages/core#readme",
+  "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
+  "publishConfig": { "access": "public" },
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
   "files": ["build"],

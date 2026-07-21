@@ -1,9 +1,19 @@
 {
   "name": "@chromatrix/shared",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Shared code between chromatrix packages and apps: the config schema (zod) + its resolution (~/.config/chromatrix/config.json overridden by CHROMATRIX_* env) and the access-token primitives. Deliberately lean — zod is the only runtime dependency, because both the gateway and the published CLI depend on this.",
+  "keywords": ["chromatrix", "config"],
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "packages/shared"
+  },
+  "homepage": "https://github.com/tobiasstrebitzer/chromatrix/tree/master/packages/shared#readme",
+  "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
+  "publishConfig": { "access": "public" },
   "main": "./build/index.mjs",
   "types": "./build/index.d.mts",
   "files": ["build"],

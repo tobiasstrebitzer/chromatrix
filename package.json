@@ -5,6 +5,14 @@
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "description": "Self-hosted multi-session, multi-tab headed-Chrome CDP orchestration for Mac. One long-lived real Chrome per identity, many concurrent tabs driven by remote agents over a mitigating CDP gateway, plus live-view + human takeover. See docs/PRD.md.",
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git"
+  },
+  "homepage": "https://github.com/tobiasstrebitzer/chromatrix#readme",
+  "bugs": "https://github.com/tobiasstrebitzer/chromatrix/issues",
   "engines": {
     "node": ">=24"
   },
