@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Plus, X } from 'lucide-react'
+import { Loader2, Plus, X } from 'lucide-react'
 import { tabScreenshotUrl } from '@/lib/useGateway'
 import type { AllocatedTab } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -80,11 +80,14 @@ function Thumbnail({ identity, targetId, tick }: { identity: string; targetId: s
 export function TabCard({
   tab,
   tick,
+  releasing,
   onOpen,
   onRelease,
 }: {
   tab: AllocatedTab
   tick: number
+  /** This tab's own release is in flight — spins its button without freezing the rest of the grid. */
+  releasing?: boolean
   onOpen: () => void
   onRelease: () => void
 }) {
@@ -127,8 +130,14 @@ export function TabCard({
         </div>
         <div className='flex shrink-0 items-center'>
           <CopyButton value={tab.cdpUrl} label='Copy scoped CDP URL' />
-          <Button variant='ghost' size='icon-sm' aria-label='Release tab' title='Release tab' onClick={onRelease}>
-            <X />
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            aria-label='Release tab'
+            title='Release tab'
+            disabled={releasing}
+            onClick={onRelease}>
+            {releasing ? <Loader2 className='animate-spin' /> : <X />}
           </Button>
         </div>
       </div>

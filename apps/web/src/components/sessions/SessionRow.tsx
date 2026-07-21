@@ -1,4 +1,4 @@
-import { Activity, ChevronRight, MonitorPlay, Play, Power, Trash2 } from 'lucide-react'
+import { Activity, ChevronRight, Loader2, MonitorPlay, Play, Power, Trash2 } from 'lucide-react'
 import type { AllocatedTab, SessionInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
@@ -40,7 +40,12 @@ export interface SessionRowProps {
   onToggle: () => void
   /** Advances every poll interval; drives the tab thumbnails. */
   tick: number
-  busy: boolean
+  /**
+   * In-flight action keys from SessionsView's `run` — `start:<id>`, `stop:<id>`, `health:<id>`,
+   * `delete:<id>`, `tab:<id>`, `release:<id>:<targetId>` — so each control shows its own busy state
+   * instead of one action greying out the whole page.
+   */
+  busy: ReadonlySet<string>
   onTakeover: (targetId?: string) => void
   onHealth: () => void
   onStart: () => void
@@ -82,6 +87,9 @@ export function SessionRow({
   const suggested = nextAgentId(tabs)
   const bodyId = `session-body-${session.identity}`
   const running = session.state === 'running'
+  const busyOn = (action: string) => busy.has(`${action}:${session.identity}`)
+  const starting = busyOn('start') || session.state === 'starting'
+  const stopping = busyOn('stop')
 
   return (
     <div>
@@ -121,33 +129,40 @@ export function SessionRow({
             variant='ghost'
             size='icon-sm'
             onClick={onHealth}
-            disabled={!running}
+            disabled={!running || busyOn('health')}
             aria-label='Check health'
             title={running ? 'Check health' : 'Start the session to check its health'}>
-            <Activity />
+            {busyOn('health') ? <Loader2 className='animate-spin' /> : <Activity />}
           </Button>
           {running ? (
-            <Button variant='ghost' size='icon-sm' onClick={onStop} aria-label='Stop session' title='Stop session'>
-              <Power />
+            <Button
+              variant='ghost'
+              size='icon-sm'
+              onClick={onStop}
+              disabled={stopping}
+              aria-label='Stop session'
+              title='Stop session'>
+              {stopping ? <Loader2 className='animate-spin' /> : <Power />}
             </Button>
           ) : (
             <Button
               variant='ghost'
               size='icon-sm'
               onClick={onStart}
-              disabled={session.state === 'starting'}
+              disabled={starting}
               aria-label='Start session'
               title='Start session'>
-              <Play />
+              {starting ? <Loader2 className='animate-spin' /> : <Play />}
             </Button>
           )}
           <Button
             variant='destructive'
             size='icon-sm'
             onClick={onDelete}
+            disabled={busyOn('delete')}
             aria-label='Delete session'
             title='Delete session'>
-            <Trash2 />
+            {busyOn('delete') ? <Loader2 className='animate-spin' /> : <Trash2 />}
           </Button>
         </div>
       </div>
@@ -171,11 +186,12 @@ export function SessionRow({
                   key={t.targetId}
                   tab={t}
                   tick={tick}
+                  releasing={busy.has(`release:${session.identity}:${t.targetId}`)}
                   onOpen={() => onTakeover(t.targetId)}
                   onRelease={() => onRelease(t.targetId)}
                 />
               ))}
-              <NewTabCard suggestedAgentId={suggested} busy={busy} onCreate={onAllocate} />
+              <NewTabCard suggestedAgentId={suggested} busy={busyOn('tab')} onCreate={onAllocate} />
             </div>
           ) : (
             <div className='flex flex-col items-center gap-2.5 rounded-md border border-dashed border-border px-6 py-8 text-center'>
@@ -183,9 +199,9 @@ export function SessionRow({
                 This session is stopped. Its profile is kept on disk — start it to resume where it left off.
               </p>
               <div className='flex flex-wrap items-center justify-center gap-3'>
-                <Button size='sm' onClick={onStart} disabled={session.state === 'starting'}>
-                  <Play />
-                  {session.state === 'starting' ? 'Starting…' : 'Start session'}
+                <Button size='sm' onClick={onStart} disabled={starting}>
+                  {starting ? <Loader2 className='animate-spin' /> : <Play />}
+                  {starting ? 'Starting…' : 'Start session'}
                 </Button>
                 <label className='flex select-none items-center gap-2 text-body-sm text-fg-2'>
                   <input

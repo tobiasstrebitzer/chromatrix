@@ -1,10 +1,12 @@
 import * as React from 'react'
-import { CornerDownLeft, MonitorPlay, Scan } from 'lucide-react'
+import { CornerDownLeft, Globe, Keyboard, Loader2, MonitorPlay, Scan, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useSessionsContext } from '@/lib/sessionsContext'
 import { gateway } from '@/lib/useGateway'
+import { usePersistedState } from '@/lib/usePersistedState'
 import { clampViewport, rememberTakeoverArea } from '@/lib/viewportFit'
 import type { TargetSummary, Viewport } from '@/lib/types'
+import { cn } from '@/lib/utils'
 import { toast } from '@/components/ui/Sonner'
 import { Badge } from '@/components/ui/Badge'
 import { BlankTab } from '@/components/ui/BlankTab'
@@ -63,6 +65,12 @@ function TakeoverPicker() {
 
 type Status = 'connecting' | 'live' | 'disconnected'
 
+/**
+ * How the frame maps to the stage: scaled down to fit it, or shown pixel-for-pixel (scroll to pan). 1:1 is
+ * what you want when a fitted frame renders text too small to read a challenge or an OTP prompt.
+ */
+type Zoom = 'fit' | 'actual'
+
 function Screencast({ identity, target }: { identity: string; target?: string }) {
   const navigate = useNavigate()
   const { sessions } = useSessionsContext()
@@ -77,6 +85,9 @@ function Screencast({ identity, target }: { identity: string; target?: string })
   const [waiting, setWaiting] = React.useState<string | null>(null)
   const [targets, setTargets] = React.useState<TargetSummary[]>([])
   const [activeTargetId, setActiveTargetId] = React.useState<string | undefined>(undefined)
+  const [zoom, setZoom] = usePersistedState<Zoom>('chromatrix.takeover.zoom', 'fit', (v) => v === 'fit' || v === 'actual')
+  /** Whether the frame owns the keyboard right now — drives the "click to type" affordance. */
+  const [kbFocus, setKbFocus] = React.useState(false)
   const paneRef = React.useRef<HTMLDivElement>(null)
 
   // Record the pane's real size so a tab created later from Sessions — where this pane isn't mounted and so
@@ -135,6 +146,17 @@ function Screencast({ identity, target }: { identity: string; target?: string })
   // out of it.
   const activeTarget = targets.find((t) => t.targetId === activeTargetId)
   const blankTab = waiting === null && activeTarget !== undefined && isBlank(activeTarget.url)
+  const frameShown = waiting === null && !blankTab
+
+  // Hand the keyboard to the frame as soon as there is one to drive — today you had to *know* to click it
+  // first. Only when nothing else holds focus though: yanking it out of the address field mid-URL would
+  // trade one undiscoverability for a worse one.
+  React.useEffect(() => {
+    if (status !== 'live' || !frameShown) return
+    const focused = document.activeElement
+    if (focused && focused !== document.body && focused !== imgRef.current) return
+    imgRef.current?.focus({ preventScroll: true })
+  }, [status, frameShown, activeTargetId])
 
   const send = (o: unknown) => {
     const ws = wsRef.current
@@ -154,45 +176,32 @@ function Screencast({ identity, target }: { identity: string; target?: string })
       <div className='flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-2'>
         <StatusDot status={status} />
 
-        <label className='sr-only' htmlFor='takeover-identity'>
-          Session
-        </label>
-        <select
-          id='takeover-identity'
-          value={identity}
-          onChange={(e) => void navigate({ to: '/takeover/$identity', params: { identity: e.target.value } })}
-          className='h-7 rounded-md border border-border bg-bg px-2 font-mono text-label text-text outline-none focus-visible:ring-2 focus-visible:ring-accent'>
-          {/* Running only — switching to a stopped session would land on a viewer with nothing to show. The
-              fallback below still keeps the current identity selectable if it stops out from under us. */}
-          {(sessions ?? [])
-            .filter((s) => s.state === 'running')
-            .map((s) => (
-              <option key={s.identity} value={s.identity}>
-                {s.identity}
-              </option>
-            ))}
-          {!sessions?.some((s) => s.identity === identity && s.state === 'running') && (
-            <option value={identity}>{identity}</option>
-          )}
-        </select>
-
-        <TabPicker
-          targets={targets}
-          activeTargetId={activeTargetId}
-          onSelect={(targetId) => send({ type: 'attach', targetId })}
+        <IdentitySelect
+          identity={identity}
+          running={(sessions ?? []).filter((s) => s.state === 'running').map((s) => s.identity)}
+          onChange={(id) => void navigate({ to: '/takeover/$identity', params: { identity: id } })}
         />
 
         <AddressField identity={identity} targetId={activeTargetId} targets={targets} />
 
         <ViewportControls identity={identity} targetId={activeTargetId} paneRef={paneRef} />
 
+        <ZoomToggle zoom={zoom} onChange={setZoom} />
+
         <span className='text-label text-muted-foreground'>
-          {status === 'live' ? `${frames} frames · click / type on the frame to drive it` : status}
+          {status === 'live' ? `${frames} frames` : status}
         </span>
         <Button variant='ghost' size='sm' className='ml-auto' onClick={() => void navigate({ to: '/sessions' })}>
           Back to sessions
         </Button>
       </div>
+
+      <TabStrip
+        identity={identity}
+        targets={targets}
+        activeTargetId={activeTargetId}
+        onSelect={(targetId) => send({ type: 'attach', targetId })}
+      />
 
       {/* The viewer stage is a recessed well inside the frame, not a hardcoded black box — black is only
           correct in the dark theme, and in light it read as a hole punched through the page.
@@ -212,46 +221,64 @@ function Screencast({ identity, target }: { identity: string; target?: string })
         {blankTab && (
           <BlankTab className='col-start-1 row-start-1 size-full' />
         )}
-        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-        <img
-          ref={imgRef}
-          tabIndex={0}
-          draggable={false}
-          alt={`Live view of ${identity}`}
-          hidden={waiting !== null || blankTab}
-          // No radius, ring, or shadow: those framed it as a screenshot sitting *on* the stage. Now it fills
-          // the stage and the panel's own radius does the clipping. The focus ring is inset so it isn't the
-          // one thing the frame clips away — it's the only cue that keystrokes will land on the page.
-          className='col-start-1 row-start-1 max-h-full max-w-full cursor-crosshair outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset'
-          onMouseMove={(e) => {
-            const n = norm(e)
-            send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons })
-          }}
-          onMouseDown={(e) => {
-            e.preventDefault()
-            ;(e.currentTarget as HTMLElement).focus()
-            const n = norm(e)
-            send({ type: 'mouse', event: 'down', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
-          }}
-          onMouseUp={(e) => {
-            e.preventDefault()
-            const n = norm(e)
-            send({ type: 'mouse', event: 'up', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
-          }}
-          onContextMenu={(e) => e.preventDefault()}
-          onWheel={(e) => {
-            const n = norm(e)
-            send({ type: 'wheel', nx: n.nx, ny: n.ny, dx: e.deltaX, dy: e.deltaY })
-          }}
-          onKeyDown={(e) => {
-            e.preventDefault()
-            send({ type: 'key', phase: 'down', key: e.key, code: e.code, keyCode: e.keyCode })
-          }}
-          onKeyUp={(e) => {
-            e.preventDefault()
-            send({ type: 'key', phase: 'up', key: e.key, code: e.code, keyCode: e.keyCode })
-          }}
-        />
+        {/* The wrapper (not the img) carries visibility, because the img must stay mounted to catch frames
+            arriving over the socket. `flex` + `m-auto` rather than grid centering: an overflowing child of a
+            centered grid cell has its top-left clipped beyond reach, while flex auto-margins center when
+            small AND stay scrollable when the 1:1 frame is larger than the stage. */}
+        <div className={cn('col-start-1 row-start-1 size-full overflow-auto', frameShown ? 'flex' : 'hidden')}>
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+          <img
+            ref={imgRef}
+            tabIndex={0}
+            draggable={false}
+            alt={`Live view of ${identity}`}
+            // No radius, ring, or shadow: those framed it as a screenshot sitting *on* the stage. Now it fills
+            // the stage and the panel's own radius does the clipping. The focus ring is inset so it isn't the
+            // one thing the frame clips away.
+            className={cn(
+              'm-auto cursor-crosshair outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset',
+              zoom === 'fit' && 'max-h-full max-w-full',
+            )}
+            onFocus={() => setKbFocus(true)}
+            onBlur={() => setKbFocus(false)}
+            onMouseMove={(e) => {
+              const n = norm(e)
+              send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons })
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLElement).focus()
+              const n = norm(e)
+              send({ type: 'mouse', event: 'down', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
+            }}
+            onMouseUp={(e) => {
+              e.preventDefault()
+              const n = norm(e)
+              send({ type: 'mouse', event: 'up', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+            onWheel={(e) => {
+              const n = norm(e)
+              send({ type: 'wheel', nx: n.nx, ny: n.ny, dx: e.deltaX, dy: e.deltaY })
+            }}
+            onKeyDown={(e) => {
+              e.preventDefault()
+              send({ type: 'key', phase: 'down', key: e.key, code: e.code, keyCode: e.keyCode })
+            }}
+            onKeyUp={(e) => {
+              e.preventDefault()
+              send({ type: 'key', phase: 'up', key: e.key, code: e.code, keyCode: e.keyCode })
+            }}
+          />
+        </div>
+        {/* The keyboard affordance. The frame only receives keystrokes while focused, and nothing about a
+            screenshot-looking <img> says "click me first" — this pill does, and disappears once it's true. */}
+        {frameShown && status === 'live' && !kbFocus && (
+          <div className='pointer-events-none col-start-1 row-start-1 mb-3 flex items-center gap-1.5 self-end justify-self-center rounded-full border border-border bg-surface/90 px-3 py-1 text-label text-fg-2 shadow-(--shadow-lg)'>
+            <Keyboard className='size-3.5' aria-hidden />
+            Click the page to send keystrokes
+          </div>
+        )}
       </div>
     </div>
   )
@@ -265,58 +292,170 @@ function tabLabel(t: TargetSummary): string {
   return t.title?.trim() || t.url
 }
 
-/**
- * Tab picker. A native `<select>` can only render one flat string per row, which forced the old
- * `[agent-1] Some Page Title` mash-up; a real popup can show the agent, the page title and the URL as three
- * distinct fields, which is what you actually need to pick the right tab.
- */
-function TabPicker({
-  targets,
-  activeTargetId,
-  onSelect,
+/** Session switcher — running identities only (switching to a stopped one would land on a dead viewer). */
+function IdentitySelect({
+  identity,
+  running,
+  onChange,
 }: {
-  targets: TargetSummary[]
-  activeTargetId?: string
-  onSelect: (targetId: string) => void
+  identity: string
+  running: string[]
+  onChange: (identity: string) => void
 }) {
-  const active = targets.find((t) => t.targetId === activeTargetId)
-
+  // Keep the current identity selectable even if it stops out from under us, so the trigger never goes blank.
+  const options = running.includes(identity) ? running : [identity, ...running]
   return (
     <>
-      <span className='sr-only' id='takeover-tab-label'>
-        Tab
+      <span className='sr-only' id='takeover-identity-label'>
+        Session
       </span>
-      <Select
-        value={activeTargetId ?? ''}
-        onValueChange={(v) => typeof v === 'string' && v && onSelect(v)}
-        disabled={targets.length === 0}>
-        <SelectTrigger aria-labelledby='takeover-tab-label' className='min-w-56 max-w-80'>
-          <span className='flex min-w-0 items-center gap-2'>
-            {active?.agentId && (
-              <Badge variant='neutral' mono className='shrink-0'>
-                {active.agentId}
-              </Badge>
-            )}
-            <span className='truncate'>{active ? tabLabel(active) : 'no tabs'}</span>
-          </span>
+      <Select value={identity} onValueChange={(v) => typeof v === 'string' && v && v !== identity && onChange(v)}>
+        <SelectTrigger aria-labelledby='takeover-identity-label' className='font-mono text-label'>
+          {identity}
         </SelectTrigger>
         <SelectContent>
-          {targets.map((t) => (
-            <SelectItem key={t.targetId} value={t.targetId}>
-              <span className='flex min-w-0 items-center gap-2'>
-                {t.agentId && (
-                  <Badge variant='neutral' mono className='shrink-0'>
-                    {t.agentId}
-                  </Badge>
-                )}
-                <span className='truncate font-medium'>{tabLabel(t)}</span>
-              </span>
-              <span className='truncate font-mono text-label text-fg-4'>{isBlank(t.url) ? 'about:blank' : t.url}</span>
+          {options.map((id) => (
+            <SelectItem key={id} value={id}>
+              <span className='font-mono text-label'>{id}</span>
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
     </>
+  )
+}
+
+/**
+ * Favicon for a tab strip entry, fetched straight from the page's origin (`/favicon.ico`) — the gateway has
+ * no favicon knowledge, and the operator's browser is already looking at the site's pixels anyway. Falls back
+ * to a globe for blank tabs, non-http schemes, and sites without one.
+ */
+function Favicon({ url }: { url?: string }) {
+  const origin = React.useMemo(() => {
+    if (isBlank(url)) return undefined
+    try {
+      const u = new URL(url!)
+      return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : undefined
+    } catch {
+      return undefined
+    }
+  }, [url])
+  const [failed, setFailed] = React.useState(false)
+  React.useEffect(() => setFailed(false), [origin])
+  if (!origin || failed) return <Globe className='size-3.5 shrink-0 text-fg-4' aria-hidden />
+  return (
+    <img
+      src={`${origin}/favicon.ico`}
+      alt=''
+      draggable={false}
+      className='size-3.5 shrink-0'
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+/**
+ * Browser-style tab strip: favicon, title, leasing agent, and — for leased tabs — an inline release. This is
+ * the takeover view's real navigation; a dropdown made picking a tab a two-step guess.
+ */
+function TabStrip({
+  identity,
+  targets,
+  activeTargetId,
+  onSelect,
+}: {
+  identity: string
+  targets: TargetSummary[]
+  activeTargetId?: string
+  onSelect: (targetId: string) => void
+}) {
+  const [releasing, setReleasing] = React.useState<string | undefined>(undefined)
+  if (targets.length === 0) return null
+
+  // Release = the gateway closes the tab and frees the lease. Only leased tabs offer it: an unleased page
+  // (a popup the human opened, say) has no lease to release and no route that closes it.
+  const release = async (t: TargetSummary) => {
+    if (releasing) return
+    setReleasing(t.targetId)
+    try {
+      await gateway.releaseTab(identity, t.targetId)
+      // No local list surgery: the hub watches Target.targetDestroyed and pushes the fresh target list.
+    } catch (err) {
+      toast.error('Could not release tab', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setReleasing(undefined)
+    }
+  }
+
+  return (
+    <div role='tablist' aria-label='Tabs' className='flex items-center gap-1 overflow-x-auto border-b border-border bg-surface px-2 py-1.5'>
+      {targets.map((t) => {
+        const active = t.targetId === activeTargetId
+        return (
+          <div
+            key={t.targetId}
+            className={cn(
+              'group flex max-w-72 min-w-0 shrink-0 items-center rounded-md border transition-colors',
+              active ? 'border-border-strong bg-bg' : 'border-transparent hover:bg-surface-hover',
+            )}>
+            <button
+              type='button'
+              role='tab'
+              aria-selected={active}
+              title={isBlank(t.url) ? 'about:blank' : t.url}
+              onClick={() => !active && onSelect(t.targetId)}
+              className='flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring'>
+              <Favicon url={t.url} />
+              <span className={cn('truncate text-label', active ? 'font-medium text-fg-1' : 'text-fg-2')}>
+                {tabLabel(t)}
+              </span>
+              {t.agentId && (
+                <Badge variant='neutral' mono className='shrink-0'>
+                  {t.agentId}
+                </Badge>
+              )}
+            </button>
+            {t.agentId && (
+              <button
+                type='button'
+                onClick={() => void release(t)}
+                disabled={releasing !== undefined}
+                aria-label={`Release "${tabLabel(t)}"`}
+                title='Release the lease and close this tab'
+                className={cn(
+                  'mr-1 grid size-5 shrink-0 place-items-center rounded-sm text-fg-4 opacity-0 transition-opacity',
+                  'hover:bg-surface-hover hover:text-danger focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100',
+                  releasing === t.targetId && 'opacity-100',
+                )}>
+                {releasing === t.targetId ? <Loader2 className='size-3 animate-spin' /> : <X className='size-3' />}
+              </button>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Fit-to-panel vs pixel-for-pixel. Segmented rather than a toggle button so the current mode is legible. */
+function ZoomToggle({ zoom, onChange }: { zoom: Zoom; onChange: (zoom: Zoom) => void }) {
+  return (
+    <div role='group' aria-label='Zoom' className='flex items-center rounded-md border border-border p-0.5'>
+      {(['fit', 'actual'] as const).map((z) => (
+        <button
+          key={z}
+          type='button'
+          onClick={() => onChange(z)}
+          aria-pressed={zoom === z}
+          title={z === 'fit' ? 'Scale the frame to fit the panel' : 'Actual size — scroll to pan'}
+          className={cn(
+            'rounded-[5px] px-2 py-0.5 text-label transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            zoom === z ? 'bg-surface-hover font-medium text-fg-1' : 'text-fg-3 hover:text-fg-1',
+          )}>
+          {z === 'fit' ? 'Fit' : '1:1'}
+        </button>
+      ))}
+    </div>
   )
 }
 

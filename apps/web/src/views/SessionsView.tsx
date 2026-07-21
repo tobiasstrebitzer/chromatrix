@@ -30,7 +30,7 @@ export function SessionsView() {
   const tick = usePollTick(THUMBNAIL_POLL_MS)
 
   const [failure, setFailure] = React.useState<string | undefined>(undefined)
-  const [busy, setBusy] = React.useState<string | undefined>(undefined)
+  const [busy, setBusy] = React.useState<ReadonlySet<string>>(() => new Set())
   const [collapsed, setCollapsed] = usePersistedState<string[]>('chromatrix.sessions.collapsed', [], (v) =>
     Array.isArray(v),
   )
@@ -56,9 +56,14 @@ export function SessionsView() {
   const flash = (msg: string) => toast(msg)
   const fail = (e: unknown) => setFailure(e instanceof Error ? e.message : String(e))
 
+  // Per-action busy rather than one global flag: starting identity A must not grey out stopping identity B,
+  // and each control can show its own spinner. The ref is the source of truth (a double-click lands two calls
+  // in the same render, where state alone would let both through); the state is its render mirror.
+  const inFlight = React.useRef(new Set<string>())
   const run = async (key: string, fn: () => Promise<void>) => {
-    if (busy) return
-    setBusy(key)
+    if (inFlight.current.has(key)) return
+    inFlight.current.add(key)
+    setBusy(new Set(inFlight.current))
     setFailure(undefined)
     try {
       await fn()
@@ -66,7 +71,8 @@ export function SessionsView() {
     } catch (e) {
       fail(e)
     } finally {
-      setBusy(undefined)
+      inFlight.current.delete(key)
+      setBusy(new Set(inFlight.current))
     }
   }
 
@@ -102,7 +108,7 @@ export function SessionsView() {
                 expanded={!collapsed.includes(s.identity)}
                 onToggle={() => toggle(s.identity)}
                 tick={tick}
-                busy={busy === `tab:${s.identity}`}
+                busy={busy}
                 onTakeover={(targetId) => goTakeover(s.identity, targetId)}
                 onHealth={() =>
                   void run(`health:${s.identity}`, async () => {
@@ -139,14 +145,14 @@ export function SessionsView() {
                   })
                 }
                 onRelease={(targetId) =>
-                  void run(`release:${s.identity}`, async () => {
+                  void run(`release:${s.identity}:${targetId}`, async () => {
                     await gateway.releaseTab(s.identity, targetId)
                   })
                 }
               />
             ))}
             <CreateSessionRow
-              busy={busy === 'create'}
+              busy={busy.has('create')}
               onCreate={(id) =>
                 run('create', async () => {
                   await gateway.createIdentity(id)

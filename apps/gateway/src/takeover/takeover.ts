@@ -62,14 +62,12 @@ export class TakeoverHub {
 
   async addViewer(ws: WebSocket): Promise<void> {
     this.viewers.add(ws)
+    // If there is nothing to cast, startCasting broadcasts the waiting state — and this viewer is already in
+    // the set, so it receives it. No per-viewer send here or a joiner would get the message twice.
     await this.serialize(() => this.startCasting())
-    if (this.sessionId) {
+    if (this.sessionId && this.lastFrame && ws.readyState === ws.OPEN) {
       // Late joiner: paint it immediately from cache rather than waiting for a repaint that may never come.
-      if (this.lastFrame && ws.readyState === ws.OPEN) ws.send(this.lastFrame)
-    } else if (ws.readyState === ws.OPEN) {
-      // An identity with no tabs open is a normal state, not an error — say so and pick up the first tab
-      // that appears rather than dropping the socket.
-      ws.send(JSON.stringify({ type: 'waiting', message: 'No open tab to view yet — allocate one to take over.' }))
+      ws.send(this.lastFrame)
     }
     void this.pushTargets(ws)
 
@@ -159,6 +157,11 @@ export class TakeoverHub {
     await this.pushTargets()
   }
 
+  private broadcast(msg: unknown): void {
+    const s = JSON.stringify(msg)
+    for (const v of this.viewers) if (v.readyState === v.OPEN) v.send(s)
+  }
+
   /** Send the current tab list + which one is live, so every viewer's picker stays in sync. */
   private async pushTargets(only?: WebSocket): Promise<void> {
     let targets: TargetSummary[] = []
@@ -176,7 +179,13 @@ export class TakeoverHub {
     if (this.sessionId) return
     await this.watchForPages()
     const sid = await this.attachFrontPage()
-    if (!sid) return // no tab yet; the target watcher will call back here when one opens
+    if (!sid) {
+      // No tab to cast — either none yet, or the LAST one was just closed/released. Every viewer must hear
+      // this, not only joiners: without it, closing the final tab leaves the previous frame frozen on screen,
+      // which reads as a live page. The target watcher calls back here when a tab opens.
+      this.broadcast({ type: 'waiting', message: 'No open tab to view yet — allocate one to take over.' })
+      return
+    }
     const onFrame = (params: unknown, evSid?: string) => {
       if (evSid !== sid) return
       const p = params as { data: string; sessionId: number; metadata: FrameMetadata }
