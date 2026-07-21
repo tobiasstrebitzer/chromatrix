@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Input } from '@/components/ui/Input'
 
-/** Every card — real or placeholder — is the same box, so the grid never reflows as tabs come and go. */
+/** Every card - real or placeholder - is the same box, so the grid never reflows as tabs come and go. */
 const CARD = 'flex flex-col overflow-hidden rounded-md border border-border bg-surface'
 const THUMB = 'relative aspect-16/10 w-full overflow-hidden bg-bg'
 
@@ -33,7 +33,7 @@ function hostOf(url?: string): string {
  * The new frame is decoded into a detached `Image` first and only swapped in on load. Pointing the visible
  * `<img>` straight at the new URL would blank it for the duration of every fetch, which at a 5s cadence is a
  * visible strobe across the whole grid. On error the last good frame stays up (dimmed) rather than
- * collapsing to a placeholder — a single failed capture is usually a transient mid-navigation blip, not a
+ * collapsing to a placeholder - a single failed capture is usually a transient mid-navigation blip, not a
  * dead tab.
  */
 function Thumbnail({ identity, targetId, tick }: { identity: string; targetId: string; tick: number }) {
@@ -86,13 +86,13 @@ export function TabCard({
 }: {
   tab: AllocatedTab
   tick: number
-  /** This tab's own release is in flight — spins its button without freezing the rest of the grid. */
+  /** This tab's own release is in flight - spins its button without freezing the rest of the grid. */
   releasing?: boolean
   onOpen: () => void
   onRelease: () => void
 }) {
   const blank = isBlank(tab.url)
-  // A blank tab's CDP title is the literal string "about:blank", which is noise rather than a name — the
+  // A blank tab's CDP title is the literal string "about:blank", which is noise rather than a name - the
   // thumbnail already says what's going on, so the footer just needs to not contradict it.
   const label = blank ? 'Untitled tab' : tab.title?.trim() || hostOf(tab.url) || 'Untitled'
 
@@ -101,7 +101,7 @@ export function TabCard({
       <button
         type='button'
         onClick={onOpen}
-        title={blank ? 'Take over this tab' : `Take over — ${tab.url}`}
+        title={blank ? 'Take over this tab' : `Take over - ${tab.url}`}
         className={cn(
           THUMB,
           'group block cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',

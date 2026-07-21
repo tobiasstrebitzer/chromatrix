@@ -2,7 +2,7 @@
   "name": "@chromatrix/cli",
   "version": "0.1.0",
   "type": "module",
-  "description": "chromatrix CLI — a thin remote client over the gateway's MCP surface (@silkweave/mcp cliProxy). Every @Mcp tool the gateway exposes becomes a command automatically; there is no per-command code here by design.",
+  "description": "chromatrix CLI - a thin remote client over the gateway's MCP surface (@silkweave/mcp cliProxy). Every @Mcp tool the gateway exposes becomes a command automatically; there is no per-command code here by design.",
   "keywords": ["chromatrix", "cli", "chrome-devtools-protocol", "mcp"],
   "license": "MIT",
   "author": "Tobias Strebitzer",

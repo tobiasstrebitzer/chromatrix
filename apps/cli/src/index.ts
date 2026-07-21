@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// chromatrix CLI — a thin *remote* client for the gateway.
+// chromatrix CLI - a thin *remote* client for the gateway.
 //
 // There is deliberately no per-command code here. `cliProxy` connects to the gateway's MCP endpoint, calls
 // `tools/list`, and synthesizes one commander subcommand per tool from its JSON Schema. So the CLI's surface
@@ -40,14 +40,14 @@ if (!config.token) {
 
 await silkweave({
   name: 'chromatrix',
-  description: `chromatrix gateway CLI — ${base}`,
+  description: `chromatrix gateway CLI - ${base}`,
   version: '0.1.0',
 })
   .adapter(
     cliProxy({
       url: new URL('/mcp', base),
       // Same single credential every other surface uses. A thunk so the token is read at invocation rather
-      // than baked in at module load — it costs nothing and keeps rotation a restart-free change.
+      // than baked in at module load - it costs nothing and keeps rotation a restart-free change.
       headers: () => ({ authorization: `Bearer ${config.token}` }),
     }),
   )

@@ -3,7 +3,7 @@ import { useIsBusy } from '@/lib/activity'
 import { cn } from '@/lib/utils'
 
 /**
- * The chromatrix logo: a 3×3 grid with the leading diagonal lit — the identity matrix.
+ * The chromatrix logo: a 3×3 grid with the leading diagonal lit - the identity matrix.
  *
  * Driven by a single requestAnimationFrame controller rather than CSS animations. CSS could express each mode
  * on its own, but not the moves *between* them: switching `animation-name` snaps the element to the new
@@ -49,7 +49,7 @@ const TAU_TINT = 0.55
 const HOVER_SCALE = 1.15
 
 /**
- * Activity mode tints only *some* cells green at a time, at partial strength — the movement is the signal and
+ * Activity mode tints only *some* cells green at a time, at partial strength - the movement is the signal and
  * a fully green grid would read as a status colour rather than as motion. Each cell re-rolls its own target
  * on its own schedule, so the greens wander instead of pulsing together.
  */
@@ -61,7 +61,7 @@ const TINT_HOLD_JITTER = 1.4
 
 /**
  * Hover keeps re-rolling each cell's colour for as long as the pointer is over it, so the flare is alive
- * rather than a single frozen state. Faster cadence and a snappier ease than the activity tint — hover is a
+ * rather than a single frozen state. Faster cadence and a snappier ease than the activity tint - hover is a
  * direct response to the user, so it should feel eager.
  */
 const HOVER_ROLL_MIN = 0.35
@@ -72,7 +72,7 @@ const HOVER_GREYS: Rgb[] = [
   [143, 143, 143],
   [176, 176, 176],
 ]
-/** Shimmer is damped during activity but not switched off — the grey↔white breathing is what green plays against. */
+/** Shimmer is damped during activity but not switched off - the grey↔white breathing is what green plays against. */
 const SHIMMER_ACTIVITY_DAMP = 0.4
 
 /**
@@ -103,7 +103,7 @@ const BAND = {
 
 type Rgb = [number, number, number]
 
-/** The distinct greens in FLARE, as rgb — the pool a hover re-roll can draw an "other green" from. */
+/** The distinct greens in FLARE, as rgb - the pool a hover re-roll can draw an "other green" from. */
 const FLARE_RGB: Rgb[] = [
   [74, 222, 128],
   [34, 197, 94],
@@ -184,7 +184,7 @@ interface LogoProps {
   title?: string
   /** Force activity mode. Defaults to the global in-flight signal (see lib/activity). */
   activity?: boolean
-  /** Disable the hover flare — for decorative placements where the logo isn't a target. */
+  /** Disable the hover flare - for decorative placements where the logo isn't a target. */
   interactive?: boolean
 }
 
@@ -243,7 +243,7 @@ export function Logo({ size = 16, className, title = 'chromatrix', activity, int
       }
 
       /**
-       * Landing. When activity ends, the orbit can't just stop — cells would freeze mid-segment, off the
+       * Landing. When activity ends, the orbit can't just stop - cells would freeze mid-segment, off the
        * grid. It runs on to the next half revolution instead: the two bright diagonal cells sit opposite
        * each other, so half a turn puts the grid back in a visually identical arrangement, and the
        * off-diagonal cells merely permute among themselves. That bounds the wind-down at ~1.2s instead of
@@ -268,7 +268,7 @@ export function Logo({ size = 16, className, title = 'chromatrix', activity, int
       }
 
       // The rest colour is inherited (currentColor), so it changes with the theme. Re-read it about twice a
-      // second rather than every frame — it's a style read, and nothing here changes that fast.
+      // second rather than every frame - it's a style read, and nothing here changes that fast.
       colorCheck += dt
       if (colorCheck > 0.5) {
         colorCheck = 0
@@ -281,7 +281,7 @@ export function Logo({ size = 16, className, title = 'chromatrix', activity, int
         const node = rectRefs.current[i]
         if (!node) continue
 
-        // Position: exact point on the ring path — never eased, so never diagonal.
+        // Position: exact point on the ring path - never eased, so never diagonal.
         const [x, y] =
           cell.ring === undefined ? cell.base : ringPoint(cell.ring / RING.length + (reduced ? 0 : phase))
 

@@ -20,7 +20,7 @@ interface AppShellProps {
  * Inset ("framed") app shell: the nav sits directly on the app canvas, while the top bar + content live in a
  * rounded, bordered panel inset with a margin all around.
  *
- * The canvas and the panel are deliberately different surfaces, and their polarity flips by theme — in light
+ * The canvas and the panel are deliberately different surfaces, and their polarity flips by theme - in light
  * the panel is the bright sheet on grey, in dark it is a darker well with the rail raised around it. That
  * contrast is the whole effect, so the panel takes its fill from `.frame-shine` and must not be given a
  * `bg-*` utility (see globals.css).

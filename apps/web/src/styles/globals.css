@@ -60,7 +60,7 @@
   --font-sans: var(--cx-font-sans);
   --font-mono: var(--cx-font-mono);
 
-  /* Type scale — size + line-height. Display sizes carry tight tracking. */
+  /* Type scale - size + line-height. Display sizes carry tight tracking. */
   --text-display-xl: 2.5rem;
   --text-display-xl--line-height: 3rem;
   --text-display-xl--letter-spacing: -0.02em;
@@ -169,7 +169,7 @@
 /* The inset frame's gradient "shine" edge: brightest at the top-left (the notional light source) and
    fading as it runs down and right. `border-image` can't follow rounded corners, so the border itself is
    transparent and a border-box gradient shows through it, while a padding-box layer keeps the frame's own
-   background opaque. Used by AppShell's frame — do NOT add bg-* utilities on top, they would paint over
+   background opaque. Used by AppShell's frame - do NOT add bg-* utilities on top, they would paint over
    the padding-box layer and hide the gradient. */
 .frame-shine {
   border: 1px solid transparent;

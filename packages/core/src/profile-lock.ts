@@ -1,7 +1,7 @@
 // Single-writer profile lock. Nobody in the CDP-orchestration space documents one, so we build it (PRD §6/§7
 // S3): exactly one chromatrix process may own an identity's `--user-data-dir` at a time, or two Chromes race
 // on the same cookie store and corrupt it. This is an ORCHESTRATOR-level lock, distinct from Chrome's own
-// SingletonLock (which @chromatrix/fidelity cleans on relaunch) — it guards against a second *supervisor*.
+// SingletonLock (which @chromatrix/fidelity cleans on relaunch) - it guards against a second *supervisor*.
 //
 // Mechanism: an atomic O_EXCL lockfile in the profile dir holding {pid, host, acquiredAt}. If it already
 // exists we check whether the recorded pid is still alive on this host; a dead owner's lock is stale and gets
@@ -60,7 +60,7 @@ export class ProfileLock {
   private tryCreate(): void {
     const record: LockRecord = { pid: process.pid, host: hostname(), acquiredAt: new Date().toISOString() }
     try {
-      const fd = openSync(this.path, 'wx') // O_CREAT|O_EXCL — atomic "create if absent"
+      const fd = openSync(this.path, 'wx') // O_CREAT|O_EXCL - atomic "create if absent"
       writeFileSync(fd, JSON.stringify(record))
       closeSync(fd)
     } catch (e) {

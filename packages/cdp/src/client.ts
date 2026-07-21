@@ -1,5 +1,5 @@
 // Raw-CDP WebSocket client. Tiny and dependency-light (just `ws`), speaks flat-mode sessionId routing.
-// Promoted from the spikes (S1–S4 all ran on this shape).
+// Promoted from the spikes (S1-S4 all ran on this shape).
 
 import WebSocket from 'ws'
 

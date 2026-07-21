@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/Input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/Select'
 
 // Live-view + human takeover. Connects to the gateway's raw-WS /takeover/<identity>/ws, renders the CDP
-// screencast frames, and forwards mouse/keyboard/wheel as Input.dispatch* (isTrusted) events — the S4
+// screencast frames, and forwards mouse/keyboard/wheel as Input.dispatch* (isTrusted) events - the S4
 // mechanism, in the dashboard. Without an identity it shows a picker of running sessions.
 export function TakeoverView({ identity, target }: { identity?: string; target?: string }) {
   if (!identity) return <TakeoverPicker />
@@ -25,7 +25,7 @@ export function TakeoverView({ identity, target }: { identity?: string; target?:
 function TakeoverPicker() {
   const { sessions } = useSessionsContext()
   const navigate = useNavigate()
-  // Only running sessions can be taken over — a stopped one has no Chrome to screencast. The session list
+  // Only running sessions can be taken over - a stopped one has no Chrome to screencast. The session list
   // includes stopped sessions now, so this has to filter rather than take it wholesale.
   const running = sessions?.filter((s) => s.state === 'running')
   return (
@@ -33,7 +33,7 @@ function TakeoverPicker() {
       <header className='mb-5'>
         <h1 className='text-display-sm font-semibold text-text'>Takeover</h1>
         <p className='mt-1 text-body-sm text-muted-foreground'>
-          Drive a running identity's window yourself — click and type directly on the live frame. Use this to
+          Drive a running identity's window yourself - click and type directly on the live frame. Use this to
           complete a one-time login or clear an interactive human-verification gate.
         </p>
       </header>
@@ -77,7 +77,7 @@ function Screencast({ identity, target }: { identity: string; target?: string })
   const imgRef = React.useRef<HTMLImageElement>(null)
   const wsRef = React.useRef<WebSocket | null>(null)
   // Which `?target=` we have already asked the hub for. The request can only go out once the socket has
-  // pushed its target list, and the push repeats on every target change — without this the deep link would
+  // pushed its target list, and the push repeats on every target change - without this the deep link would
   // re-attach on every push and permanently override the human's own tab selection.
   const requestedTarget = React.useRef<string | undefined>(undefined)
   const [status, setStatus] = React.useState<Status>('connecting')
@@ -86,12 +86,12 @@ function Screencast({ identity, target }: { identity: string; target?: string })
   const [targets, setTargets] = React.useState<TargetSummary[]>([])
   const [activeTargetId, setActiveTargetId] = React.useState<string | undefined>(undefined)
   const [zoom, setZoom] = usePersistedState<Zoom>('chromatrix.takeover.zoom', 'fit', (v) => v === 'fit' || v === 'actual')
-  /** Whether the frame owns the keyboard right now — drives the "click to type" affordance. */
+  /** Whether the frame owns the keyboard right now - drives the "click to type" affordance. */
   const [kbFocus, setKbFocus] = React.useState(false)
   const paneRef = React.useRef<HTMLDivElement>(null)
 
-  // Record the pane's real size so a tab created later from Sessions — where this pane isn't mounted and so
-  // can't be measured — can be sized to fit it exactly instead of from an estimate.
+  // Record the pane's real size so a tab created later from Sessions - where this pane isn't mounted and so
+  // can't be measured - can be sized to fit it exactly instead of from an estimate.
   React.useEffect(() => {
     const pane = paneRef.current
     if (!pane) return
@@ -148,7 +148,7 @@ function Screencast({ identity, target }: { identity: string; target?: string })
   const blankTab = waiting === null && activeTarget !== undefined && isBlank(activeTarget.url)
   const frameShown = waiting === null && !blankTab
 
-  // Hand the keyboard to the frame as soon as there is one to drive — today you had to *know* to click it
+  // Hand the keyboard to the frame as soon as there is one to drive - today you had to *know* to click it
   // first. Only when nothing else holds focus though: yanking it out of the address field mid-URL would
   // trade one undiscoverability for a worse one.
   React.useEffect(() => {
@@ -203,12 +203,12 @@ function Screencast({ identity, target }: { identity: string; target?: string })
         onSelect={(targetId) => send({ type: 'attach', targetId })}
       />
 
-      {/* The viewer stage is a recessed well inside the frame, not a hardcoded black box — black is only
+      {/* The viewer stage is a recessed well inside the frame, not a hardcoded black box - black is only
           correct in the dark theme, and in light it read as a hole punched through the page.
 
           Deliberately unpadded: the stage runs from the toolbar's edge to the frame's, and the frame's own
           `overflow-hidden rounded-xl` (AppShell) clips the bottom corners, so the live view sits in the panel
-          rather than floating inside it. The padding was also silently wrong for auto-fit — `clientWidth`
+          rather than floating inside it. The padding was also silently wrong for auto-fit - `clientWidth`
           INCLUDES padding, so the fit sized Chrome's window to the padded box while `max-w-full` capped the
           image at the content box, leaving the stream permanently downscaled by the padding. */}
       <div ref={paneRef} className='grid min-h-0 flex-1 place-items-center overflow-hidden bg-[var(--bg-code)]'>
@@ -272,7 +272,7 @@ function Screencast({ identity, target }: { identity: string; target?: string })
           />
         </div>
         {/* The keyboard affordance. The frame only receives keystrokes while focused, and nothing about a
-            screenshot-looking <img> says "click me first" — this pill does, and disappears once it's true. */}
+            screenshot-looking <img> says "click me first" - this pill does, and disappears once it's true. */}
         {frameShown && status === 'live' && !kbFocus && (
           <div className='pointer-events-none col-start-1 row-start-1 mb-3 flex items-center gap-1.5 self-end justify-self-center rounded-full border border-border bg-surface/90 px-3 py-1 text-label text-fg-2 shadow-(--shadow-lg)'>
             <Keyboard className='size-3.5' aria-hidden />
@@ -292,7 +292,7 @@ function tabLabel(t: TargetSummary): string {
   return t.title?.trim() || t.url
 }
 
-/** Session switcher — running identities only (switching to a stopped one would land on a dead viewer). */
+/** Session switcher - running identities only (switching to a stopped one would land on a dead viewer). */
 function IdentitySelect({
   identity,
   running,
@@ -326,7 +326,7 @@ function IdentitySelect({
 }
 
 /**
- * Favicon for a tab strip entry, fetched straight from the page's origin (`/favicon.ico`) — the gateway has
+ * Favicon for a tab strip entry, fetched straight from the page's origin (`/favicon.ico`) - the gateway has
  * no favicon knowledge, and the operator's browser is already looking at the site's pixels anyway. Falls back
  * to a globe for blank tabs, non-http schemes, and sites without one.
  */
@@ -355,7 +355,7 @@ function Favicon({ url }: { url?: string }) {
 }
 
 /**
- * Browser-style tab strip: favicon, title, leasing agent, and — for leased tabs — an inline release. This is
+ * Browser-style tab strip: favicon, title, leasing agent, and - for leased tabs - an inline release. This is
  * the takeover view's real navigation; a dropdown made picking a tab a two-step guess.
  */
 function TabStrip({
@@ -447,7 +447,7 @@ function ZoomToggle({ zoom, onChange }: { zoom: Zoom; onChange: (zoom: Zoom) => 
           type='button'
           onClick={() => onChange(z)}
           aria-pressed={zoom === z}
-          title={z === 'fit' ? 'Scale the frame to fit the panel' : 'Actual size — scroll to pan'}
+          title={z === 'fit' ? 'Scale the frame to fit the panel' : 'Actual size - scroll to pan'}
           className={cn(
             'rounded-[5px] px-2 py-0.5 text-label transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
             zoom === z ? 'bg-surface-hover font-medium text-fg-1' : 'text-fg-3 hover:text-fg-1',
@@ -460,8 +460,8 @@ function ZoomToggle({ zoom, onChange }: { zoom: Zoom; onChange: (zoom: Zoom) => 
 }
 
 /**
- * Address field for the selected tab. The screencast shows only the page's content area — there is no browser
- * chrome in the frame — so without this a human in takeover can look at a tab but never steer it anywhere.
+ * Address field for the selected tab. The screencast shows only the page's content area - there is no browser
+ * chrome in the frame - so without this a human in takeover can look at a tab but never steer it anywhere.
  */
 function AddressField({
   identity,
@@ -478,7 +478,7 @@ function AddressField({
   const [editing, setEditing] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
 
-  // Follow the tab while the user isn't mid-edit — the tab navigates on its own (agent activity, redirects,
+  // Follow the tab while the user isn't mid-edit - the tab navigates on its own (agent activity, redirects,
   // link clicks in takeover), and clobbering a half-typed URL would be worse than showing a stale one.
   React.useEffect(() => {
     if (!editing) setDraft(currentUrl)
@@ -547,7 +547,7 @@ function ViewportControls({
     setDraft({ width: String(v.width), height: String(v.height) })
   }
 
-  // Re-read whenever the selected tab changes — each tab has its own window and therefore its own size.
+  // Re-read whenever the selected tab changes - each tab has its own window and therefore its own size.
   React.useEffect(() => {
     if (!targetId) {
       setViewport(undefined)

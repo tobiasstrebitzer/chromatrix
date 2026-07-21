@@ -5,7 +5,7 @@ const AREA_KEY = 'chromatrix.takeoverArea'
 
 /**
  * Shell dimensions the fallback estimate depends on. Kept here (rather than inline) so that changing the
- * chrome means changing one number in one place — an estimate that silently drifts from the real layout is
+ * chrome means changing one number in one place - an estimate that silently drifts from the real layout is
  * worse than no estimate, because it looks authoritative.
  *
  * These are **measured**, not read off the utility classes, because two of them are easy to get wrong: the top
@@ -35,7 +35,7 @@ export function rememberTakeoverArea(area: Viewport): void {
  * The viewport a new tab should get so it exactly fills the takeover pane.
  *
  * Prefers a real measurement recorded the last time the takeover view was open. Falls back to deriving one
- * from the current window and the shell constants above — needed because a tab can be created from Sessions,
+ * from the current window and the shell constants above - needed because a tab can be created from Sessions,
  * where the takeover pane isn't mounted and therefore can't be measured. The fallback self-corrects the first
  * time takeover is opened at this window size.
  */

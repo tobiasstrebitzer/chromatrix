@@ -3,12 +3,12 @@
 // There is exactly ONE credential for the whole gateway (see @chromatrix/shared/token). What varies is only
 // how a client can *carry* it, and that is dictated by the transport rather than by preference:
 //
-//   • Authorization: Bearer …   — programmatic HTTP (CLI over MCP, curl, agents). Preferred.
-//   • Cookie                    — the dashboard. `<img src>` and `new WebSocket()` cannot set headers, so a
+//   • Authorization: Bearer …   - programmatic HTTP (CLI over MCP, curl, agents). Preferred.
+//   • Cookie                    - the dashboard. `<img src>` and `new WebSocket()` cannot set headers, so a
 //                                 cookie is the *only* way the browser can authenticate a screenshot poll or
 //                                 the takeover socket. Set once at login.
-//   • ?token= query             — raw-WS clients that are neither (a CDP client pointed at /cdp). Accepted on
-//                                 the upgrade paths only, never on /api — query strings land in access logs.
+//   • ?token= query             - raw-WS clients that are neither (a CDP client pointed at /cdp). Accepted on
+//                                 the upgrade paths only, never on /api - query strings land in access logs.
 //
 // All three converge on `verifyAccessToken`, so there is one comparison, done in constant time, one place.
 
@@ -42,7 +42,7 @@ export const Public = () => SetMetadata(PUBLIC_ROUTE, true)
 let accessToken: string | undefined
 
 export interface TokenInit {
-  /** True when this boot minted the token — main.ts prints it once so the operator can copy it. */
+  /** True when this boot minted the token - main.ts prints it once so the operator can copy it. */
   created: boolean
   /** True when the config file is readable beyond its owner; worth warning about since it holds the token. */
   exposed: boolean
@@ -61,7 +61,7 @@ export function setAccessToken(token: string): void {
 }
 
 export function getAccessToken(): string {
-  if (!accessToken) throw new Error('access token not initialised — call initAccessToken() before listen')
+  if (!accessToken) throw new Error('access token not initialised - call initAccessToken() before listen')
   return accessToken
 }
 
@@ -97,13 +97,13 @@ export function tokenFromRequest(req: IncomingMessage): string | undefined {
 /**
  * Present the session cookie as a bearer header, for the silkweave transports.
  *
- * `/trpc` and `/mcp` are gated inside silkweave, whose auth reads `Authorization: Bearer` and nothing else —
+ * `/trpc` and `/mcp` are gated inside silkweave, whose auth reads `Authorization: Bearer` and nothing else -
  * it has no concept of our cookie. The dashboard drives the gateway over tRPC and *cannot* send that header,
  * because the cookie is HttpOnly by design. Without this bridge the browser signs in successfully and then
  * 401s on its very first query.
  *
  * So this adapts the carrier, not the credential: same token, still verified in exactly one place
- * (silkweave's `verifyToken` → `verifyAccessToken`). It only fills a header that is ABSENT — a request that
+ * (silkweave's `verifyToken` → `verifyAccessToken`). It only fills a header that is ABSENT - a request that
  * brought its own Authorization keeps it, so a programmatic client is never silently re-authenticated as
  * whoever happened to have a cookie in the jar.
  */
@@ -117,7 +117,7 @@ export function cookieToBearer(req: IncomingMessage, _res: unknown, next: () => 
 
 /**
  * Guard for every Nest HTTP route. Registered globally (APP_GUARD) rather than per-controller so that a route
- * added later is protected by default — the failure mode of the opposite arrangement is a new provisioning
+ * added later is protected by default - the failure mode of the opposite arrangement is a new provisioning
  * route silently shipping unauthenticated.
  */
 @Injectable()

@@ -3,7 +3,7 @@
 // The gateway takes ONE access token, and every surface accepts it as `Authorization: Bearer …`. A browser
 // can't do that everywhere: `<img src>` (the tab-card screenshot poll) and `new WebSocket()` (takeover) have
 // no way to set headers. So the dashboard trades the token for an HttpOnly cookie once, and every subsequent
-// request — fetch, image, socket — carries it automatically because it is same-origin.
+// request - fetch, image, socket - carries it automatically because it is same-origin.
 //
 // Consequence worth knowing: the token is never held in JS, never in localStorage. The cookie is HttpOnly, so
 // this module cannot read it back; `status()` asks the server instead of inspecting anything locally.
@@ -46,7 +46,7 @@ export async function logout(): Promise<void> {
 /**
  * Session-expiry notification.
  *
- * The cookie outlives any single page load, so the session can end *while the app is open* — signed out in
+ * The cookie outlives any single page load, so the session can end *while the app is open* - signed out in
  * another tab, or the token rotated in config and the gateway restarted. Without this the app polls 401s
  * forever and simply looks broken, with no path back to sign-in short of a manual reload.
  *

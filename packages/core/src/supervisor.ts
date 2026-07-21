@@ -1,4 +1,4 @@
-// ChromeSupervisor — owns the lifecycle of ONE identity's Chrome (PRD §4, NEXT-SESSION §2). On start it takes
+// ChromeSupervisor - owns the lifecycle of ONE identity's Chrome (PRD §4, NEXT-SESSION §2). On start it takes
 // the single-writer profile lock, reaps any orphaned Chrome tree still bound to the profile dir, launches the
 // real headed Chrome via @chromatrix/fidelity, and opens a control CdpClient (used by the TabPool to create/
 // close targets and to health-check). On stop it SIGTERMs Chrome so cookies flush and releases the lock.
@@ -24,7 +24,7 @@ const KILL_GRACE_MS = 1_000
 export interface SupervisorOptions {
   headless?: boolean
   /**
-   * Page the identity's window opens on. Omitted by default, which launches with NO startup window at all —
+   * Page the identity's window opens on. Omitted by default, which launches with NO startup window at all -
    * the only tabs that ever exist are the ones the gateway/agents lease. Set this only to force a landing page.
    */
   startUrl?: string
@@ -92,7 +92,7 @@ export class ChromeSupervisor {
    * Stop Chrome and release the profile.
    *
    * Waits for the process to actually exit rather than just signalling it. `close()` only sends SIGTERM, and
-   * Chrome keeps writing to the profile dir while it flushes cookies — so a caller that treats `stop()` as
+   * Chrome keeps writing to the profile dir while it flushes cookies - so a caller that treats `stop()` as
    * "the profile is now free" races that flush. Deleting an identity is exactly such a caller, and it failed
    * with ENOTEMPTY: `rm -rf` walked the tree while Chrome was still re-creating files in it.
    */
@@ -117,7 +117,7 @@ export class ChromeSupervisor {
 
 /** Resolve once `proc` has exited, escalating SIGTERM → SIGKILL if it outstays the grace period. */
 function waitForExit(proc: ChildProcess): Promise<void> {
-  // Already reaped — `exit` will never fire again, so waiting on it would hang for the full grace period.
+  // Already reaped - `exit` will never fire again, so waiting on it would hang for the full grace period.
   if (proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve()
 
   return new Promise<void>((resolve) => {

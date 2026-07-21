@@ -5,7 +5,7 @@ import { Toaster as Sonner, type ToasterProps } from 'sonner'
  *
  * Themed purely through sonner's CSS custom properties pointed at our own tokens, rather than by passing it a
  * `theme` prop. Our tokens already swap on `[data-theme]`, so the toasts re-theme with everything else and
- * there is no second source of truth to keep in sync — which matters here because `lib/theme.ts` flips a DOM
+ * there is no second source of truth to keep in sync - which matters here because `lib/theme.ts` flips a DOM
  * attribute and deliberately holds no React state a `theme` prop could read.
  */
 export function Toaster(props: ToasterProps) {

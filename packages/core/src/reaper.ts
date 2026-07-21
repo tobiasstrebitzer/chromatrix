@@ -19,7 +19,7 @@ export async function findChromePidsForProfile(profileDir: string): Promise<numb
       .map((s) => Number(s.trim()))
       .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid)
   } catch (e) {
-    // pgrep exits 1 with no matches — that's "none", not an error.
+    // pgrep exits 1 with no matches - that's "none", not an error.
     if ((e as { code?: number }).code === 1) return []
     throw e
   }

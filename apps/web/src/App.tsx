@@ -7,7 +7,7 @@ import { LoginView } from './views/LoginView'
 import { isAuthenticated, onAuthExpired } from './lib/auth'
 
 /**
- * Auth gate. The whole app is behind it — including SessionsProvider, whose poll would otherwise hammer a
+ * Auth gate. The whole app is behind it - including SessionsProvider, whose poll would otherwise hammer a
  * gateway that has already said no.
  *
  * Three states, and the third matters: `undefined` (still asking) renders nothing rather than flashing the
@@ -19,7 +19,7 @@ export function App() {
 
   React.useEffect(() => {
     void isAuthenticated().then(setAuthed)
-    // The cookie can stop being valid while the app is open — signed out in another tab, or the token rotated
+    // The cookie can stop being valid while the app is open - signed out in another tab, or the token rotated
     // and the gateway restarted. Without this the app would poll 401s forever and just look broken.
     return onAuthExpired(() => setAuthed(false))
   }, [])
@@ -30,7 +30,7 @@ export function App() {
   return (
     <SessionsProvider>
       <RouterProvider router={router} />
-      {/* Outside the router so toasts survive navigation — a confirmation fired by a mutation that also
+      {/* Outside the router so toasts survive navigation - a confirmation fired by a mutation that also
           navigates must not be unmounted by the route change that follows it. */}
       <Toaster />
     </SessionsProvider>

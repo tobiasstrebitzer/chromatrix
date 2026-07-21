@@ -1,9 +1,9 @@
 # @chromatrix/cli
 
-The [chromatrix](../../README.md) CLI — a thin **remote** client over the gateway's MCP surface
+The [chromatrix](../../README.md) CLI - a thin **remote** client over the gateway's MCP surface
 (`@silkweave/mcp` `cliProxy`). There is deliberately no per-command code: the CLI calls the gateway's
 `tools/list` and synthesizes one subcommand per tool from its JSON Schema, so the CLI's surface *is* the
-gateway's `@Mcp` surface, always in sync — adding a tool to the gateway adds a command here with zero
+gateway's `@Mcp` surface, always in sync - adding a tool to the gateway adds a command here with zero
 changes to this package.
 
 ```sh
@@ -20,7 +20,7 @@ export CHROMATRIX_GATEWAY_URL=https://mac-mini.tailnet.ts.net
 export CHROMATRIX_TOKEN=…   # the gateway prints this once, on the boot that mints it
 ```
 
-Or run it against a local gateway with no env at all — it defaults to `http://127.0.0.1:8830`.
+Or run it against a local gateway with no env at all - it defaults to `http://127.0.0.1:8830`.
 
 ## Usage
 
@@ -35,7 +35,7 @@ chromatrix stop-identity --id work-twitter
 ```
 
 `capture-tab`'s output is a silkweave binary resource: piped to a file it writes a real JPEG (as above);
-the same route also serves the dashboard's `<img src>` and an MCP `image` block for agents — one endpoint,
+the same route also serves the dashboard's `<img src>` and an MCP `image` block for agents - one endpoint,
 three shapes.
 
 Run `chromatrix --help` for the full, always-current command list (it's whatever the connected gateway
@@ -49,4 +49,4 @@ pnpm --filter @chromatrix/cli run typecheck
 pnpm --filter @chromatrix/cli run build             # tsdown → build/index.mjs (only on prepack/CI)
 ```
 
-Part of the [chromatrix](../../README.md) monorepo — see the root README for the full architecture.
+Part of the [chromatrix](../../README.md) monorepo - see the root README for the full architecture.

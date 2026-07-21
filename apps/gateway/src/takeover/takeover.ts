@@ -1,7 +1,7 @@
-// Takeover — the human-in-the-loop path (PRD §4/§0, promoted from spike S4). A per-identity hub attaches to
+// Takeover - the human-in-the-loop path (PRD §4/§0, promoted from spike S4). A per-identity hub attaches to
 // the identity's front page target over the control CDP client, runs ONE ack-throttled JPEG screencast, and
 // fans frames out to every connected viewer while forwarding their mouse/keyboard back as Input.dispatch*
-// events (which are isTrusted — indistinguishable from a real user). This is how a person completes a
+// events (which are isTrusted - indistinguishable from a real user). This is how a person completes a
 // one-time login or clears an interactive human-verification gate; the persistent profile keeps the session
 // afterwards. No JS is injected into the page, and neither CDP method is on the agent-scoped mux path.
 
@@ -40,7 +40,7 @@ export class TakeoverHub {
   private lastMeta: FrameMetadata = { deviceWidth: 1, deviceHeight: 1 }
   /**
    * The most recent frame, verbatim, replayed to every joining viewer. Load-bearing: `Page.screencastFrame`
-   * only fires on a *repaint*, so a page that is sitting still (a login form waiting for a human — i.e. the
+   * only fires on a *repaint*, so a page that is sitting still (a login form waiting for a human - i.e. the
    * exact thing takeover exists for) emits one frame when the cast starts and then nothing. Without this
    * replay a viewer that joins after that first frame renders an empty <img> forever.
    */
@@ -56,13 +56,13 @@ export class TakeoverHub {
 
   constructor(
     private readonly client: CdpClient,
-    /** Lists the identity's viewable page targets — the source for the viewer's tab picker. */
+    /** Lists the identity's viewable page targets - the source for the viewer's tab picker. */
     private readonly listTargets: () => Promise<TargetSummary[]>,
   ) {}
 
   async addViewer(ws: WebSocket): Promise<void> {
     this.viewers.add(ws)
-    // If there is nothing to cast, startCasting broadcasts the waiting state — and this viewer is already in
+    // If there is nothing to cast, startCasting broadcasts the waiting state - and this viewer is already in
     // the set, so it receives it. No per-viewer send here or a joiner would get the message twice.
     await this.serialize(() => this.startCasting())
     if (this.sessionId && this.lastFrame && ws.readyState === ws.OPEN) {
@@ -117,7 +117,7 @@ export class TakeoverHub {
    * Run casting state transitions one at a time. The dashboard unmounts and remounts the viewer on every
    * client-side navigation (and twice on mount under React StrictMode), so close→open arrive back-to-back:
    * unserialized, the new viewer's start would no-op against the still-`true` casting flag and then the old
-   * viewer's stop would tear down the cast underneath it — connected, live, and permanently blank.
+   * viewer's stop would tear down the cast underneath it - connected, live, and permanently blank.
    */
   private serialize<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.chain.then(fn, fn)
@@ -180,10 +180,10 @@ export class TakeoverHub {
     await this.watchForPages()
     const sid = await this.attachFrontPage()
     if (!sid) {
-      // No tab to cast — either none yet, or the LAST one was just closed/released. Every viewer must hear
+      // No tab to cast - either none yet, or the LAST one was just closed/released. Every viewer must hear
       // this, not only joiners: without it, closing the final tab leaves the previous frame frozen on screen,
       // which reads as a live page. The target watcher calls back here when a tab opens.
-      this.broadcast({ type: 'waiting', message: 'No open tab to view yet — allocate one to take over.' })
+      this.broadcast({ type: 'waiting', message: 'No open tab to view yet - allocate one to take over.' })
       return
     }
     const onFrame = (params: unknown, evSid?: string) => {
@@ -366,7 +366,7 @@ export function takeoverViewerHtml(identity: string): string {
     <div id="bar">
       <span id="dot"></span><b>chromatrix</b> takeover · <span style="color:#93c5fd">${identity}</span>
       <span id="status">connecting…</span>
-      <span id="hint">— click / type directly on the frame; your input drives the real tab</span>
+      <span id="hint">- click / type directly on the frame; your input drives the real tab</span>
     </div>
     <div id="wrap"><img id="screen" draggable="false" /></div>
     <script>

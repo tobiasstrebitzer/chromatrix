@@ -1,4 +1,4 @@
-// @chromatrix/shared — code shared between chromatrix packages and apps. Lean by policy: zod is the only
+// @chromatrix/shared - code shared between chromatrix packages and apps. Lean by policy: zod is the only
 // runtime dependency, because the published CLI depends on this and every dependency here is one a user
 // installs with `npx chromatrix`.
 //

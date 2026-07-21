@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * "This tab has never navigated." Shared by the Sessions tab cards and the Takeover viewer so the same state
- * doesn't get two different treatments — a blank tab looks identical wherever you meet it.
+ * doesn't get two different treatments - a blank tab looks identical wherever you meet it.
  */
 export function BlankTab({ className, size = 'md' }: { className?: string; size?: 'sm' | 'md' }) {
   return (

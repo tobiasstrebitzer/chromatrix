@@ -1,6 +1,6 @@
 // Fidelity verification probes: the CDP-based assertions that prove an identity Chrome presents as the real
 // browser it is. Promoted from spikes S1 (Runtime.enable getter-trap) and S2 (WebGL renderer, automation
-// fingerprint). Pure — each takes a raw CdpClient + an attached page sessionId and reads the page; capacity
+// fingerprint). Pure - each takes a raw CdpClient + an attached page sessionId and reads the page; capacity
 // measurements (RAM, occlusion) are eval-only and live in eval.ts, not here. See docs/PRD.md §7.
 
 import type { CdpClient } from '@chromatrix/cdp'
@@ -14,7 +14,7 @@ async function evaluate<T>(client: CdpClient, sessionId: string, expression: str
   return r.result?.value as T
 }
 
-// ── GPU / WebGL — the macOS advantage (authentic Apple/Metal renderer) ──────────────────────────────────
+// ── GPU / WebGL - the macOS advantage (authentic Apple/Metal renderer) ──────────────────────────────────
 export interface WebGLInfo {
   vendor: string | null
   renderer: string | null
@@ -22,7 +22,7 @@ export interface WebGLInfo {
   unmaskedRenderer: string | null
   /** The one signal headless/Linux cannot fake: a real on-screen Apple GPU via the Metal ANGLE backend. */
   isAppleMetal: boolean
-  /** SwiftShader/LLVMpipe/software — the blocklisted give-away of a synthetic/headless GPU. */
+  /** SwiftShader/LLVMpipe/software - the blocklisted give-away of a synthetic/headless GPU. */
   isSoftware: boolean
 }
 
@@ -95,7 +95,7 @@ export async function probeFingerprint(client: CdpClient, sessionId: string): Pr
 // Chrome 150 closed this (accessors serialize as {type:"accessor"} without firing). This probe re-checks it
 // on demand: it enables Runtime on the given session, so run it on a throwaway page, not a live agent tab.
 export interface GetterTrapResult {
-  /** True if the getter fired — the leak is OPEN (bad). False = Chrome did not invoke it (leak closed). */
+  /** True if the getter fired - the leak is OPEN (bad). False = Chrome did not invoke it (leak closed). */
   getterFired: boolean
   /** True when the leak is closed (the healthy state): getter never invoked during console preview. */
   leakClosed: boolean

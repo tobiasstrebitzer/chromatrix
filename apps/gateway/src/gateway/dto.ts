@@ -1,12 +1,12 @@
 // Input DTOs for the gateway's management/MCP surface. Per the silkweave MCP-tool constraint (see the gtm
 // content controller note), every @Mcp input field is a concrete scalar with an @ApiProperty + class-validator
-// rule — the cli/MCP proxy builds one option per field, so no nested objects or nullable unions here.
+// rule - the cli/MCP proxy builds one option per field, so no nested objects or nullable unions here.
 
 import { ApiProperty } from '@nestjs/swagger'
 import { IsBoolean, IsInt, IsOptional, IsString } from 'class-validator'
 
 export class IdentityIdDto {
-  @ApiProperty({ description: 'Identity id — lowercase slug ≤64 chars; appears in the scoped CDP URL.' })
+  @ApiProperty({ description: 'Identity id - lowercase slug ≤64 chars; appears in the scoped CDP URL.' })
   @IsString()
   id!: string
 }
@@ -16,7 +16,7 @@ export class StartIdentityDto {
   @IsString()
   id!: string
 
-  @ApiProperty({ required: false, description: 'Run Chrome headless (default: headed — the fidelity default).' })
+  @ApiProperty({ required: false, description: 'Run Chrome headless (default: headed - the fidelity default).' })
   @IsOptional()
   @IsBoolean()
   headless?: boolean

@@ -14,7 +14,7 @@ export function configDir(): string {
 }
 
 /**
- * `~/.local/share/chromatrix` (or `$XDG_DATA_HOME/chromatrix`) — durable machine-local data, as opposed to
+ * `~/.local/share/chromatrix` (or `$XDG_DATA_HOME/chromatrix`) - durable machine-local data, as opposed to
  * configuration. What lives here today: the default identity-profiles root when the gateway runs from an npm
  * install (a dev checkout keeps `<repo>/.profiles`). Kept separate from `configDir` because profiles are
  * gigabytes of Chrome state you'd exclude from a dotfiles sync, while config is a 200-byte file you'd keep.
@@ -25,7 +25,7 @@ export function dataDir(): string {
 }
 
 /**
- * The config file itself. `CHROMATRIX_CONFIG` overrides the whole path — useful for tests, for running two
+ * The config file itself. `CHROMATRIX_CONFIG` overrides the whole path - useful for tests, for running two
  * gateways on one machine, and for pointing a CLI at a second remote without clobbering the default.
  */
 export function configPath(): string {

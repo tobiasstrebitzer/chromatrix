@@ -30,7 +30,7 @@ interface SidebarProps {
 const HEADER_OFFSET = 'mt-[9px]'
 
 // Flat nav sidebar: wordmark, a vertical list of the top-level views (active view carries the accent
-// left-bar + tint), and a meta footer. Sits directly on the app canvas — no border, no surface of its own.
+// left-bar + tint), and a meta footer. Sits directly on the app canvas - no border, no surface of its own.
 export function Sidebar({ items, activeId, onSelect, onCollapse, footer, className }: SidebarProps) {
   return (
     <nav className={cn('flex h-full w-[248px] flex-col bg-sidebar', className)} aria-label='Views'>

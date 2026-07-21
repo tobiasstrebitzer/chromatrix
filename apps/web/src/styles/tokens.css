@@ -1,10 +1,10 @@
 /*
- * chromatrix design tokens — the SINGLE source of color truth. Components consume the semantic names via
+ * chromatrix design tokens - the SINGLE source of color truth. Components consume the semantic names via
  * Tailwind utilities (see globals.css @theme) or var(--token), never raw hex.
  *
  * The palette is deliberately achromatic: a pure-black canvas, surfaces that sit *lighter* than the canvas,
  * and hairline borders. Colour is reserved for state (success/warning/danger/info) so that a coloured pixel
- * in this UI always means something. There is no brand hue — the "accent" is the high-contrast inverse of
+ * in this UI always means something. There is no brand hue - the "accent" is the high-contrast inverse of
  * the canvas (near-white on dark, near-black on light), which is what makes a primary action read as primary
  * without introducing a colour that competes with the status dots.
  *
@@ -57,7 +57,7 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
 
   /* ---------- Inset frame ---------- */
-  /* The frame's edge highlight — a touch stronger than --border so the panel reads as a distinct sheet
+  /* The frame's edge highlight - a touch stronger than --border so the panel reads as a distinct sheet
      rather than as another bordered box. */
   --shine: #dcdcdc;
   --frame-shadow: var(--shadow-xs);
@@ -65,7 +65,7 @@
   /* ---------- aliases (bridge for the @theme utilities) ---------- */
   --surface: var(--bg-surface);
   /* The canvas BEHIND the inset frame (and the rail sitting on it). In light it is darker than the panel,
-     in dark it is lighter — see the dark block. */
+     in dark it is lighter - see the dark block. */
   --sidebar: #f4f4f4;
   --text: var(--fg-1);
   --text-muted: var(--fg-3);
@@ -123,7 +123,7 @@
 
   /* ---------- Inset frame ---------- */
   --shine: #303030;
-  /* An `xs` shadow is invisible against a near-black canvas, so the dark frame gets a wider, darker drop —
+  /* An `xs` shadow is invisible against a near-black canvas, so the dark frame gets a wider, darker drop -
      depth from absence of light rather than a faux highlight. */
   --frame-shadow:
     0 4px 24px rgba(0, 0, 0, 0.55),
@@ -142,7 +142,7 @@
   --ring: var(--fg-1);
 }
 
-/* Theme-independent tokens — type tracking and easing. (Colour-bearing tokens live in the blocks above.) */
+/* Theme-independent tokens - type tracking and easing. (Colour-bearing tokens live in the blocks above.) */
 :root {
   --tracking-tight: -0.02em;
   --tracking-normal: 0;

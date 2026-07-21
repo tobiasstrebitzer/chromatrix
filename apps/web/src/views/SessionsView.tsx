@@ -13,11 +13,11 @@ import { Input } from '@/components/ui/Input'
 import { SessionRow } from '@/components/sessions/SessionRow'
 import { DeleteSessionDialog } from '@/components/sessions/DeleteSessionDialog'
 
-/** How often tab thumbnails refresh. One CDP screenshot per visible tab per tick — cheap, but not free. */
+/** How often tab thumbnails refresh. One CDP screenshot per visible tab per tick - cheap, but not free. */
 const THUMBNAIL_POLL_MS = 5000
 
 /**
- * Sessions — provisioning *and* monitoring in one surface.
+ * Sessions - provisioning *and* monitoring in one surface.
  *
  * Each identity is a full-width row; expanding it shows its leased tabs as cards carrying a live screenshot,
  * so this page answers "what are my agents actually looking at right now" without a trip to takeover. The
@@ -34,7 +34,7 @@ export function SessionsView() {
   const [collapsed, setCollapsed] = usePersistedState<string[]>('chromatrix.sessions.collapsed', [], (v) =>
     Array.isArray(v),
   )
-  // Headless is a property of a *launch*, not of the session, so it can't live on the identity — but re-picking
+  // Headless is a property of a *launch*, not of the session, so it can't live on the identity - but re-picking
   // it on every start would be tedious, so the dashboard remembers the last choice.
   const [headless, setHeadless] = usePersistedState<boolean>(
     'chromatrix.sessions.headless',
@@ -93,7 +93,7 @@ export function SessionsView() {
         </div>
       </header>
 
-      {error && <Banner>{`Gateway unreachable — ${error}`}</Banner>}
+      {error && <Banner>{`Gateway unreachable - ${error}`}</Banner>}
       {failure && <Banner onDismiss={() => setFailure(undefined)}>{failure}</Banner>}
 
       <div>
@@ -135,7 +135,7 @@ export function SessionsView() {
                   void run(`tab:${s.identity}`, async () => {
                     // Size precedence lives on the gateway (explicit → global default → Chrome's own). The
                     // dashboard only supplies the fit-the-takeover-pane size, and only when no global default
-                    // exists — otherwise it would silently outrank the user's setting.
+                    // exists - otherwise it would silently outrank the user's setting.
                     await gateway.allocateTab(
                       s.identity,
                       agentId,
@@ -187,7 +187,7 @@ export function SessionsView() {
 
 /**
  * A failure that stays put. Transient confirmations are toasts (see Sonner); this is only for things the user
- * needs to still be able to read a minute later — a mutation that failed, or a gateway we can't reach.
+ * needs to still be able to read a minute later - a mutation that failed, or a gateway we can't reach.
  */
 function Banner({ onDismiss, children }: { onDismiss?: () => void; children: React.ReactNode }) {
   return (
@@ -215,11 +215,11 @@ function Placeholder({ children }: { children: React.ReactNode }) {
 
 /**
  * The last row of the session list: create a new session. Deliberately shaped like the "New tab" placeholder
- * card one level down — the next empty slot in the list you're already reading, rather than a separate form
+ * card one level down - the next empty slot in the list you're already reading, rather than a separate form
  * above it.
  *
  * Creating does NOT start it. A session is a long-lived thing (its profile dir holds a real signed-in
- * browser), so bringing one into existence and spending a Chrome process on it are separate decisions — the
+ * browser), so bringing one into existence and spending a Chrome process on it are separate decisions - the
  * new row lands in the list as `stopped`, with a Start button on it.
  */
 function CreateSessionRow({ busy, onCreate }: { busy: boolean; onCreate: (id: string) => void }) {
@@ -240,7 +240,7 @@ function CreateSessionRow({ busy, onCreate }: { busy: boolean; onCreate: (id: st
         name='identity'
         value={id}
         onChange={(e) => setId(e.target.value)}
-        placeholder='new identity id — lowercase slug, e.g. acme-1'
+        placeholder='new identity id - lowercase slug, e.g. acme-1'
         className='min-w-56 flex-1 font-mono'
         aria-label='New identity id'
       />

@@ -16,7 +16,7 @@ import { configPath } from './paths.ts'
 
 /**
  * There is exactly ONE port. Chrome's own debugging ports are ephemeral (`--remote-debugging-port=0`) and
- * bound to loopback — never published — so `port` is the single public surface carrying the dashboard, the
+ * bound to loopback - never published - so `port` is the single public surface carrying the dashboard, the
  * REST/tRPC/MCP API, the takeover socket, and the muxed CDP endpoint alike. See docs/PRD.md §6.
  */
 export const DEFAULT_PORT = 8830
@@ -26,7 +26,7 @@ export const DEFAULT_HOST = '127.0.0.1'
 
 export const ConfigSchema = z.object({
   /**
-   * The single access token gating every remote surface. Absent means "not yet initialised" — the gateway
+   * The single access token gating every remote surface. Absent means "not yet initialised" - the gateway
    * mints one on first boot (see token.ts); it is not optional at runtime, only at rest.
    */
   token: z.string().min(1).optional(),
@@ -34,7 +34,7 @@ export const ConfigSchema = z.object({
   /** Gateway bind address. `0.0.0.0` to accept non-loopback traffic (Tailscale, LAN). */
   host: z.string().min(1).default(DEFAULT_HOST),
 
-  /** Gateway port — the one public port (see DEFAULT_PORT). Coerced, since env vars arrive as strings. */
+  /** Gateway port - the one public port (see DEFAULT_PORT). Coerced, since env vars arrive as strings. */
   port: z.coerce.number().int().min(1).max(65535).default(DEFAULT_PORT),
 
   /**
@@ -52,13 +52,13 @@ export const ConfigSchema = z.object({
 
   /**
    * Absolute path to the identity profile root. Absolute because these dirs hold live signed-in sessions and
-   * a relative path silently resolves against the process cwd — which differs between a dev shell and launchd.
+   * a relative path silently resolves against the process cwd - which differs between a dev shell and launchd.
    */
   profilesDir: z.string().refine(isAbsolute, { message: 'profilesDir must be an absolute path' }).optional(),
 })
 
 export type Config = z.infer<typeof ConfigSchema>
-/** The on-disk shape: same fields, nothing defaulted — absence is meaningful in a file. */
+/** The on-disk shape: same fields, nothing defaulted - absence is meaningful in a file. */
 export type StoredConfig = z.input<typeof ConfigSchema>
 
 /** JSON Schema for the config file, for editor completion / docs. Derived, never hand-written. */
@@ -69,7 +69,7 @@ export function configJsonSchema(): unknown {
 /**
  * `CHROMATRIX_*` → config key. Kept as an explicit table rather than derived from the schema keys: the mapping
  * is a public interface (people put these in shell profiles and plists), so it should be greppable and stable
- * even if a schema key is renamed. `CHROMATRIX_PROFILES` keeps its pre-config name — it already shipped.
+ * even if a schema key is renamed. `CHROMATRIX_PROFILES` keeps its pre-config name - it already shipped.
  */
 const ENV_KEYS = {
   CHROMATRIX_TOKEN: 'token',
@@ -84,7 +84,7 @@ function envOverrides(): Partial<Record<keyof Config, string>> {
   const out: Partial<Record<keyof Config, string>> = {}
   for (const [envKey, configKey] of Object.entries(ENV_KEYS)) {
     const value = process.env[envKey]?.trim()
-    // An empty env var means "unset", not "set to empty" — otherwise `CHROMATRIX_TOKEN=` in a stale shell
+    // An empty env var means "unset", not "set to empty" - otherwise `CHROMATRIX_TOKEN=` in a stale shell
     // profile would blank a perfectly good token from the file and read as a mysterious auth failure.
     if (value) out[configKey as keyof Config] = value
   }
@@ -94,7 +94,7 @@ function envOverrides(): Partial<Record<keyof Config, string>> {
 export class ConfigError extends Error {}
 
 /**
- * Read the config file. Returns `{}` when there is none — a missing file is the normal pre-install state, not
+ * Read the config file. Returns `{}` when there is none - a missing file is the normal pre-install state, not
  * an error. A file that exists but is malformed IS an error: silently falling back to defaults there would
  * start an unauthenticated gateway because of a stray comma.
  */
@@ -115,7 +115,7 @@ export function readConfigFile(path = configPath()): StoredConfig {
 
 /**
  * True if the config file is readable by anyone but its owner. The file holds the access token, so this is
- * worth surfacing — but it's a warning rather than a hard failure, because the mode can be legitimately odd on
+ * worth surfacing - but it's a warning rather than a hard failure, because the mode can be legitimately odd on
  * a shared volume and refusing to boot over it would be worse than saying so. Callers decide.
  */
 export function isConfigFileExposed(path = configPath()): boolean {
@@ -143,7 +143,7 @@ export function loadConfig(path = configPath()): Config {
  * Persist config, creating `~/.config/chromatrix` if needed.
  *
  * Written `0600`, and the containing dir `0700`, because this file holds the access token. Note the mode
- * argument to `writeFileSync` only applies when the file is *created* — an existing file keeps its mode, so
+ * argument to `writeFileSync` only applies when the file is *created* - an existing file keeps its mode, so
  * this cannot silently tighten a file the user deliberately loosened, and `isConfigFileExposed` is how a
  * caller notices.
  */

@@ -3,7 +3,7 @@ import { extendTailwindMerge } from 'tailwind-merge'
 
 // The design system defines its own font-size utilities (text-label, text-body, text-heading-1, …) in
 // styles/globals.css @theme. tailwind-merge doesn't know these are font sizes, so out of the box it lumps
-// e.g. `text-label` and `text-muted-foreground` into one `text-*` bucket and drops the first — silently
+// e.g. `text-label` and `text-muted-foreground` into one `text-*` bucket and drops the first - silently
 // stripping the size. Register the scale so a size and a color coexist in one cn() call.
 const twMerge = extendTailwindMerge({
   extend: {

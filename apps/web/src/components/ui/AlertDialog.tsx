@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 //
 // Deliberately the *alert* variant rather than the plain Dialog: it has no pointer-dismissal and no escape
 // hatch by click-away, so the only ways out are the explicit Cancel and Confirm buttons. That is the correct
-// shape for a destructive, irreversible action — a stray click on the backdrop should never be able to
+// shape for a destructive, irreversible action - a stray click on the backdrop should never be able to
 // resolve the question either way.
 
 export const AlertDialog = AlertDialogPrimitive.Root
@@ -55,7 +55,7 @@ export const AlertDialogDescription: FunctionComponent<AlertDialogPrimitive.Desc
   />
 )
 
-/** The action row. Right-aligned, cancel first — the safe choice sits where the eye lands coming off the text. */
+/** The action row. Right-aligned, cancel first - the safe choice sits where the eye lands coming off the text. */
 export const AlertDialogFooter: FunctionComponent<ComponentProps<'div'>> = ({ className, ...props }) => (
   <div className={cn('mt-5 flex items-center justify-end gap-2', className)} {...props} />
 )

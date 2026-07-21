@@ -1,4 +1,4 @@
-// chromatrix fidelity eval — the runnable fidelity self-check + optional live target matrix. Promoted from
+// chromatrix fidelity eval - the runnable fidelity self-check + optional live target matrix. Promoted from
 // spikes S1/S2 so the assertions live with the product, not a throwaway. Runs against @chromatrix/fidelity's
 // own launcher + probes, so what it verifies is exactly what the gateway ships.
 //
@@ -83,12 +83,12 @@ async function selfCheck(client: CdpClient): Promise<void> {
   if (!glOk && !HEADLESS) hardFailure = true
   lines.push('── fidelity self-check ─────────────────────────────────────────')
   lines.push(`  WebGL renderer   : ${glOk ? '✅' : HEADLESS ? '⬜' : '❌'} ${gl.unmaskedRenderer ?? gl.renderer ?? '(none)'}`)
-  if (HEADLESS && !glOk) lines.push('                     (software renderer expected under HEADLESS=1 — run headed for the real read)')
+  if (HEADLESS && !glOk) lines.push('                     (software renderer expected under HEADLESS=1 - run headed for the real read)')
 
   const wdOk = fp.webdriver === false
   if (!wdOk) hardFailure = true
-  lines.push(`  navigator.webdriver: ${wdOk ? '✅ false' : '❌ ' + String(fp.webdriver) + ' (automation tell — check the fidelity flags)'}`)
-  lines.push(`  userAgentData    : ${fp.uaBrands ? '✅ ' + fp.uaBrands : '⬜ (null — not a secure context?)'}`)
+  lines.push(`  navigator.webdriver: ${wdOk ? '✅ false' : '❌ ' + String(fp.webdriver) + ' (automation tell - check the fidelity flags)'}`)
+  lines.push(`  userAgentData    : ${fp.uaBrands ? '✅ ' + fp.uaBrands : '⬜ (null - not a secure context?)'}`)
   lines.push(`  platform / cores : ${fp.platform} / ${fp.hardwareConcurrency}   deviceMemory=${String(fp.deviceMemory)}   window.chrome=${fp.hasWindowChrome}`)
   lines.push(`  userAgent        : ${fp.userAgent}`)
   await closeTab(client, tab.targetId)
@@ -97,7 +97,7 @@ async function selfCheck(client: CdpClient): Promise<void> {
   const trapTab = await openTab(client, 'about:blank')
   const trap = await probeRuntimeEnableGetterTrap(client, trapTab.sessionId)
   if (!trap.leakClosed) hardFailure = true
-  lines.push(`  Runtime.enable trap: ${trap.leakClosed ? '✅ closed (getter not invoked)' : '❌ OPEN — getter fired, debugger is observable'}`)
+  lines.push(`  Runtime.enable trap: ${trap.leakClosed ? '✅ closed (getter not invoked)' : '❌ OPEN - getter fired, debugger is observable'}`)
   await closeTab(client, trapTab.targetId)
 }
 
@@ -153,11 +153,11 @@ async function targetMatrix(client: CdpClient): Promise<void> {
          return { failed: failedEls.length, failedNames: names.slice(0,12) };
        })()`,
     )
-    lines.push(`  sannysoft tells  : ${res.failed === 0 ? '✅ 0 failed' : '⚠  ' + res.failed + ' failed — ' + res.failedNames.join(', ')}`)
+    lines.push(`  sannysoft tells  : ${res.failed === 0 ? '✅ 0 failed' : '⚠  ' + res.failed + ' failed - ' + res.failedNames.join(', ')}`)
     await closeTab(client, tab.targetId)
   }
 
-  // (c) Cloudflare — polls ~30s to see whether a managed challenge auto-clears for a legit browser.
+  // (c) Cloudflare - polls ~30s to see whether a managed challenge auto-clears for a legit browser.
   {
     const url = process.env.CLOUDFLARE_URL ?? 'https://nowsecure.nl/'
     const tab = await openTab(client, url)
@@ -175,11 +175,11 @@ async function targetMatrix(client: CdpClient): Promise<void> {
       await new Promise((r) => setTimeout(r, 2500))
     }
     const mark = verdict === 'pass' ? '✅ PASS' : verdict === 'gated' ? '⚠  GATED (→ human takeover)' : '❌ BLOCKED'
-    lines.push(`  Cloudflare       : ${mark}  (${url} — "${info.title}")`)
+    lines.push(`  Cloudflare       : ${mark}  (${url} - "${info.title}")`)
     await closeTab(client, tab.targetId)
   }
 
-  // (d) DataDome — needs a designated target.
+  // (d) DataDome - needs a designated target.
   if (process.env.DATADOME_URL) {
     const url = process.env.DATADOME_URL
     const tab = await openTab(client, url)
@@ -193,7 +193,7 @@ async function targetMatrix(client: CdpClient): Promise<void> {
     lines.push(`  DataDome         : ${verdict === 'pass' ? '✅ PASS' : verdict === 'gated' ? '⚠  GATED' : '❌ BLOCKED'}  (${url})`)
     await closeTab(client, tab.targetId)
   } else {
-    lines.push('  DataDome         : ⬜ skipped — set DATADOME_URL to a designated target to measure.')
+    lines.push('  DataDome         : ⬜ skipped - set DATADOME_URL to a designated target to measure.')
   }
 }
 
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
   try {
     await selfCheck(client)
     if (runMatrix) await targetMatrix(client)
-    else lines.push('\n(target matrix skipped — set PROFILE_DIR or CDP_URL to a signed-in Chrome to run it.)')
+    else lines.push('\n(target matrix skipped - set PROFILE_DIR or CDP_URL to a signed-in Chrome to run it.)')
   } finally {
     close()
   }
@@ -215,7 +215,7 @@ async function main(): Promise<void> {
   console.log('══════════════════════════════════════════════════════════════════\n')
 
   if (hardFailure) {
-    console.error('FIDELITY CHECK FAILED — a load-bearing signal is wrong (see ❌ above).')
+    console.error('FIDELITY CHECK FAILED - a load-bearing signal is wrong (see ❌ above).')
     process.exitCode = 1
   }
 }

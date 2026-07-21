@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 /**
- * A counter that advances every `intervalMs` — the cache-buster behind the tab thumbnails.
+ * A counter that advances every `intervalMs` - the cache-buster behind the tab thumbnails.
  *
  * Ticks are suppressed while the document is hidden. Each tick costs one `Page.captureScreenshot` per visible
  * tab, and a dashboard left open on a background monitor would otherwise drive real CDP traffic into every

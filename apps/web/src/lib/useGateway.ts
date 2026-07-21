@@ -37,7 +37,7 @@ export const gateway = {
   setTabViewport: (identity: string, targetId: string, width: number, height: number) =>
     trackActivity(trpc.gatewaySetTabViewport.mutate({ identity, targetId, width, height })) as Promise<Viewport>,
   getSettings: () => trackActivity(trpc.gatewayGetSettings.query({})) as Promise<GatewaySettings>,
-  /** 0×0 clears the default — matches the gateway's sentinel (MCP inputs can't be nullable). */
+  /** 0×0 clears the default - matches the gateway's sentinel (MCP inputs can't be nullable). */
   setDefaultViewport: (width: number, height: number) =>
     trackActivity(trpc.gatewaySetDefaultViewport.mutate({ width, height })) as Promise<GatewaySettings>,
   releaseTab: (identity: string, targetId: string) =>
@@ -49,10 +49,10 @@ export const gateway = {
 
 /**
  * URL of a one-off JPEG of a tab. Not a tRPC procedure: it answers with image bytes, so the efficient client
- * is an `<img src>` — the browser handles fetch, decode and eviction, and nothing lands in JS memory.
+ * is an `<img src>` - the browser handles fetch, decode and eviction, and nothing lands in JS memory.
  *
  * `cacheBust` is required rather than optional because the response is `Cache-Control: no-store` but an
- * `<img>` whose `src` string doesn't change is never re-requested at all — the caller must pass a value that
+ * `<img>` whose `src` string doesn't change is never re-requested at all - the caller must pass a value that
  * moves (a poll tick) or the thumbnail silently freezes on its first frame.
  */
 export function tabScreenshotUrl(identity: string, targetId: string, cacheBust: number): string {

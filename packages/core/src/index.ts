@@ -1,4 +1,4 @@
-// @chromatrix/core — identity registry, session/tab-pool orchestration, single-writer profile locking, health
+// @chromatrix/core - identity registry, session/tab-pool orchestration, single-writer profile locking, health
 // checks, and the orphaned-Chrome-tree reaper. The domain the gateway (apps/gateway) drives; no HTTP/WS here.
 // See docs/PRD.md §4. Built on the S1 (mux) + S3 (concurrency) findings.
 

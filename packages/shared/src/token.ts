@@ -1,8 +1,8 @@
 // The access token: minting it on first run, and comparing it safely.
 //
 // One token gates every remote surface (REST/tRPC/MCP, the takeover socket, and the scoped CDP endpoints).
-// That is a deliberate simplification for a single-operator self-hosted tool — there is one human here, not a
-// user table — but it means the token is the *only* thing between the network and a fleet of signed-in
+// That is a deliberate simplification for a single-operator self-hosted tool - there is one human here, not a
+// user table - but it means the token is the *only* thing between the network and a fleet of signed-in
 // browsers, so the primitives below are the ones that have to be right.
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
@@ -11,7 +11,7 @@ import { configPath } from './paths.ts'
 
 /**
  * 32 bytes from the CSPRNG, base64url. Not a UUID: v4 UUIDs carry 122 bits and a recognisable shape, and this
- * is a bearer credential rather than an identifier. base64url so it survives a URL query string untouched —
+ * is a bearer credential rather than an identifier. base64url so it survives a URL query string untouched -
  * the CDP endpoint carries it as `?token=…` because no CDP client can set a handshake header.
  */
 export function generateToken(): string {
@@ -22,7 +22,7 @@ export function generateToken(): string {
  * Constant-time token comparison.
  *
  * `timingSafeEqual` throws on a length mismatch, and length is itself a (minor) leak, so hash-free equality
- * needs the guard below. Compare byte buffers, not strings — a `===` on secrets short-circuits at the first
+ * needs the guard below. Compare byte buffers, not strings - a `===` on secrets short-circuits at the first
  * differing character, which is exactly the signal an attacker needs.
  */
 export function tokensMatch(a: string | undefined, b: string | undefined): boolean {
@@ -36,7 +36,7 @@ export function tokensMatch(a: string | undefined, b: string | undefined): boole
 /**
  * The per-agent CDP credential, derived rather than minted.
  *
- * `HMAC(accessToken, identity ‖ agentId)` — so there is exactly ONE secret on the machine, and an agent's
+ * `HMAC(accessToken, identity ‖ agentId)` - so there is exactly ONE secret on the machine, and an agent's
  * token is recomputable instead of stored. Three consequences worth knowing:
  *
  * - **It survives a gateway restart.** The old random tokens lived in an in-memory map and died with the
@@ -45,7 +45,7 @@ export function tokensMatch(a: string | undefined, b: string | undefined): boole
  * - **It is not reversible.** The gateway cannot recover `agentId` from the token, so the caller names the
  *   agent in the path (`/cdp/<identity>/<agentId>`) and this binds it: claiming another agent's id yields a token you cannot forge.
  * - **There is no per-agent revocation.** Rotating the access token rotates every agent's token at once.
- *   That is the accepted trade (see docs/NEXT-SESSION.md) — the token is a *name*, not a grant: authority
+ *   That is the accepted trade (see docs/NEXT-SESSION.md) - the token is a *name*, not a grant: authority
  *   comes from the live TabPool lease, which is destroyed on stop regardless.
  *
  * The NUL separator is load-bearing: identity `"a"` + agent `"b:c"` must not collide with `"a:b"` + `"c"`.
@@ -56,7 +56,7 @@ export function deriveAgentToken(accessToken: string, identity: string, agentId:
 
 export interface EnsuredToken {
   token: string
-  /** True when this call minted and persisted a new token — the caller should tell the operator once. */
+  /** True when this call minted and persisted a new token - the caller should tell the operator once. */
   created: boolean
 }
 
@@ -64,7 +64,7 @@ export interface EnsuredToken {
  * Resolve the access token, minting one on first run.
  *
  * "Unless provided" has two forms and both are honoured without writing anything: a token in the config file,
- * or `CHROMATRIX_TOKEN` in the environment. Only a genuinely absent token is generated — and it is written
+ * or `CHROMATRIX_TOKEN` in the environment. Only a genuinely absent token is generated - and it is written
  * back to the config file, because a token regenerated on every boot would invalidate every CLI and agent
  * credential on restart.
  *

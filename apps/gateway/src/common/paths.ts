@@ -1,14 +1,14 @@
 // Path resolution shared by the module + e2e drivers. The gateway runs in two shapes and this file is where
 // they diverge:
 //
-//   • a DEV CHECKOUT — this file executes from `<repo>/apps/gateway/src/…`. The dashboard is served from
+//   • a DEV CHECKOUT - this file executes from `<repo>/apps/gateway/src/…`. The dashboard is served from
 //     `apps/web/dist`, typegen writes into `apps/web/src/generated`, and profiles default to `<repo>/.profiles`
-//     (gitignored — holds session cookies), which is what makes a checkout work with no config file at all.
-//   • an NPM INSTALL — the built bundle executes from `<pkg>/build/`. The dashboard ships inside the package
+//     (gitignored - holds session cookies), which is what makes a checkout work with no config file at all.
+//   • an NPM INSTALL - the built bundle executes from `<pkg>/build/`. The dashboard ships inside the package
 //     (`<pkg>/web`, copied from apps/web/dist at pack time), typegen is skipped entirely (its target doesn't
 //     exist, and node_modules may be read-only), and profiles default to `~/.local/share/chromatrix/profiles`.
 //
-// The discriminator is deliberately NOT "is there a pnpm-workspace.yaml above us" alone — an npm install can
+// The discriminator is deliberately NOT "is there a pnpm-workspace.yaml above us" alone - an npm install can
 // land inside some unrelated monorepo, whose workspace root would then be mistaken for ours. A dev checkout is
 // recognised by this file itself living under `<workspace root>/apps/gateway/src`, which no installed copy of
 // the bundle ever does (it runs from `build/`).
@@ -31,7 +31,7 @@ function findWorkspaceRoot(): string | undefined {
   return undefined
 }
 
-/** The chromatrix repo root — but only when actually running from a dev checkout; undefined for an install. */
+/** The chromatrix repo root - but only when actually running from a dev checkout; undefined for an install. */
 export function devCheckoutRoot(): string | undefined {
   const root = findWorkspaceRoot()
   if (!root) return undefined
@@ -46,7 +46,7 @@ export function webDistRoot(): string {
   return join(here, '..', 'web')
 }
 
-/** Where typegen should write the AppRouter type — or nowhere: it only makes sense against web *source*. */
+/** Where typegen should write the AppRouter type - or nowhere: it only makes sense against web *source*. */
 export function typegenTarget(): string | undefined {
   const root = devCheckoutRoot()
   return root ? join(root, 'apps', 'web', 'src', 'generated', 'appRouter.d.ts') : undefined

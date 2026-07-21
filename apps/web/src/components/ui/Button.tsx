@@ -8,7 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // The primary action is the canvas inverted — near-white on dark, near-black on light. No glow, no
+        // The primary action is the canvas inverted - near-white on dark, near-black on light. No glow, no
         // brand hue: contrast alone is what makes it read as primary, and it leaves colour free for state.
         default: 'bg-primary text-primary-foreground hover:bg-accent-hover',
         outline: 'border-border bg-surface hover:border-border-strong hover:bg-surface-hover',

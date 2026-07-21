@@ -11,8 +11,9 @@ linkWorkspacePackages: true
 allowBuilds:
   esbuild: true
   '@swc/core': true
-  # Telemetry phone-home pulled in transitively by NestJS deps — declined.
+  # Telemetry phone-home pulled in transitively by NestJS deps - declined.
   '@scarf/scarf': false
+  sharp: true
 
 minimumReleaseAgeExclude:
   - '@silkweave/auth@4.4.0'

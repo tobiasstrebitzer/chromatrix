@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <!-- chromatrix mark: a 3×3 grid with the leading diagonal lit (the identity matrix). Unlike the in-app
-       <Mark>, this carries its own black plate — a favicon sits on browser chrome we don't control, and
+       <Mark>, this carries its own black plate - a favicon sits on browser chrome we don't control, and
        pure white on black is the brand's fixed presentation. -->
   <rect width="32" height="32" rx="7" fill="#000000" />
   <g fill="#ffffff">

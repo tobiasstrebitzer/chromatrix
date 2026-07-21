@@ -1,11 +1,11 @@
-// CdpMux — the mitigating multiplexer. One upstream WS to Chrome's /devtools/browser endpoint, N downstream
+// CdpMux - the mitigating multiplexer. One upstream WS to Chrome's /devtools/browser endpoint, N downstream
 // clients, per-client command-id remapping, event routing by sessionId, a pluggable interceptor over every
 // client→Chrome message, and a per-client authorization scope (the per-tab ACL). Proven in spike S1
 // (docs/PRD.md §7); this is the promoted version.
 //
 // Two entry points:
-//   • CdpMux.start()   — self-hosts a WebSocketServer on an ephemeral port and exposes `url` (spike S1 path).
-//   • CdpMux.connect()  — upstream-only; the gateway feeds it already-upgraded sockets via attachClient()
+//   • CdpMux.start()   - self-hosts a WebSocketServer on an ephemeral port and exposes `url` (spike S1 path).
+//   • CdpMux.connect()  - upstream-only; the gateway feeds it already-upgraded sockets via attachClient()
 //                         with a ClientScope, so raw CDP bypasses Nest's pipeline (docs/PRD.md §6).
 
 import WebSocket, { WebSocketServer } from 'ws'
@@ -89,7 +89,7 @@ export class CdpMux {
     }
     ws.on('message', (data) => void this.onClientMessage(client, data.toString()))
     ws.on('close', drop)
-    // A downstream (agent/browser) socket error must not crash the process — drop the client. `ws` rethrows
+    // A downstream (agent/browser) socket error must not crash the process - drop the client. `ws` rethrows
     // an unhandled 'error'; the ensuing 'close' would double-drop, which is idempotent.
     ws.on('error', drop)
   }

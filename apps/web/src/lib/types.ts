@@ -4,7 +4,7 @@
 // AllocatedTab.
 
 /**
- * A session's lifecycle state. `stopped` is a resting state a long-lived session sits in between runs — the
+ * A session's lifecycle state. `stopped` is a resting state a long-lived session sits in between runs - the
  * identity and its logged-in profile still exist on disk, so it appears in the list and can be started again.
  */
 export type SessionState = 'running' | 'starting' | 'stopped'

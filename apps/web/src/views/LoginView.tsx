@@ -10,7 +10,7 @@ import { login } from '@/lib/auth'
  * Deliberately not a route: it replaces the whole app rather than rendering inside the shell. A half-rendered
  * dashboard behind a login form would poll `listSessions` on a loop and paint 401s across every card.
  *
- * The failure message stays in-page rather than becoming a toast — a wrong token is something you correct
+ * The failure message stays in-page rather than becoming a toast - a wrong token is something you correct
  * while looking at the field, so it needs to still be there while you fix it.
  */
 export function LoginView({ onAuthenticated }: { onAuthenticated: () => void }) {

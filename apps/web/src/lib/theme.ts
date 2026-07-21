@@ -1,5 +1,5 @@
 /**
- * Theme module — light/dark only. On first launch (nothing persisted) the theme is seeded from the OS
+ * Theme module - light/dark only. On first launch (nothing persisted) the theme is seeded from the OS
  * preference and stored, so the toggle always has a definite state. Switching flips a single `data-theme`
  * attribute on <html>; the only persisted state is the pref in localStorage["chromatrix.theme"].
  */

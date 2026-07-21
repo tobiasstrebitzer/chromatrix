@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 
 // The chromatrix dashboard SPA (@chromatrix/web). The gateway is the single origin (:8830): in dev it
 // reverse-proxies non-API routes here to Vite (:5181) for HMR, so the browser hits :8830 and the client uses
-// relative URLs (identical in dev and prod — no CORS, no VITE_API_URL). The reciprocal proxy below keeps
+// relative URLs (identical in dev and prod - no CORS, no VITE_API_URL). The reciprocal proxy below keeps
 // :5181 working standalone too. `@/*` → src; plugin-react-swc avoids a Babel/browserslist transform bug.
 const root = fileURLToPath(new URL('.', import.meta.url))
 const GATEWAY = 'http://localhost:8830'
@@ -22,7 +22,7 @@ export default defineConfig({
   },
   server: {
     port: 5181,
-    // The gateway (:8830) is the canonical origin — don't auto-open the bare Vite port.
+    // The gateway (:8830) is the canonical origin - don't auto-open the bare Vite port.
     open: false,
     // fs.allow up to the workspace root grants @fs access to the pnpm store where @fontsource ships its
     // .woff2/.woff files (outside the apps/web Vite root).

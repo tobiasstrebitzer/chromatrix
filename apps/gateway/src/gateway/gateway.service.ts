@@ -1,13 +1,13 @@
-// CdpGatewayService — the gateway's control plane. Wraps @chromatrix/core's Orchestrator (identities +
+// CdpGatewayService - the gateway's control plane. Wraps @chromatrix/core's Orchestrator (identities +
 // Chrome supervisors + tab leasing) and adds the two things the domain layer deliberately doesn't know
-// about: (1) a per-identity CdpMux (upstream-only, embedded — fed already-upgraded sockets by the raw
+// about: (1) a per-identity CdpMux (upstream-only, embedded - fed already-upgraded sockets by the raw
 // `upgrade` handler, never a self-hosted server) carrying the Runtime.enable-suppression interceptor, and
 // (2) the derived per-agent token that turns an `allocateTab` into a scoped `…/cdp/<id>/<agentId>?token=…` URL.
 //
 // NOTHING about authorization is stored. The token is `HMAC(accessToken, identity ‖ agentId)`, recomputed on
 // each upgrade rather than looked up; the per-tab ACL is derived live from the TabPool on every attach, so
 // lease/release takes effect immediately: a client's scope `allows(t)` iff its agent currently leases target
-// `t`. See docs/PRD.md §4/§6 and NEXT-SESSION §2–3.
+// `t`. See docs/PRD.md §4/§6 and NEXT-SESSION §2-3.
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -24,16 +24,16 @@ import {
   type SessionInfo,
 } from '@chromatrix/core'
 
-/** A capture must not outlive the dashboard's poll interval — CdpClient.send has no timeout of its own. */
+/** A capture must not outlive the dashboard's poll interval - CdpClient.send has no timeout of its own. */
 const CAPTURE_TIMEOUT_MS = 4_000
 
-/** Commit, not load — but still bounded, since CdpClient.send has no timeout of its own. */
+/** Commit, not load - but still bounded, since CdpClient.send has no timeout of its own. */
 const NAVIGATE_TIMEOUT_MS = 15_000
 
 /**
  * Chrome refuses to make a window smaller than this, so these are the smallest *content* sizes reachable with
  * real windows (measured: an outer 200×200 request lands at 500×375 outer). Requests below the floor are
- * clamped rather than silently misreported — `setTabViewport` always answers with what was actually achieved.
+ * clamped rather than silently misreported - `setTabViewport` always answers with what was actually achieved.
  *
  * The practical consequence: phone-width viewports (375 CSS px) are NOT reachable this way. Getting one would
  * mean `Emulation.setDeviceMetricsOverride`, which trades away the fidelity this design is built on.
@@ -71,7 +71,7 @@ export interface AllocatedTab {
   title?: string
 }
 
-/** A running identity plus the tabs it currently leases — what the dashboard renders per card. */
+/** A running identity plus the tabs it currently leases - what the dashboard renders per card. */
 export interface SessionView extends SessionInfo {
   leases: AllocatedTab[]
 }
@@ -112,7 +112,7 @@ export class CdpGatewayService {
   // ── Provisioning (the MCP/management surface calls these) ───────────────────────────────────────────────
 
   /**
-   * Create the identity's profile dir. Does NOT launch Chrome — creating and starting are separate verbs so a
+   * Create the identity's profile dir. Does NOT launch Chrome - creating and starting are separate verbs so a
    * session can rest stopped between runs (see `startIdentity`).
    *
    * Rejects an id that already exists rather than quietly succeeding: `mkdir -p` semantics would silently
@@ -129,7 +129,7 @@ export class CdpGatewayService {
   }
 
   /**
-   * Stop the identity and delete its profile dir. Irreversible — this is the one call that destroys the
+   * Stop the identity and delete its profile dir. Irreversible - this is the one call that destroys the
    * signed-in session, so the dashboard gates it behind a type-the-id confirmation.
    */
   async deleteIdentity(id: string): Promise<void> {
@@ -154,18 +154,18 @@ export class CdpGatewayService {
   }
 
   /**
-   * Every session — running *and* stopped — each with the tabs it currently leases. The leases live in the
+   * Every session - running *and* stopped - each with the tabs it currently leases. The leases live in the
    * TabPool (the gateway is the source of truth), so a dashboard reload re-renders the real tab list instead
    * of an empty one.
    *
    * A stopped session short-circuits: it has no Chrome to ask, so it costs no CDP round trip and reports no
    * tabs. It still appears in the list, because its profile dir is exactly what makes it resumable.
    *
-   * Each lease is enriched with the target's live `url`/`title` — the TabPool deliberately doesn't track those
+   * Each lease is enriched with the target's live `url`/`title` - the TabPool deliberately doesn't track those
    * (a tab's URL is the agent's business, and it changes without telling us), so they're read per call. That
    * costs one `Target.getTargets` per identity per poll, which is what lets the dashboard label a tab by its
    * page rather than by a truncated targetId. A failed read degrades to bare leases rather than failing the
-   * whole list — an identity being torn down mid-poll shouldn't blank the other cards.
+   * whole list - an identity being torn down mid-poll shouldn't blank the other cards.
    */
   async listSessions(): Promise<SessionView[]> {
     return Promise.all(
@@ -209,11 +209,11 @@ export class CdpGatewayService {
   }
 
   /**
-   * A one-off JPEG of a live target — what the dashboard's tab cards poll for passive monitoring.
+   * A one-off JPEG of a live target - what the dashboard's tab cards poll for passive monitoring.
    *
    * Deliberately *not* a screencast: `Page.startScreencast` is repaint-driven (a static page emits one frame
    * and then nothing), which is why the takeover hub has to cache frames. `Page.captureScreenshot` asks for a
-   * fresh raster instead, so it works on an idle page. It also does NOT call `Target.activateTarget` — the
+   * fresh raster instead, so it works on an idle page. It also does NOT call `Target.activateTarget` - the
    * takeover path does that because a screencast needs the page composited, but stealing window focus once
    * per tab per poll would make the identity's Chrome unusable. If a backgrounded tab turns out not to raster,
    * that surfaces as a timeout below rather than a hang.
@@ -266,13 +266,13 @@ export class CdpGatewayService {
   ): Promise<AllocatedTab> {
     assertValidIdentityId(identity)
     if (!this.muxes.has(identity)) {
-      throw new Error(`identity "${identity}" is not running — startIdentity first`)
+      throw new Error(`identity "${identity}" is not running - startIdentity first`)
     }
     const lease = await this.orchestrator.allocateTab(identity, agentId, { url: opts.url })
     const wanted =
       opts.width && opts.height ? { width: opts.width, height: opts.height } : this.settings().defaultViewport
     if (wanted) {
-      // A viewport failure must not lose the tab — the lease is already real and the agent can still drive it.
+      // A viewport failure must not lose the tab - the lease is already real and the agent can still drive it.
       await this.setTabViewport(identity, lease.targetId, wanted.width, wanted.height).catch((err) =>
         this.log.warn(`could not size tab ${lease.targetId}: ${err instanceof Error ? err.message : err}`),
       )
@@ -301,7 +301,7 @@ export class CdpGatewayService {
    * achieved (clamped at the floor above).
    *
    * Window bounds are outer dimensions, so we measure the browser-chrome delta for this specific window rather
-   * than assuming one — it varies with the bookmarks bar, platform, and Chrome version. Measured via
+   * than assuming one - it varies with the bookmarks bar, platform, and Chrome version. Measured via
    * `Page.getLayoutMetrics` instead of `Runtime.evaluate` so nothing observable runs inside the agent's page.
    * One correction step lands it exactly (verified across headed and headless).
    */
@@ -348,7 +348,7 @@ export class CdpGatewayService {
    * Point a tab at a URL. Used by the takeover view's address field, so a human can steer a tab without
    * having to drive the page's own chrome (which the screencast doesn't include).
    *
-   * Resolves when the navigation is *committed*, not when the page finishes loading — waiting for load would
+   * Resolves when the navigation is *committed*, not when the page finishes loading - waiting for load would
    * hang the request on a slow or never-idle page.
    */
   async navigateTab(identity: string, targetId: string, url: string): Promise<{ url: string }> {
@@ -406,7 +406,7 @@ export class CdpGatewayService {
     this.muxes.get(id)?.close()
     this.muxes.delete(id)
     // Agent tokens are NOT revoked here: they are derived rather than stored, so there is nothing to
-    // delete. A token outliving its identity grants nothing on its own — the ACL is computed from live
+    // delete. A token outliving its identity grants nothing on its own - the ACL is computed from live
     // TabPool leases, and stopping has just destroyed them. See @chromatrix/shared/token.
     await this.orchestrator.stopIdentity(id)
   }
@@ -424,7 +424,7 @@ export class CdpGatewayService {
    *
    * With derived tokens there is no table to look the caller up in, so the flow inverts: the client *claims*
    * an agentId and the token proves the claim. Recomputing the HMAC for (identity, claimedAgent) and comparing
-   * in constant time is equivalent to the old lookup — a caller who cannot forge the HMAC cannot assert an
+   * in constant time is equivalent to the old lookup - a caller who cannot forge the HMAC cannot assert an
    * agentId that isn't theirs, and the identity is bound in because it is an HMAC input.
    */
   resolveCdpUpgrade(
@@ -442,7 +442,7 @@ export class CdpGatewayService {
     return { mux, scope: this.scopeFor(identity, agentId) }
   }
 
-  /** Control CDP client for a running identity — used by the takeover route. */
+  /** Control CDP client for a running identity - used by the takeover route. */
   controlClient(identity: string) {
     return this.orchestrator.client(identity)
   }
@@ -464,7 +464,7 @@ export class CdpGatewayService {
   }
 
   /**
-   * The agent's CDP credential — `HMAC(accessToken, identity ‖ agentId)`, derived rather than stored.
+   * The agent's CDP credential - `HMAC(accessToken, identity ‖ agentId)`, derived rather than stored.
    *
    * One credential per (identity, agent), not per tab: an agent holds one connection for all its tabs and the
    * scope is derived live from its leases. Deriving instead of minting means the token table is gone and the
@@ -478,7 +478,7 @@ export class CdpGatewayService {
   private describeTab(lease: Lease, token: string): AllocatedTab {
     // The agent is named in the PATH, not the query: it is part of what is being addressed (whose scope this
     // connection attaches under), not a credential. It also has to be stated explicitly at all, because the
-    // agentId cannot be recovered from the HMAC — the client names itself and the token proves the claim.
+    // agentId cannot be recovered from the HMAC - the client names itself and the token proves the claim.
     // Percent-encoded since agentId is an opaque caller-chosen string.
     const agent = encodeURIComponent(lease.agentId)
     return {

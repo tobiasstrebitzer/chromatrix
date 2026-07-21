@@ -1,5 +1,5 @@
 /*
- * Self-hosted fonts, bundled via @fontsource — NO third-party / Google Fonts CDN at runtime (no
+ * Self-hosted fonts, bundled via @fontsource - NO third-party / Google Fonts CDN at runtime (no
  * phone-home posture). Vite bundles the woff2 + @font-face. Sans + mono only: Inter is UI/body/display
  * (tight tracking on large sizes); JetBrains Mono is code, identity ids, targetIds, and scoped URLs.
  */

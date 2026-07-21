@@ -1,7 +1,7 @@
-// TabPool — exclusive, per-agent tab leasing for ONE identity (PRD §4; S3 proved tab affinity is mandatory:
+// TabPool - exclusive, per-agent tab leasing for ONE identity (PRD §4; S3 proved tab affinity is mandatory:
 // a tab is owned by exactly one agent at a time, because a second agent navigating a leased tab destroys the
 // first's in-flight op). Each lease is a real CDP page target created on the identity's shared default context
-// (so it inherits the persistent login — S3 showed ephemeral contexts do NOT). The pool tracks which agent
+// (so it inherits the persistent login - S3 showed ephemeral contexts do NOT). The pool tracks which agent
 // owns which targetId; the gateway turns that ownership into the mux's per-tab ACL scope.
 
 import type { CdpClient } from '@chromatrix/cdp'
@@ -39,7 +39,7 @@ export class TabPool {
    *
    * `newWindow: true` puts every tab in its own browser window. That is what makes viewport size a *per-tab*
    * property: window bounds are per-window, so tabs sharing a window would be forced to share a size. The
-   * alternative — `Emulation.setDeviceMetricsOverride` — is per-target but produces states impossible on real
+   * alternative - `Emulation.setDeviceMetricsOverride` - is per-target but produces states impossible on real
    * hardware (a viewport larger than its own window), which is exactly the kind of artifact this project
    * exists to avoid. See docs/FINDINGS.md.
    */
@@ -69,7 +69,7 @@ export class TabPool {
     return this.leases.get(targetId)
   }
 
-  /** True if `agentId` currently leases `targetId` — the ACL predicate the mux scope calls. */
+  /** True if `agentId` currently leases `targetId` - the ACL predicate the mux scope calls. */
   isLeasedBy(agentId: string, targetId: string): boolean {
     return this.leases.get(targetId)?.agentId === agentId
   }

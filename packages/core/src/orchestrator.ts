@@ -1,6 +1,6 @@
-// Orchestrator — the domain facade the gateway drives (PRD §4). Holds the identity registry and, per running
+// Orchestrator - the domain facade the gateway drives (PRD §4). Holds the identity registry and, per running
 // identity, a ChromeSupervisor (the process + control channel) paired with a TabPool (exclusive tab leasing).
-// It knows nothing about HTTP/WS/CDP-mux — the gateway layers those on top. One Chrome per identity, shared
+// It knows nothing about HTTP/WS/CDP-mux - the gateway layers those on top. One Chrome per identity, shared
 // default context, exclusive per-agent tabs: the v1 concurrency model S3 validated.
 
 import { CdpClient } from '@chromatrix/cdp'
@@ -16,7 +16,7 @@ export interface Session {
 export interface SessionInfo {
   identity: string
   profileDir: string
-  /** `stopped` is a resting state, not an absence — the identity still exists on disk with its session intact. */
+  /** `stopped` is a resting state, not an absence - the identity still exists on disk with its session intact. */
   state: SupervisorState
   tabs: number
   /** Empty unless the identity is running. */
@@ -45,12 +45,12 @@ export class Orchestrator {
 
   /**
    * Start a session for an identity: launches Chrome + control channel. Rejects if the identity is already
-   * running — silently returning the existing session would let a caller's `opts` (e.g. `headless`) be
+   * running - silently returning the existing session would let a caller's `opts` (e.g. `headless`) be
    * ignored with no signal that nothing changed. Call `stopIdentity` first to relaunch with different flags.
    */
   async startIdentity(id: string, opts: SupervisorOptions = {}): Promise<Session> {
     if (this.sessions.has(id)) {
-      throw new Error(`identity "${id}" is already running — stop it first to relaunch with different flags`)
+      throw new Error(`identity "${id}" is already running - stop it first to relaunch with different flags`)
     }
     const identity = this.registry.create(id)
     const supervisor = new ChromeSupervisor(identity, { ...this.options, ...opts })
@@ -63,7 +63,7 @@ export class Orchestrator {
 
   private require(id: string): Session {
     const s = this.sessions.get(id)
-    if (!s) throw new Error(`identity "${id}" is not running — start it first`)
+    if (!s) throw new Error(`identity "${id}" is not running - start it first`)
     return s
   }
 
@@ -76,7 +76,7 @@ export class Orchestrator {
     await this.require(id).tabs.release(targetId)
   }
 
-  /** Control CDP client for a running identity (browser endpoint) — e.g. for takeover/screencast. */
+  /** Control CDP client for a running identity (browser endpoint) - e.g. for takeover/screencast. */
   client(id: string): CdpClient {
     return this.require(id).supervisor.client
   }
@@ -94,7 +94,7 @@ export class Orchestrator {
    *
    * Enumerating the registry rather than the in-memory session map is what makes a session a *long-lived*
    * thing you start and stop. Listing only the map (as this used to) meant stopping an identity erased it from
-   * the UI while its profile — and its logged-in cookies — sat on disk, so "stop" was indistinguishable from
+   * the UI while its profile - and its logged-in cookies - sat on disk, so "stop" was indistinguishable from
    * "delete" and the durable state was unreachable.
    */
   listSessions(): SessionInfo[] {
@@ -119,7 +119,7 @@ export class Orchestrator {
   }
 
   /**
-   * Stop the identity (if running) and delete its profile dir — the only operation that destroys durable
+   * Stop the identity (if running) and delete its profile dir - the only operation that destroys durable
    * state. Stopping first is not optional: Chrome must release the profile and flush before the dir goes, or
    * we unlink files out from under a live process. Irreversible; the signed-in session cannot be recovered.
    */

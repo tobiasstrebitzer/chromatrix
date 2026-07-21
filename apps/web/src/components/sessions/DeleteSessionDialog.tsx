@@ -22,7 +22,7 @@ export interface DeleteSessionDialogProps {
  * Type-the-id confirmation for deleting a session.
  *
  * The friction is proportionate to what's being destroyed: a session's profile dir holds a *real signed-in
- * browser* — cookies, tokens, whatever a human logged into over takeover — and there is no undo and no
+ * browser* - cookies, tokens, whatever a human logged into over takeover - and there is no undo and no
  * backup. Re-typing the identity forces the user to read which one they picked, which is the failure this
  * guards against (deleting the wrong row), rather than the one a plain OK/Cancel guards against (a stray
  * click). The confirm button stays disabled until the text matches exactly.

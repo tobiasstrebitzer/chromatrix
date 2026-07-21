@@ -41,15 +41,15 @@ export interface SessionRowProps {
   /** Advances every poll interval; drives the tab thumbnails. */
   tick: number
   /**
-   * In-flight action keys from SessionsView's `run` — `start:<id>`, `stop:<id>`, `health:<id>`,
-   * `delete:<id>`, `tab:<id>`, `release:<id>:<targetId>` — so each control shows its own busy state
+   * In-flight action keys from SessionsView's `run` - `start:<id>`, `stop:<id>`, `health:<id>`,
+   * `delete:<id>`, `tab:<id>`, `release:<id>:<targetId>` - so each control shows its own busy state
    * instead of one action greying out the whole page.
    */
   busy: ReadonlySet<string>
   onTakeover: (targetId?: string) => void
   onHealth: () => void
   onStart: () => void
-  /** Launch option, remembered by the dashboard — see SessionsView. Only offered where a start is offered. */
+  /** Launch option, remembered by the dashboard - see SessionsView. Only offered where a start is offered. */
   headless: boolean
   onHeadlessChange: (headless: boolean) => void
   onStop: () => void
@@ -60,7 +60,7 @@ export interface SessionRowProps {
 }
 
 /**
- * One identity as a full-width row: a header you can act on without expanding, and — when expanded — its
+ * One identity as a full-width row: a header you can act on without expanding, and - when expanded - its
  * tabs as a grid of live cards.
  *
  * Rows rather than cards because an identity is a *heading*, not a peer of its tabs: the old two-column card
@@ -113,7 +113,7 @@ export function SessionRow({
 
         {/* Start/Stop is one slot that swaps by state, not two buttons where one is always dead: a stopped
             session can only be started and a running one can only be stopped, so showing both would mean
-            permanently greying out half the control. Delete sits apart and is always available — a session you
+            permanently greying out half the control. Delete sits apart and is always available - a session you
             no longer want is one you should be able to discard without starting it first. */}
         <div className='flex shrink-0 items-center gap-1'>
           <Button
@@ -196,7 +196,7 @@ export function SessionRow({
           ) : (
             <div className='flex flex-col items-center gap-2.5 rounded-md border border-dashed border-border px-6 py-8 text-center'>
               <p className='text-body-sm text-muted-foreground'>
-                This session is stopped. Its profile is kept on disk — start it to resume where it left off.
+                This session is stopped. Its profile is kept on disk - start it to resume where it left off.
               </p>
               <div className='flex flex-wrap items-center justify-center gap-3'>
                 <Button size='sm' onClick={onStart} disabled={starting}>

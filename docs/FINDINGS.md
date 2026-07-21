@@ -1,14 +1,14 @@
-# chromatrix — spike findings (consolidated)
+# chromatrix - spike findings (consolidated)
 
-One page of what the S1–S4 spikes established. The spikes were throwaway de-risking experiments; they served
-their purpose and have been **retired** — their proven primitives live in `packages/` + `apps/`, their
+One page of what the S1-S4 spikes established. The spikes were throwaway de-risking experiments; they served
+their purpose and have been **retired** - their proven primitives live in `packages/` + `apps/`, their
 fidelity assertions live on as `pnpm fidelity:check` (see S1/S2 below), and this page plus [`PRD.md`](PRD.md)
 is the record of what they proved. The spike code itself is recoverable from git history if ever needed.
 Dev machine: MacBook Pro **M3 Pro**, real Google **Chrome 150**, residential IP.
 
 ## Responsible use (read this first)
 
-chromatrix runs a **real** browser to make **authorized** automation behave authentically — not to conceal
+chromatrix runs a **real** browser to make **authorized** automation behave authentically - not to conceal
 unauthorized activity. The whole system assumes you are automating accounts you own or are explicitly
 permitted to automate, on sites where that automation is allowed. Concretely:
 
@@ -25,32 +25,32 @@ permitted to automate, on sites where that automation is allowed. Concretely:
 
 ## The through-line
 
-Going in, the open worry was that the CDP **automation-protocol fingerprint** — Playwright/Puppeteer's
-startup `Runtime.enable` + `Target.setAutoAttach` sequence — would get even legitimate, authorized automation
+Going in, the open worry was that the CDP **automation-protocol fingerprint** - Playwright/Puppeteer's
+startup `Runtime.enable` + `Target.setAutoAttach` sequence - would get even legitimate, authorized automation
 *falsely* flagged by anti-bot systems, because those systems key on that sequence to catch modified/
 instrumented browsers. **On Chrome 150 the classic in-page `Runtime.enable` getter-leak is already closed
 upstream**, so the mux's protocol hygiene is now *defense-in-depth / compatibility*, not the crux. Empirically,
-**a real headed Chrome on macOS with ordinary configuration hygiene behaves like the real browser it is** —
+**a real headed Chrome on macOS with ordinary configuration hygiene behaves like the real browser it is** -
 it works with many anti-bot-protected sites (signed-in x.com, DataDome, standard Cloudflare) for authorized
 use. The cases it does **not** silently clear are the **interactive human-verification challenges** (Cloudflare
-managed challenge / Turnstile) — and that is correct: those are meant to verify a human, so a human completes
+managed challenge / Turnstile) - and that is correct: those are meant to verify a human, so a human completes
 them via takeover and the resulting session persists.
 
-## S1 — mitigating CDP mux (now `packages/cdp` + `pnpm fidelity:check`)
+## S1 - mitigating CDP mux (now `packages/cdp` + `pnpm fidelity:check`)
 
 - **Chrome 150 closed the classic in-page `Runtime.enable` getter-trap leak.** `Runtime.consoleAPICalled`
   now serializes accessor properties as `{type:"accessor"}` **without invoking the getter**. The one clean
-  in-page CDP tell the research relied on is gone here. This check is now a standing probe —
+  in-page CDP tell the research relied on is gone here. This check is now a standing probe -
   `probeRuntimeEnableGetterTrap` in `@chromatrix/fidelity`, run by `pnpm fidelity:check`.
 - **Proxy-side protocol hygiene works.** The mux blocks `Runtime.enable` from ever reaching Chrome for an
   *unmodified* raw-CDP consumer, yet that consumer still gets an execution context and evaluates JS (via a
   synthesized isolated world). Multiplexing two consumers passes.
 - **Consequence:** keep the mux (cheap, transparent handshake-surface reduction), but it is not load-bearing
-  on current Chrome — running the genuine browser is what matters.
+  on current Chrome - running the genuine browser is what matters.
 
-## S2 — headed Chrome baseline + capacity (now `pnpm fidelity:check`)
+## S2 - headed Chrome baseline + capacity (now `pnpm fidelity:check`)
 
-- **Authentic Apple/Metal WebGL confirmed:** `ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro)` — authentic
+- **Authentic Apple/Metal WebGL confirmed:** `ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro)` - authentic
   because it *is* a real Mac's GPU. This is the core reason to run a genuine headed browser on a Mac rather
   than a synthetic/headless one (headless/SwiftShader is blocklisted precisely because it isn't real).
 - **One realism bug found & fixed:** a plain `--remote-debugging-port` launch makes Chrome report
@@ -62,24 +62,24 @@ them via takeover and the resulting session persists.
 - **Live target matrix (human-verified x.com login):** x.com `/home` **signed in** (auth_token +
   logged-in DOM), bot.sannysoft.com **0 automation mismatches**, Cloudflare `nowsecure.nl` **PASS**.
 - **Compatibility test against protected sites (2026-07):** DataDome `leboncoin.fr` **PASS**, standard
-  Cloudflare **PASS**, Cloudflare **managed challenge** (nopecha demo) **GATED** — did not auto-clear, and
+  Cloudflare **PASS**, Cloudflare **managed challenge** (nopecha demo) **GATED** - did not auto-clear, and
   by design it shouldn't: a managed challenge is a human-verification gate, handled via human takeover
   (S4), not bypassed. (Caveat: the nopecha demo always challenges; verdicts vary by IP/geo/day.)
 
-## S3 — shared-tab concurrency (now realized in `packages/core` + the gateway `e2e`)
+## S3 - shared-tab concurrency (now realized in `packages/core` + the gateway `e2e`)
 
 - **Shared context per identity is sound:** 5 concurrent agents, each in its own tab, all completed, all share
   the login cookie, all localStorage writes land. Multi-session CDP is robust.
 - **Tab affinity is mandatory:** forcing two agents onto ONE tab breaks the in-flight op
   (`Inspected target navigated or closed`). The orchestrator's tab pool must lease a tab **exclusively**.
-- **Ephemeral `createBrowserContext` isolates storage/cookies but does NOT inherit the persistent login** —
+- **Ephemeral `createBrowserContext` isolates storage/cookies but does NOT inherit the persistent login** -
   wrong tool for per-job isolation under a logged-in identity. v1 = **shared context + exclusive tab leasing**.
 - **Still open:** dynamic HSTS / TLS-session-cache leakage between default and ephemeral contexts (needs a probe).
 
-## S4 — live view + human takeover (now the gateway `/takeover` route + dashboard)
+## S4 - live view + human takeover (now the gateway `/takeover` route + dashboard)
 
 - CDP `Page.startScreencast` (JPEG q75, ack-throttled, fanned out to all viewers) + `Input.dispatch*`.
-- **Injected input is `isTrusted`** — because it goes through the browser's real input pipeline, the same one
+- **Injected input is `isTrusted`** - because it goes through the browser's real input pipeline, the same one
   a physical mouse/keyboard uses (self-test verifies frames flow, a click fires the page handler with
   `isTrusted===true`, and keyboard types into inputs).
 - **Used for real:** a human logged into x.com by hand through the viewer; the session **persisted** into
@@ -102,28 +102,28 @@ them via takeover and the resulting session persists.
    cookies flush; clean stale `Singleton*` locks on reattach.
 5. **Viewport size is a real window, not an emulation override** (measured 2026-07-19). Each tab opens with
    `newWindow: true` and is sized with `Browser.setWindowBounds` plus a per-window chrome delta measured via
-   `Page.getLayoutMetrics` — exact in one correction step, headed and headless, with nothing executed inside
+   `Page.getLayoutMetrics` - exact in one correction step, headed and headless, with nothing executed inside
    the page. `Emulation.setDeviceMetricsOverride` was measured side by side and rejected: it yields
    `inner 800×600` within `outer 640×480`, a viewport larger than its own window and therefore a state no real
    display can produce. **Cost of the honest path:** Chrome won't make a window smaller than 500×375 outer
-   (500×288 content), so **phone-width viewports are out of reach** — a real constraint we accept rather than
+   (500×288 content), so **phone-width viewports are out of reach** - a real constraint we accept rather than
    fake, consistent with §0.
 
-## Gateway (built — these findings are now realized in `apps/gateway`)
+## Gateway (built - these findings are now realized in `apps/gateway`)
 
 The four points above are implemented and verified end-to-end (real Chrome + real CDP):
 
-- **Mitigating mux (1)** — one embedded `CdpMux` per identity carrying `runtimeEnableSuppressInterceptor`,
+- **Mitigating mux (1)** - one embedded `CdpMux` per identity carrying `runtimeEnableSuppressInterceptor`,
   fed already-upgraded sockets on the raw `/cdp/<id>?token=…` route bound to the underlying `http.Server`,
   outside Nest's pipeline (PRD §6).
-- **Concurrency + ACL (3)** — the `TabPool`'s exclusive per-agent leasing becomes the mux's **live per-tab
+- **Concurrency + ACL (3)** - the `TabPool`'s exclusive per-agent leasing becomes the mux's **live per-tab
   scope**: an agent's raw client may evaluate in its own tab but is **denied** attaching to another agent's
-  target. The acceptance test (`pnpm --filter @chromatrix/gateway run accept`) asserts exactly this — 5/5 green.
-- **Human takeover** — S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
-- **Provisioning** — 14 MCP tools (identity/tab lifecycle + viewport + settings + health + takeover) at `/mcp`;
+  target. The acceptance test (`pnpm --filter @chromatrix/gateway run accept`) asserts exactly this - 5/5 green.
+- **Human takeover** - S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
+- **Provisioning** - 14 MCP tools (identity/tab lifecycle + viewport + settings + health + takeover) at `/mcp`;
   agents then drive raw CDP over the scoped URL `AllocateTab` returns (PRD §5). Identity lifecycle is four
-  distinct verbs — Create, Start, Stop, Delete — where only Delete discards the profile dir.
-- **Concurrency + isolation under load** — `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents
+  distinct verbs - Create, Start, Stop, Delete - where only Delete discards the profile dir.
+- **Concurrency + isolation under load** - `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents
   × 2 tabs = 18 tabs) and proves, together: work overlaps rather than serializing (wall-clock ≪ Σ per-agent
   time, ratio ~0.12), each tab reads back only its own marker, the per-tab ACL denies both same-identity peer
   and cross-identity attaches, releasing a tab shrinks its scope live, and shutdown leaves zero survivor Chrome.

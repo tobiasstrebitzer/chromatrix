@@ -8,7 +8,7 @@
 //   pnpm --filter @chromatrix/gateway run e2e                                  # headless (default), 2×2×1
 //   IDENTITIES=3 AGENTS_PER_IDENTITY=3 TABS_PER_AGENT=2 HEADLESS=0 pnpm … run e2e
 //
-// Fleet size is env-configurable but small by default: a real headed Chrome is ~1.5–2 GB per identity (S2),
+// Fleet size is env-configurable but small by default: a real headed Chrome is ~1.5-2 GB per identity (S2),
 // so don't casually crank IDENTITIES on a laptop.
 
 import { createServer, type Server as HttpServer } from 'node:http'
@@ -36,7 +36,7 @@ function envInt(name: string, dflt: number): number {
 const results: Array<{ name: string; ok: boolean; detail: string }> = []
 function check(name: string, ok: boolean, detail = ''): void {
   results.push({ name, ok, detail })
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` - ${detail}` : ''}`)
 }
 async function attachErr(client: CdpClient, targetId: string): Promise<string | undefined> {
   try {
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
     await handle.close().catch(() => {})
   }
 
-  // 6. Teardown proof: SIGTERM'd every Chrome — none may remain bound to the tmp profiles. Poll briefly since
+  // 6. Teardown proof: SIGTERM'd every Chrome - none may remain bound to the tmp profiles. Poll briefly since
   // SIGTERM → exit is async.
   let survivors = (await findChromePidsForProfile(profiles)).length
   for (let i = 0; i < 20 && survivors > 0; i++) {
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
   rmSync(profiles, { recursive: true, force: true })
 
   const passed = results.every((r) => r.ok)
-  console.log(`\n${passed ? 'PASS' : 'FAIL'} — ${results.filter((r) => r.ok).length}/${results.length} checks\n`)
+  console.log(`\n${passed ? 'PASS' : 'FAIL'} - ${results.filter((r) => r.ok).length}/${results.length} checks\n`)
   process.exitCode = passed ? 0 : 1
 }
 

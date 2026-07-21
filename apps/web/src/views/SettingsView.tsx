@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
 /**
- * Gateway-wide settings. Small on purpose — this exists because the default viewport has to apply to tabs
+ * Gateway-wide settings. Small on purpose - this exists because the default viewport has to apply to tabs
  * created by *agents over MCP* too, which means it belongs on the server, not in this app's local storage.
  */
 export function SettingsView() {
@@ -42,7 +42,7 @@ export function SettingsView() {
       toast(
         s.defaultViewport
           ? `Default viewport set to ${s.defaultViewport.width}×${s.defaultViewport.height}`
-          : 'Default cleared — new tabs will fit the takeover viewer',
+          : 'Default cleared - new tabs will fit the takeover viewer',
       )
     } catch (e) {
       toast.error('Could not save settings', {
@@ -115,7 +115,7 @@ export function SettingsView() {
         </form>
 
         <p className='mt-2 text-label text-fg-4'>
-          Minimum {MIN_VIEWPORT_WIDTH}×{MIN_VIEWPORT_HEIGHT} — Chrome refuses to make a window smaller, so
+          Minimum {MIN_VIEWPORT_WIDTH}×{MIN_VIEWPORT_HEIGHT} - Chrome refuses to make a window smaller, so
           phone-width viewports aren't reachable without emulation overrides (which this project avoids).
         </p>
       </section>

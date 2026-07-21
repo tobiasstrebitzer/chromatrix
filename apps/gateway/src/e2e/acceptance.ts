@@ -4,7 +4,7 @@
 // scoped URL and asserts:
 //   1. A can attach to its own tab and evaluate JS in it,
 //   2. A's Target.getTargets is filtered to only A's tab (B's is invisible),
-//   3. A CANNOT attach to B's target — the mux returns "not in this client's scope",
+//   3. A CANNOT attach to B's target - the mux returns "not in this client's scope",
 //   4. a bad/absent token is refused at the upgrade,
 //   5. the global access token gates REST + MCP + the takeover WS, and cookie login works for the dashboard.
 // This exercises core → mux ACL → the raw-WS upgrade path → the mitigating interceptor together.
@@ -22,7 +22,7 @@ const IDENTITY = 'accept'
 const results: Array<{ name: string; ok: boolean; detail: string }> = []
 function check(name: string, ok: boolean, detail = ''): void {
   results.push({ name, ok, detail })
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ` - ${detail}` : ''}`)
 }
 
 async function expectReject(p: Promise<unknown>): Promise<string | undefined> {
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   try {
     console.log(`\nchromatrix · gateway acceptance (profiles: ${profiles})\n`)
 
-    // (5) The access-token perimeter. Every management surface must refuse an unauthenticated caller — this
+    // (5) The access-token perimeter. Every management surface must refuse an unauthenticated caller - this
     // is the check that fails loudly if a future route ships outside the global guard.
     const raw = (path: string, headers: Record<string, string> = {}) =>
       fetch(`http://${handle.host}:${handle.port}${path}`, { headers })
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
       `${noToken.status} / ${badToken.status} / ${goodToken.status}`,
     )
 
-    // MCP is gated at the TRANSPORT, so even tool *discovery* is closed — a per-method guard would leave the
+    // MCP is gated at the TRANSPORT, so even tool *discovery* is closed - a per-method guard would leave the
     // catalogue readable, since tools/list has no controller method behind it.
     const mcpList = await fetch(`http://${handle.host}:${handle.port}/mcp`, {
       method: 'POST',
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     })
     check('login rejects a wrong token', badLogin.status === 401, `${badLogin.status}`)
 
-    // The login throttle: repeated failures from one address must flip to 429 — and once locked, even the
+    // The login throttle: repeated failures from one address must flip to 429 - and once locked, even the
     // RIGHT token is refused for the cooldown (Bearer auth is unaffected, so the operator is never locked out
     // of the gateway itself).
     const tryLogin = async (token: string) => {
@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     })
     check('DTO validation rejects a malformed body with 400', invalidBody.status === 400, `${invalidBody.status}`)
 
-    // The takeover socket is an operator surface (live view + trusted input), and it lives OUTSIDE Nest — a
+    // The takeover socket is an operator surface (live view + trusted input), and it lives OUTSIDE Nest - a
     // guard cannot reach it, because WS handshakes arrive on `upgrade`, not `request`. So it carries its own
     // check, and this asserts it: without a token the upgrade is refused before the socket is accepted.
     const takeoverErr = await expectReject(
@@ -181,7 +181,7 @@ async function main(): Promise<void> {
       `sees ${ids.length} target(s)`,
     )
 
-    // (3) A cannot attach to B's target — the core assertion.
+    // (3) A cannot attach to B's target - the core assertion.
     const denyErr = await expectReject(clientA.send('Target.attachToTarget', { targetId: tabB.targetId, flatten: true }))
     check("A cannot attach to B’s target", denyErr !== undefined && /scope/i.test(denyErr), denyErr ?? 'attached (should not)')
   } finally {
@@ -191,7 +191,7 @@ async function main(): Promise<void> {
   }
 
   const passed = results.every((r) => r.ok)
-  console.log(`\n${passed ? 'PASS' : 'FAIL'} — ${results.filter((r) => r.ok).length}/${results.length} checks\n`)
+  console.log(`\n${passed ? 'PASS' : 'FAIL'} - ${results.filter((r) => r.ok).length}/${results.length} checks\n`)
   process.exitCode = passed ? 0 : 1
 }
 

@@ -52,7 +52,7 @@ export async function launchChrome(opts: LaunchOptions = {}): Promise<ChromeHand
     ...(opts.headless ? ['--headless=new'] : []),
     ...(opts.extraArgs ?? []),
     // Only open a startup window when one was explicitly asked for. Passing a positional URL (or defaulting
-    // it to about:blank) makes Chrome open a stray page target that nobody leased — it pollutes
+    // it to about:blank) makes Chrome open a stray page target that nobody leased - it pollutes
     // Target.getTargets, is the tab a naive takeover attaches to, and confuses "how many tabs are open".
     // `--no-startup-window` keeps the browser process alive and still prints the DevTools endpoint, with
     // ZERO page targets; Target.createTarget then opens the first real window. Verified on Chrome 150.

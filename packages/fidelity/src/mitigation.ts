@@ -1,4 +1,4 @@
-// Runtime.enable suppression — a fidelity Interceptor for the CdpMux. Never lets `Runtime.enable` reach
+// Runtime.enable suppression - a fidelity Interceptor for the CdpMux. Never lets `Runtime.enable` reach
 // Chrome; instead mints a real isolated world and synthesizes the executionContextCreated event the
 // consumer expects, so an unmodified raw-CDP consumer still evaluates while Chrome's Runtime domain is never
 // enabled. Proven in spike S1 (docs/PRD.md §7).
@@ -19,7 +19,7 @@ export const runtimeEnableSuppressInterceptor: Interceptor = {
     const { frameTree } = await ctx.sendUpstream('Page.getFrameTree', {}, sid)
     const frameId = frameTree.frame.id as string
 
-    // A real execution context in an isolated world — evaluation works here, and because we never forward
+    // A real execution context in an isolated world - evaluation works here, and because we never forward
     // Runtime.enable, Chrome enables no Runtime domain on any session.
     const { executionContextId } = await ctx.sendUpstream(
       'Page.createIsolatedWorld',

@@ -1,6 +1,6 @@
-// Gateway management controller — the provisioning surface (PRD §5: MCP is provisioning-ONLY; agents then
+// Gateway management controller - the provisioning surface (PRD §5: MCP is provisioning-ONLY; agents then
 // drive raw CDP over the scoped URL an allocateTab hands back). Each action is a REST route under /api, a
-// tRPC procedure (the web dashboard's typed client), and — where it provisions — an @Mcp tool for agents. It
+// tRPC procedure (the web dashboard's typed client), and - where it provisions - an @Mcp tool for agents. It
 // carries no CDP traffic: that goes over the raw-WS mux mounted outside Nest (see cdp/cdp-upgrade.ts).
 
 import {
@@ -45,14 +45,14 @@ export class GatewayController {
   @Mcp({
     name: 'start-identity',
     description:
-      'Launch Chrome for an identity. Errors if the identity is already running — call stop-identity ' +
+      'Launch Chrome for an identity. Errors if the identity is already running - call stop-identity ' +
       'first to relaunch with different flags (e.g. headless).',
   })
   async startIdentity(@Body() body: StartIdentityDto) {
     try {
       return await this.gateway.startIdentity(body.id, { headless: body.headless })
     } catch (err) {
-      // Already-running is a conflict, not a server fault — 409 lets a caller branch on it instead of
+      // Already-running is a conflict, not a server fault - 409 lets a caller branch on it instead of
       // parsing a message string.
       if (err instanceof Error && /already running/.test(err.message)) throw new ConflictException(err.message)
       throw err
@@ -69,7 +69,7 @@ export class GatewayController {
 
   /**
    * Destroy an identity: stop its Chrome, then delete its profile dir. This is the only route that discards
-   * durable state — the profile dir holds the signed-in session, so there is nothing to restore afterwards.
+   * durable state - the profile dir holds the signed-in session, so there is nothing to restore afterwards.
    */
   @Post('identity/delete')
   @Trpc({ kind: 'mutation' })
@@ -131,7 +131,7 @@ export class GatewayController {
   @Trpc({ kind: 'mutation' })
   @Mcp({ name: 'set-default-viewport' })
   setDefaultViewport(@Body() body: DefaultViewportDto) {
-    // 0×0 clears the default — the MCP tool contract forbids nullable fields, so a sentinel is how a caller
+    // 0×0 clears the default - the MCP tool contract forbids nullable fields, so a sentinel is how a caller
     // says "unset" without a second tool.
     const defaultViewport =
       body.width > 0 && body.height > 0 ? { width: body.width, height: body.height } : undefined
@@ -154,12 +154,12 @@ export class GatewayController {
   }
 
   /**
-   * Live JPEG of one tab — the dashboard's tab cards poll this so the Sessions view doubles as a monitor.
+   * Live JPEG of one tab - the dashboard's tab cards poll this so the Sessions view doubles as a monitor.
    *
    * This route serves the same bytes three different ways, which is the whole point of silkweave resources:
-   *   • REST  — raw `image/jpeg`, so an `<img src>` is the client (no base64 inflation, browser-managed decode)
-   *   • MCP   — a real `image` content block an agent can actually see, not a JSON blob of numbers
-   *   • CLI   — raw bytes on stdout when piped: `chromatrix capture-tab … > shot.jpg`
+   *   • REST  - raw `image/jpeg`, so an `<img src>` is the client (no base64 inflation, browser-managed decode)
+   *   • MCP   - a real `image` content block an agent can actually see, not a JSON blob of numbers
+   *   • CLI   - raw bytes on stdout when piped: `chromatrix capture-tab … > shot.jpg`
    *
    * The `StreamableFile` with an explicit `type` is what drives all three: silkweave normalises a typed
    * StreamableFile into an `ActionResource`, and the mime being a raster image is what selects the MCP image
@@ -178,7 +178,7 @@ export class GatewayController {
     if (!identity || !targetId) throw new NotFoundException('identity and targetId are required')
     try {
       // StreamableFile, not the raw Buffer: Nest hands a bare Buffer to res.json(), which serializes it as
-      // {"type":"Buffer","data":[…]} — a valid 200 that no <img> can decode.
+      // {"type":"Buffer","data":[…]} - a valid 200 that no <img> can decode.
       return new StreamableFile(await this.gateway.captureTab(identity, targetId), {
         type: 'image/jpeg',
         // Names the artifact for the CLI's auto-named file and the MCP resource uri tail.
@@ -198,7 +198,7 @@ export class GatewayController {
     // Provisioning returns the human-facing viewer URL (the SPA's takeover route); the screencast itself
     // rides the raw-WS /takeover/<id>/ws route the SPA connects to.
     if (!this.gateway.isRunning(body.identity)) {
-      throw new Error(`identity "${body.identity}" is not running — startIdentity first`)
+      throw new Error(`identity "${body.identity}" is not running - startIdentity first`)
     }
     return { identity: body.identity, viewerUrl: `${this.gateway.publicHttpOrigin()}/#/takeover/${body.identity}` }
   }

@@ -1,4 +1,4 @@
-// Raw-WS upgrade wiring — the architectural crux (PRD §6). NestJS owns the HTTP + MCP surface, but CDP frames
+// Raw-WS upgrade wiring - the architectural crux (PRD §6). NestJS owns the HTTP + MCP surface, but CDP frames
 // must NOT traverse Nest's DI/guard/interceptor pipeline: they are high-volume binary-ish JSON routed by the
 // mux, not Nest routes. So we bind our own handler to the underlying http.Server's `upgrade` event (ahead of
 // anything Nest does with upgrades) and hand matched sockets straight to the per-identity CdpMux / TakeoverHub.
@@ -9,8 +9,8 @@
 // Path carries the resource (which browser, attaching as whom); the query carries only the credential.
 //
 // Both are authenticated here rather than by a Nest guard, and that is not a shortcut: a WebSocket handshake
-// arrives on the http.Server's `upgrade` event, which Express — and therefore every Nest guard, pipe, and
-// interceptor — never sees. Rejecting before the upgrade completes also gives a real `HTTP/1.1 401`, which is
+// arrives on the http.Server's `upgrade` event, which Express - and therefore every Nest guard, pipe, and
+// interceptor - never sees. Rejecting before the upgrade completes also gives a real `HTTP/1.1 401`, which is
 // a better failure than accepting a socket and closing it. The two paths use DIFFERENT credentials on purpose:
 //
 //   • /takeover → the global access token. It is an operator surface (live view + trusted input), so it is
@@ -18,7 +18,7 @@
 //   • /cdp      → the per-agent derived token. An agent must NOT hold the operator credential; its token
 //     authorises exactly one (identity, agent) pair and nothing else.
 //
-// Any other upgrade is left untouched when `rejectUnmatched` is false — in dev the Vite HMR proxy registers
+// Any other upgrade is left untouched when `rejectUnmatched` is false - in dev the Vite HMR proxy registers
 // its OWN 'upgrade' listener (http-proxy-middleware, path-filtered to SPA/HMR) and handles it; touching the
 // socket here would double-handle it and corrupt the frames. In prod nothing else handles it, so reject.
 
@@ -30,7 +30,7 @@ import type { CdpGatewayService } from '../gateway/gateway.service.ts'
 import { tokenFromRequest, verifyAccessToken } from '../auth/auth.ts'
 import { TakeoverHub } from '../takeover/takeover.ts'
 
-// `/cdp/<identity>/<agentId>` — both are *resource* coordinates (which browser, attaching as whom), so they
+// `/cdp/<identity>/<agentId>` - both are *resource* coordinates (which browser, attaching as whom), so they
 // live in the path; only the credential rides in the query. agentId is percent-encoded because, unlike
 // identity, it is an opaque caller-chosen string with no charset contract.
 const CDP_RE = /^\/cdp\/([a-z0-9]+(?:-[a-z0-9]+)*)\/([^/]{1,256})$/
@@ -58,7 +58,7 @@ export function mountGatewayUpgrades(
 
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     // Guard the RAW upgrade socket: a reset/protocol error on it (common on the dev HMR proxy path, or a
-    // client that vanishes mid-handshake) rethrows fatally if unhandled — an unlistened socket error is what
+    // client that vanishes mid-handshake) rethrows fatally if unhandled - an unlistened socket error is what
     // takes the whole gateway down. This keeps it contained to the one connection.
     socket.on('error', () => {})
     const url = new URL(req.url ?? '/', 'http://localhost')
@@ -73,7 +73,7 @@ export function mountGatewayUpgrades(
       try {
         resolved = service.resolveCdpUpgrade(identity, agent, token)
       } catch (e) {
-        // The message names the identity and agent but never the token — this line is the one thing that runs
+        // The message names the identity and agent but never the token - this line is the one thing that runs
         // on every rejected attach, so it is exactly where a credential would end up in the logs forever.
         log.warn(`cdp upgrade rejected for "${identity}": ${(e as Error).message}`)
         return reject(socket, 403)
@@ -98,7 +98,7 @@ export function mountGatewayUpgrades(
       }
       if (!service.isRunning(identity)) return reject(socket, 404)
       wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
-        // Rebuild the hub if the identity was stopped and restarted — the old one holds a dead control client.
+        // Rebuild the hub if the identity was stopped and restarted - the old one holds a dead control client.
         const control = service.controlClient(identity)
         let hub = takeoverHubs.get(identity)
         if (hub && !hub.usesClient(control)) {

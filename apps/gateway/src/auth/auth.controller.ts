@@ -2,7 +2,7 @@
 // header to an `<img src>` (the tab-card screenshot poll) or to `new WebSocket()` (takeover), so it trades the
 // token for a cookie once and the browser carries it automatically thereafter.
 //
-// Programmatic clients — the CLI over MCP, agents, curl — never touch these routes; they send
+// Programmatic clients - the CLI over MCP, agents, curl - never touch these routes; they send
 // `Authorization: Bearer <token>` on every request and hold no session.
 //
 // Deliberately neither @Trpc nor @Mcp: this is transport-level session management for one specific client,
@@ -16,7 +16,7 @@ import { AccessTokenDto } from '../gateway/dto.ts'
 
 /**
  * A year. The token itself never expires (it is rotated by editing config, not by elapsed time), so a short
- * cookie lifetime would only log the operator out of their own dashboard for no security gain — an attacker
+ * cookie lifetime would only log the operator out of their own dashboard for no security gain - an attacker
  * with the cookie has the token, and the cookie expiring does not un-leak it.
  */
 const COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000
@@ -26,7 +26,7 @@ export class AuthController {
   /**
    * Trade the access token for a session cookie.
    *
-   * `httpOnly` so page scripts can't read it back out — this token can drive a fleet of signed-in browsers,
+   * `httpOnly` so page scripts can't read it back out - this token can drive a fleet of signed-in browsers,
    * so it should never be reachable from JS. `sameSite: 'lax'` blocks cross-site form posts from riding the
    * session while leaving normal navigation to the dashboard working. `secure` is set only when the request
    * actually arrived over TLS: hardcoding it would break `http://127.0.0.1:8830` in dev (the browser silently
@@ -36,14 +36,14 @@ export class AuthController {
   @Post('login')
   @Public()
   login(@Body() body: AccessTokenDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // Throttle check first, so a locked-out caller learns nothing about the guess it just made — and a
+    // Throttle check first, so a locked-out caller learns nothing about the guess it just made - and a
     // correct token during the cooldown is refused too (the operator still has Bearer auth, which never
     // touches this route). Keyed by socket address; see login-throttle.ts for why not `req.ip`.
     const throttleKey = req.socket.remoteAddress ?? 'unknown'
     const retryAfter = loginRetryAfter(throttleKey)
     if (retryAfter !== undefined) {
       res.setHeader('Retry-After', String(retryAfter))
-      throw new HttpException('too many failed login attempts — try again shortly', HttpStatus.TOO_MANY_REQUESTS)
+      throw new HttpException('too many failed login attempts - try again shortly', HttpStatus.TOO_MANY_REQUESTS)
     }
     if (!verifyAccessToken(body.token)) {
       recordLoginFailure(throttleKey)

@@ -1,6 +1,6 @@
 // Gateway Nest module. Registers the silkweave adapters (tRPC procedures under /trpc, MCP tools under /mcp,
 // and the AppRouter typegen the web app consumes) plus ServeStatic for the built SPA in prod. The
-// CdpGatewayService is a factory provider — its one ctor arg (the absolute profiles root) isn't a Nest
+// CdpGatewayService is a factory provider - its one ctor arg (the absolute profiles root) isn't a Nest
 // provider, so it's supplied via useFactory. The raw-WS CDP mux is NOT a Nest concern; main.ts binds it to
 // the underlying http.Server after boot (PRD §6).
 
@@ -19,7 +19,7 @@ import { profilesRoot, typegenTarget, webDistRoot } from './common/paths.ts'
 
 /**
  * Token check for the silkweave transports. Shaped as silkweave's `verifyToken` contract (an `AuthInfo` on
- * success, `undefined` on failure) but backed by the same constant-time comparison the Nest guard uses — one
+ * success, `undefined` on failure) but backed by the same constant-time comparison the Nest guard uses - one
  * credential, one comparison, three call sites.
  */
 const verifyToken = async (token: string) =>
@@ -34,9 +34,9 @@ const typegenPath = typegenTarget()
   imports: [
     // Prod: serve the built SPA (apps/web/dist in a checkout, the bundled <pkg>/web from an install) on the
     // same port as the API. In dev the dev-proxy in bootstrap.ts handles non-API routes (proxied to Vite)
-    // BEFORE this runs, and a missing dist just serves nothing — so this is safe to always register. The API
+    // BEFORE this runs, and a missing dist just serves nothing - so this is safe to always register. The API
     // namespaces are excluded so they 404 as their own handlers, not index.html. (`/cdp` + the takeover WS
-    // are raw upgrades — never HTTP GETs — so ServeStatic never sees them.)
+    // are raw upgrades - never HTTP GETs - so ServeStatic never sees them.)
     ServeStaticModule.forRoot({
       rootPath: webDistRoot(),
       exclude: ['/api', '/api/{*path}', '/trpc', '/trpc/{*path}', '/mcp', '/mcp/{*path}'],
@@ -44,7 +44,7 @@ const typegenPath = typegenTarget()
     SilkweaveModule.forRoot({
       silkweave: {
         name: 'chromatrix-gateway',
-        description: 'chromatrix CDP orchestration gateway — identity/tab provisioning + takeover',
+        description: 'chromatrix CDP orchestration gateway - identity/tab provisioning + takeover',
         version: '0.1.0',
       },
       adapters: [
@@ -65,7 +65,7 @@ const typegenPath = typegenTarget()
   providers: [
     { provide: CdpGatewayService, useFactory: () => new CdpGatewayService(profilesRoot()) },
     // Global rather than per-controller so a route added later is protected by DEFAULT. The opposite
-    // arrangement fails silently — a new provisioning route ships unauthenticated and nothing complains.
+    // arrangement fails silently - a new provisioning route ships unauthenticated and nothing complains.
     { provide: APP_GUARD, useClass: AccessTokenGuard },
   ],
   exports: [CdpGatewayService],

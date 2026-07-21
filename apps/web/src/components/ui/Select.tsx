@@ -4,7 +4,7 @@ import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Select built on base-ui (same primitive gtm uses), restyled onto the chromatrix tokens. Unlike a native
-// <select>, the popup can render arbitrary markup per row — which is the whole point here: a tab is an agent
+// <select>, the popup can render arbitrary markup per row - which is the whole point here: a tab is an agent
 // *and* a title *and* a URL, and a flat string can't show all three legibly.
 
 export const Select = SelectPrimitive.Root
