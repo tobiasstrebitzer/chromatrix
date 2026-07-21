@@ -4,5 +4,8 @@
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 export function withBase(path: string): string {
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+  // Root must resolve to the bare base (`/chromatrix`), never `/chromatrix/` - a trailing slash 404s under
+  // `trailingSlash: 'never'` + `format: 'file'`. Non-root paths get a single leading slash.
+  const suffix = path === '/' || path === '' ? '' : path.startsWith('/') ? path : `/${path}`
+  return `${base}${suffix}` || '/'
 }
