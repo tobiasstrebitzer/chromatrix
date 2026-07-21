@@ -8,9 +8,10 @@
 // Deliberately neither @Trpc nor @Mcp: this is transport-level session management for one specific client,
 // not part of the provisioning surface. Exposing "log in" as an MCP tool would be nonsense.
 
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common'
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Req, Res, UnauthorizedException } from '@nestjs/common'
 import type { Request, Response } from 'express'
 import { AUTH_COOKIE, Public, tokenFromRequest, verifyAccessToken } from './auth.ts'
+import { clearLoginFailures, loginRetryAfter, recordLoginFailure } from './login-throttle.ts'
 import { AccessTokenDto } from '../gateway/dto.ts'
 
 /**
@@ -35,7 +36,20 @@ export class AuthController {
   @Post('login')
   @Public()
   login(@Body() body: AccessTokenDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    if (!verifyAccessToken(body.token)) throw new UnauthorizedException('invalid access token')
+    // Throttle check first, so a locked-out caller learns nothing about the guess it just made — and a
+    // correct token during the cooldown is refused too (the operator still has Bearer auth, which never
+    // touches this route). Keyed by socket address; see login-throttle.ts for why not `req.ip`.
+    const throttleKey = req.socket.remoteAddress ?? 'unknown'
+    const retryAfter = loginRetryAfter(throttleKey)
+    if (retryAfter !== undefined) {
+      res.setHeader('Retry-After', String(retryAfter))
+      throw new HttpException('too many failed login attempts — try again shortly', HttpStatus.TOO_MANY_REQUESTS)
+    }
+    if (!verifyAccessToken(body.token)) {
+      recordLoginFailure(throttleKey)
+      throw new UnauthorizedException('invalid access token')
+    }
+    clearLoginFailures(throttleKey)
     res.cookie(AUTH_COOKIE, body.token, {
       httpOnly: true,
       sameSite: 'lax',

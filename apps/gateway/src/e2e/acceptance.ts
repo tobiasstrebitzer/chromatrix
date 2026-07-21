@@ -101,6 +101,35 @@ async function main(): Promise<void> {
     })
     check('login rejects a wrong token', badLogin.status === 401, `${badLogin.status}`)
 
+    // The login throttle: repeated failures from one address must flip to 429 — and once locked, even the
+    // RIGHT token is refused for the cooldown (Bearer auth is unaffected, so the operator is never locked out
+    // of the gateway itself).
+    const tryLogin = async (token: string) => {
+      const res = await fetch(`http://${handle.host}:${handle.port}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      return res.status
+    }
+    let throttled = 0
+    for (let i = 0; i < 8 && throttled === 0; i++) {
+      const status = await tryLogin('not-the-token')
+      if (status === 429) throttled = status
+    }
+    const lockedGoodLogin = await tryLogin(accessToken)
+    check('repeated login failures throttle to 429', throttled === 429, `${throttled || 'never throttled'}`)
+    check('a correct login is also refused during the cooldown', lockedGoodLogin === 429, `${lockedGoodLogin}`)
+
+    // The global ValidationPipe: a body that violates the DTO's declared rules must be a 400 at the edge,
+    // not a 500 from wherever the malformed value first exploded.
+    const invalidBody = await fetch(`${base}/identity`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ id: 42 }),
+    })
+    check('DTO validation rejects a malformed body with 400', invalidBody.status === 400, `${invalidBody.status}`)
+
     // The takeover socket is an operator surface (live view + trusted input), and it lives OUTSIDE Nest — a
     // guard cannot reach it, because WS handshakes arrive on `upgrade`, not `request`. So it carries its own
     // check, and this asserts it: without a token the upgrade is refused before the socket is accepted.

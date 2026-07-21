@@ -10,6 +10,7 @@
 import 'reflect-metadata'
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
+import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import express from 'express'
 import { ExpressAdapter, type NestExpressApplication } from '@nestjs/platform-express'
@@ -69,6 +70,11 @@ export async function startGateway(opts: StartOptions = {}): Promise<GatewayHand
   })
   const host = opts.host ?? config.host
   const wantPort = opts.port ?? config.port
+
+  // Without a global pipe the class-validator rules on the DTOs are declarations only — a malformed body
+  // reaches the handler as-is and fails somewhere deeper with a 500. `whitelist` strips fields the DTO never
+  // declared, so extra body keys can't ride into the service layer.
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
 
   // Behind a TLS-terminating proxy (Tailscale Serve, nginx), `req.protocol` reads X-Forwarded-Proto only with
   // this set — which is what decides whether the login cookie gets the `Secure` flag.
