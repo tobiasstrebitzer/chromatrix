@@ -1,0 +1,133 @@
+---
+import Footer from '../components/Footer.astro'
+import Logo from '../components/Logo.astro'
+import Nav from '../components/Nav.astro'
+import Base from '../layouts/Base.astro'
+import { withBase } from '../lib/url.ts'
+
+const features = [
+  {
+    title: 'One real Chrome per identity',
+    body: 'A long-lived, signed-in, headed Chrome profile per identity - real GPU, real fonts, real cookies. Authentic because nothing is faked.',
+  },
+  {
+    title: 'A mitigating CDP gateway',
+    body: 'Not a transparent proxy: the mux remaps command ids, routes events by session, and enforces a live per-tab ACL between agents.',
+  },
+  {
+    title: 'Exclusive tab leasing',
+    body: 'Many agents share one identity safely. Each tab is leased to exactly one agent; peers are denied at the protocol level.',
+  },
+  {
+    title: 'Human takeover',
+    body: 'Live screencast plus isTrusted input injection. A human completes logins and verification gates by hand; the session persists.',
+  },
+  {
+    title: 'MCP for agents, CLI for humans',
+    body: 'Agents provision tabs over MCP and then drive raw CDP. The CLI derives every command live from tools/list - zero drift.',
+  },
+  {
+    title: 'One token, every surface',
+    body: 'A single access token gates REST, tRPC, MCP, WebSockets, and the dashboard. Agents only ever hold derived, one-way credentials.',
+  },
+]
+---
+
+<Base
+  title="chromatrix - self-hosted headed-Chrome CDP orchestration"
+  description="One long-lived real Chrome per identity, many concurrent tabs driven by remote agents over a mitigating CDP gateway, plus live-view and human takeover."
+>
+  <Nav />
+
+  <main>
+    <!-- Hero -->
+    <section class="mx-auto max-w-[1400px] px-5">
+      <div class="mx-auto max-w-3xl pt-20 pb-16 text-center lg:pt-28">
+        <div class="mb-6 flex justify-center text-fg-1">
+          <Logo size={44} />
+        </div>
+        <h1
+          class="text-4xl leading-[1.1] font-semibold tracking-tight text-fg-1 lg:text-5xl"
+        >
+          Real Chrome, orchestrated.
+        </h1>
+        <p class="mx-auto mt-5 max-w-xl text-[1.0625rem] leading-relaxed text-fg-3">
+          Self-hosted, multi-session, multi-tab headed-Chrome orchestration. One long-lived
+          <em>real</em> Chrome per identity, many concurrent tabs driven by agents over a mitigating
+          CDP gateway - plus live view and human takeover.
+        </p>
+        <div class="mt-8 flex items-center justify-center gap-3">
+          <a
+            href={withBase('/docs/quickstart')}
+            class="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+          >
+            Get started
+          </a>
+          <a
+            href="https://github.com/tobiasstrebitzer/chromatrix"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-fg-1"
+          >
+            GitHub
+          </a>
+        </div>
+      </div>
+
+      <!-- Terminal -->
+      <div class="mx-auto max-w-2xl pb-20">
+        <div class="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+          <div class="flex items-center gap-1.5 border-b border-border px-4 py-3">
+            <span class="size-2.5 rounded-full border border-border-strong"></span>
+            <span class="size-2.5 rounded-full border border-border-strong"></span>
+            <span class="size-2.5 rounded-full border border-border-strong"></span>
+            <span class="ml-3 font-mono text-[0.6875rem] text-fg-4">chromatrix</span>
+          </div>
+          <pre
+            class="overflow-x-auto p-5 font-mono text-[0.8125rem] leading-relaxed text-fg-2"><code>$ npx @chromatrix/gateway
+<span class="text-fg-4">gateway listening on http://127.0.0.1:8830</span>
+
+$ npx @chromatrix/cli create-identity --id work-twitter
+$ npx @chromatrix/cli start-identity --id work-twitter
+$ npx @chromatrix/cli allocate-tab --identity work-twitter --agent-id scout
+<span class="text-fg-4">cdpUrl: ws://127.0.0.1:8830/cdp/work-twitter/scout?token=…</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="border-t border-border bg-surface">
+      <div class="mx-auto max-w-[1400px] px-5 py-16 lg:py-20">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {
+            features.map((feature) => (
+              <div class="rounded-xl border border-border bg-bg p-6">
+                <h3 class="text-[0.9375rem] font-semibold text-fg-1">{feature.title}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-fg-3">{feature.body}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Responsible use -->
+    <section class="mx-auto max-w-[1400px] px-5">
+      <div class="mx-auto max-w-2xl py-16 text-center">
+        <h2 class="text-lg font-semibold text-fg-1">Fidelity, not evasion</h2>
+        <p class="mt-3 text-sm leading-relaxed text-fg-3">
+          chromatrix runs a genuine browser so that <strong class="text-fg-2">authorized</strong>
+          automation behaves authentically - it is not a circumvention tool. Human-verification
+          gates are completed by a human via takeover, never auto-solved.
+          <a
+            href={withBase('/docs/introduction')}
+            class="text-fg-2 underline decoration-border-strong underline-offset-3 transition-colors hover:text-fg-1"
+            >Read the ground rules</a
+          >.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Base>

@@ -1,0 +1,30 @@
+{
+  "name": "@chromatrix/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "chromatrix documentation site: Astro static build styled on the dashboard's achromatic design system, deployed to GitHub Pages.",
+  "license": "MIT",
+  "author": "Tobias Strebitzer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tobiasstrebitzer/chromatrix.git",
+    "directory": "apps/docs"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "clean": "rimraf dist .astro"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.1",
+    "astro": "^6.4.8",
+    "rimraf": "^6.1.3",
+    "tailwindcss": "^4.3.1"
+  }
+}

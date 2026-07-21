@@ -1,0 +1,157 @@
+/*
+ * COPIED from apps/web/src/styles/tokens.css - the dashboard owns these tokens; keep this copy in sync
+ * (the docs site deliberately shares the exact palette so it reads as the same product).
+ *
+ * chromatrix design tokens - the SINGLE source of color truth. Components consume the semantic names via
+ * Tailwind utilities (see globals.css @theme) or var(--token), never raw hex.
+ *
+ * The palette is deliberately achromatic: a pure-black canvas, surfaces that sit *lighter* than the canvas,
+ * and hairline borders. Colour is reserved for state (success/warning/danger/info) so that a coloured pixel
+ * in this UI always means something. There is no brand hue - the "accent" is the high-contrast inverse of
+ * the canvas (near-white on dark, near-black on light), which is what makes a primary action read as primary
+ * without introducing a colour that competes with the status dots.
+ *
+ * Light is the default; dark is a token swap on `[data-theme='dark']`. Both are first-class.
+ */
+
+:root,
+[data-theme='light'] {
+  /* ---------- Backgrounds ---------- */
+  --bg: #ffffff;
+  --bg-surface: #fafafa;
+  --bg-surface-hover: #f2f2f2;
+  --bg-code: #f5f5f5;
+  --bg-elevated: #ffffffcc;
+
+  /* ---------- Borders ---------- */
+  --border: #ebebeb;
+  --border-light: #e0e0e0;
+  --border-strong: #c9c9c9;
+
+  /* ---------- Foreground / Text ---------- */
+  --fg-1: #171717;
+  --fg-2: #454545;
+  --fg-3: #737373;
+  --fg-4: #a1a1a1;
+  --fg-disabled: #c9c9c9;
+
+  /* ---------- Accent = the inverse of the canvas ---------- */
+  --accent: #171717;
+  --accent-hover: #000000;
+  --accent-dim: #737373;
+  --accent-bg: #f2f2f2;
+  --accent-ring: #17171733;
+
+  /* ---------- Semantic ---------- */
+  --success: #0f7b4f;
+  --success-bg: #edfaf3;
+  --warning: #a35200;
+  --warning-bg: #fff6ed;
+  --danger: #d93036;
+  --danger-bg: #fef1f1;
+  --info: #0072f5;
+  --info-bg: #eff6ff;
+
+  /* ---------- Elevation (flat by default; shadows are for overlays only) ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
+
+  /* ---------- Inset frame ---------- */
+  /* The frame's edge highlight - a touch stronger than --border so the panel reads as a distinct sheet
+     rather than as another bordered box. */
+  --shine: #dcdcdc;
+  --frame-shadow: var(--shadow-xs);
+
+  /* ---------- aliases (bridge for the @theme utilities) ---------- */
+  --surface: var(--bg-surface);
+  /* The canvas BEHIND the inset frame (and the rail sitting on it). In light it is darker than the panel,
+     in dark it is lighter - see the dark block. */
+  --sidebar: #f4f4f4;
+  --text: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --accent-tint: var(--accent-bg);
+  --accent-fg: #ffffff;
+  --warn: var(--warning);
+  --ring: var(--fg-1);
+}
+
+[data-theme='dark'] {
+  /* ---------- Backgrounds ---------- */
+  /* The canvas is true black and surfaces sit *above* it. Inverting the usual "surface is darker" instinct
+     is what gives the dark theme depth without a single shadow. */
+  --bg: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-surface-hover: #141414;
+  --bg-code: #141414;
+  --bg-elevated: #0a0a0acc;
+
+  /* ---------- Borders ---------- */
+  --border: #1f1f1f;
+  --border-light: #292929;
+  --border-strong: #3d3d3d;
+
+  /* ---------- Foreground / Text ---------- */
+  --fg-1: #ededed;
+  --fg-2: #a1a1a1;
+  --fg-3: #8f8f8f;
+  --fg-4: #6e6e6e;
+  --fg-disabled: #454545;
+
+  /* ---------- Accent = the inverse of the canvas ---------- */
+  --accent: #ededed;
+  --accent-hover: #ffffff;
+  --accent-dim: #8f8f8f;
+  --accent-bg: #1f1f1f;
+  --accent-ring: #ffffff3d;
+
+  /* ---------- Semantic ---------- */
+  --success: #3ecf8e;
+  --success-bg: #0d2a1d;
+  --warning: #f5a623;
+  --warning-bg: #2a1f04;
+  --danger: #ff6166;
+  --danger-bg: #2a1114;
+  --info: #0091ff;
+  --info-bg: #0a1f33;
+
+  /* ---------- Elevation ---------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.7);
+
+  /* ---------- Inset frame ---------- */
+  --shine: #303030;
+  /* An `xs` shadow is invisible against a near-black canvas, so the dark frame gets a wider, darker drop -
+     depth from absence of light rather than a faux highlight. */
+  --frame-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+
+  /* ---------- aliases ---------- */
+  --surface: var(--bg-surface);
+  /* The polarity flips here: in dark the canvas is LIGHTER than the panel, so the framed content reads as
+     its own darker well with the rail raised around it. In light the panel is the bright sheet on grey. */
+  --sidebar: #131313;
+  --text: var(--fg-1);
+  --text-muted: var(--fg-3);
+  --accent-tint: var(--accent-bg);
+  --accent-fg: #0a0a0a;
+  --warn: var(--warning);
+  --ring: var(--fg-1);
+}
+
+/* Theme-independent tokens - type tracking and easing. (Colour-bearing tokens live in the blocks above.) */
+:root {
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-caps: 0.1em;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}

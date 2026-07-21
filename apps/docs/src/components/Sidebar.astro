@@ -1,0 +1,46 @@
+---
+import { withBase } from '../lib/url.ts'
+
+interface Item {
+  slug: string
+  title: string
+}
+interface Group {
+  label: string
+  items: Item[]
+}
+interface Props {
+  groups: Group[]
+  current: string
+}
+
+const { groups, current } = Astro.props
+---
+
+{
+  groups.map((group) => (
+    <div class="mb-6">
+      <div class="mb-2 text-[0.6875rem] font-semibold tracking-[0.08em] text-fg-4 uppercase">
+        {group.label}
+      </div>
+      <ul>
+        {group.items.map((item) => (
+          <li>
+            <a
+              href={withBase(`/docs/${item.slug}`)}
+              aria-current={item.slug === current ? 'page' : undefined}
+              class:list={[
+                'block rounded-md px-2.5 py-1.5 text-[0.8438rem] transition-colors',
+                item.slug === current
+                  ? 'bg-accent-bg font-medium text-fg-1'
+                  : 'text-fg-3 hover:bg-surface-hover hover:text-fg-1',
+              ]}
+            >
+              {item.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))
+}

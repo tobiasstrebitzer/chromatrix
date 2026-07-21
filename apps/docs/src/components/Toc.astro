@@ -1,0 +1,61 @@
+---
+import type { MarkdownHeading } from 'astro'
+
+interface Props {
+  headings: MarkdownHeading[]
+}
+
+// h2/h3 only - h1 is the page title, h4+ is detail no one navigates to.
+const items = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3)
+---
+
+{
+  items.length > 0 && (
+    <nav aria-label="On this page">
+      <div class="mb-2 text-[0.6875rem] font-semibold tracking-[0.08em] text-fg-4 uppercase">
+        On this page
+      </div>
+      <ul class="border-l border-border">
+        {items.map((h) => (
+          <li>
+            <a
+              href={`#${h.slug}`}
+              data-toc={h.slug}
+              class:list={[
+                '-ml-px block border-l border-transparent py-1 pr-2 text-[0.8125rem] text-fg-3 transition-colors hover:text-fg-1',
+                h.depth === 2 ? 'pl-3.5' : 'pl-6',
+              ]}
+            >
+              {h.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<script>
+  // Scroll-spy: light up the ToC entry whose section is in view. The rootMargin band means "the
+  // heading just crossed under the sticky header", which tracks reading position better than
+  // plain intersection.
+  const links = document.querySelectorAll<HTMLAnchorElement>('a[data-toc]')
+  const active = ['text-fg-1', 'border-fg-1', 'font-medium']
+  const targets = Array.from(links)
+    .map((link) => ({ link, el: document.getElementById(link.dataset.toc!) }))
+    .filter((t): t is { link: HTMLAnchorElement; el: HTMLElement } => t.el !== null)
+
+  if (targets.length > 0) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          for (const { link } of targets) link.classList.remove(...active)
+          targets.find((t) => t.el === entry.target)?.link.classList.add(...active)
+        }
+      },
+      { rootMargin: '-80px 0px -70% 0px', threshold: 0 },
+    )
+    for (const { el } of targets) observer.observe(el)
+  }
+</script>

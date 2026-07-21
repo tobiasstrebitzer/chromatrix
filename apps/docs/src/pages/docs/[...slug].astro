@@ -1,0 +1,119 @@
+---
+import { getCollection, render } from 'astro:content'
+import Footer from '../../components/Footer.astro'
+import Nav from '../../components/Nav.astro'
+import Sidebar from '../../components/Sidebar.astro'
+import Toc from '../../components/Toc.astro'
+import Base from '../../layouts/Base.astro'
+import { withBase } from '../../lib/url.ts'
+import { NAV, ORDER } from '../../nav.ts'
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs')
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }))
+}
+
+const { entry } = Astro.props
+const { Content, headings } = await render(entry)
+
+// Sidebar groups resolve titles from the collection so nav.ts stays a slug list.
+const all = await getCollection('docs')
+const titleOf = new Map(all.map((e) => [e.id, e.data.title]))
+const groups = NAV.map((group) => ({
+  label: group.label,
+  items: group.slugs.map((slug) => ({ slug, title: titleOf.get(slug) ?? slug })),
+}))
+const groupLabel = NAV.find((g) => g.slugs.includes(entry.id))?.label
+
+const index = ORDER.indexOf(entry.id)
+const prev = index > 0 ? ORDER[index - 1] : undefined
+const next = index >= 0 && index < ORDER.length - 1 ? ORDER[index + 1] : undefined
+---
+
+<Base title={`${entry.data.title} · chromatrix`} description={entry.data.description}>
+  <Nav />
+
+  <div class="mx-auto flex max-w-[1400px] px-5">
+    <!-- Sidebar (desktop) -->
+    <aside
+      class="rail sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 overflow-y-auto py-8 pr-6 lg:block"
+    >
+      <Sidebar groups={groups} current={entry.id} />
+    </aside>
+
+    <div class="min-w-0 flex-1 lg:border-l lg:border-border">
+      <!-- Sidebar (mobile) -->
+      <details class="mt-4 rounded-lg border border-border bg-surface lg:hidden">
+        <summary
+          class="cursor-pointer px-4 py-2.5 text-sm font-medium text-fg-1 select-none"
+        >
+          Menu
+        </summary>
+        <div class="border-t border-border px-4 pt-4 pb-1">
+          <Sidebar groups={groups} current={entry.id} />
+        </div>
+      </details>
+
+      <div class="flex">
+        <main class="min-w-0 flex-1 px-0 py-8 lg:px-10 lg:py-10">
+          <article class="mx-auto max-w-3xl">
+            {
+              groupLabel && (
+                <div class="mb-2 text-[0.75rem] font-semibold tracking-[0.08em] text-fg-4 uppercase">
+                  {groupLabel}
+                </div>
+              )
+            }
+            <h1 class="text-[1.875rem] leading-tight font-semibold tracking-tight text-fg-1">
+              {entry.data.title}
+            </h1>
+            <p class="mt-2 mb-8 text-[1.0625rem] text-fg-3">{entry.data.description}</p>
+
+            <div class="prose">
+              <Content />
+            </div>
+
+            <!-- prev / next -->
+            <nav class="mt-12 flex gap-3 border-t border-border pt-6">
+              {
+                prev && (
+                  <a
+                    href={withBase(`/docs/${prev}`)}
+                    class="group flex-1 rounded-lg border border-border p-4 transition-colors hover:border-border-strong"
+                  >
+                    <div class="text-[0.75rem] text-fg-4">Previous</div>
+                    <div class="mt-0.5 text-sm font-medium text-fg-2 transition-colors group-hover:text-fg-1">
+                      {titleOf.get(prev)}
+                    </div>
+                  </a>
+                )
+              }
+              {
+                next && (
+                  <a
+                    href={withBase(`/docs/${next}`)}
+                    class="group flex-1 rounded-lg border border-border p-4 text-right transition-colors hover:border-border-strong"
+                  >
+                    <div class="text-[0.75rem] text-fg-4">Next</div>
+                    <div class="mt-0.5 text-sm font-medium text-fg-2 transition-colors group-hover:text-fg-1">
+                      {titleOf.get(next)}
+                    </div>
+                  </a>
+                )
+              }
+            </nav>
+          </article>
+        </main>
+
+        <!-- ToC (wide screens) -->
+        <aside
+          class="rail sticky top-14 hidden h-[calc(100vh-3.5rem)] w-56 shrink-0 overflow-y-auto py-10 pl-2 xl:block"
+        >
+          <Toc headings={headings} />
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <Footer />
+</Base>

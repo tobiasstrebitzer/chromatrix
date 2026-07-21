@@ -1,0 +1,210 @@
+---
+// The chromatrix logo: a 3x3 grid with the leading diagonal lit - the identity matrix. This is a faithful
+// vanilla port of the dashboard's animated Logo (apps/web/src/components/brand/Logo.tsx): the same ring
+// path, shimmer bands, and hover-flare colour logic, driven by one requestAnimationFrame loop per instance.
+// No React - the original never depended on it (it drives the DOM imperatively), so the docs site stays
+// zero-framework. At rest the grid breathes grey<->white; hovering flares it green. Reduced-motion is honoured.
+interface Props {
+  size?: number
+  class?: string
+  /** Disable the hover flare for decorative placements. */
+  interactive?: boolean
+  title?: string
+}
+const { size = 18, class: className, interactive = true, title = 'chromatrix' } = Astro.props
+
+// Static fallback opacities (leading diagonal lit) so the mark is correct before the first frame / if JS is off.
+const CELLS = [
+  { x: 0, y: 0 },
+  { x: 9, y: 0 },
+  { x: 18, y: 0 },
+  { x: 18, y: 9 },
+  { x: 18, y: 18 },
+  { x: 9, y: 18 },
+  { x: 0, y: 18 },
+  { x: 0, y: 9 },
+  { x: 9, y: 9 },
+]
+---
+
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  role="img"
+  aria-label={title}
+  class:list={['shrink-0 select-none', className]}
+  data-cx-logo
+  data-interactive={interactive ? '' : undefined}
+  xmlns="http://www.w3.org/2000/svg"
+>
+  {
+    CELLS.map((cell) => (
+      <rect
+        width="6"
+        height="6"
+        rx="1.5"
+        fill="currentColor"
+        style={`transform: translate(${cell.x}px, ${cell.y}px); opacity: ${cell.x === cell.y ? 1 : 0.28}`}
+      />
+    ))
+  }
+</svg>
+
+<script>
+  // ── Faithful port of apps/web/src/components/brand/Logo.tsx ──────────────────────────────────────────
+  type Rgb = [number, number, number]
+
+  const CELL = 6
+  const PITCH = 9
+  const RING: ReadonlyArray<readonly [number, number]> = [
+    [0, 0],
+    [PITCH, 0],
+    [PITCH * 2, 0],
+    [PITCH * 2, PITCH],
+    [PITCH * 2, PITCH * 2],
+    [PITCH, PITCH * 2],
+    [0, PITCH * 2],
+    [0, PITCH],
+  ]
+  const CENTRE: readonly [number, number] = [PITCH, PITCH]
+
+  const SHIMMER_SECONDS = 3.2
+  const TAU_HOVER = 0.16
+  const HOVER_SCALE = 1.15
+
+  const HOVER_ROLL_MIN = 0.35
+  const HOVER_ROLL_JITTER = 0.75
+  const TAU_HOVER_COLOR = 0.25
+  const HOVER_GREYS: Rgb[] = [
+    [143, 143, 143],
+    [176, 176, 176],
+  ]
+
+  const FLARE = ['#4ade80', '#22c55e', '#16a34a', '#22c55e', '#4ade80', '#22c55e', '#16a34a', '#22c55e', '#4ade80']
+  const BAND = {
+    diagonal: { base: 0.85, peak: 1 },
+    offDiagonal: { base: 0.2, peak: 0.34 },
+  } as const
+  const FLARE_RGB: Rgb[] = [
+    [74, 222, 128],
+    [34, 197, 94],
+    [22, 163, 74],
+  ]
+
+  const hexToRgb = (hex: string): Rgb => {
+    const n = Number.parseInt(hex.slice(1), 16)
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  }
+  const parseRgb = (value: string): Rgb => {
+    const m = value.match(/-?\d+(\.\d+)?/g)
+    return m ? [Number(m[0]), Number(m[1]), Number(m[2])] : [255, 255, 255]
+  }
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+  const lerpRgb = (a: Rgb, b: Rgb, t: number): Rgb => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]
+  const approach = (current: number, target: number, tau: number, dt: number) =>
+    current + (target - current) * (1 - Math.exp(-dt / tau))
+
+  const pickHoverColor = (cellGreen: Rgb, restColor: Rgb): Rgb => {
+    const r = Math.random()
+    if (r < 0.4) return cellGreen
+    if (r < 0.55) return FLARE_RGB[Math.floor(Math.random() * FLARE_RGB.length)]!
+    if (r < 0.8) return restColor
+    return HOVER_GREYS[Math.floor(Math.random() * HOVER_GREYS.length)]!
+  }
+
+  const GRID_CELLS = 9
+  const CELLS = [...RING.map((base, ring) => ({ base, ring: ring as number | undefined })), { base: CENTRE, ring: undefined }].map(
+    ({ base, ring }) => {
+      const index = (base[1] / PITCH) * 3 + base[0] / PITCH
+      return {
+        ring,
+        base,
+        diagonal: base[0] === base[1],
+        flare: hexToRgb(FLARE[index]!),
+        shimmerPhase: index / GRID_CELLS,
+      }
+    },
+  )
+
+  function initLogo(svg: SVGSVGElement) {
+    const rects = Array.from(svg.querySelectorAll('rect'))
+    if (rects.length < CELLS.length) return
+    const interactive = svg.hasAttribute('data-interactive')
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    let raf = 0
+    let last = performance.now()
+    let hover = 0
+    const wantHover = { current: false }
+    let restColor = parseRgb(getComputedStyle(svg).color)
+    let colorCheck = 0
+    const tints = CELLS.map((cell) => ({
+      hoverColor: [...restColor] as Rgb,
+      hoverTarget: [...cell.flare] as Rgb,
+      hoverRoll: 0,
+    }))
+
+    const frame = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.05)
+      last = now
+
+      const hoverTarget = wantHover.current && interactive ? 1 : 0
+      hover = reduced ? hoverTarget : approach(hover, hoverTarget, TAU_HOVER, dt)
+
+      colorCheck += dt
+      if (colorCheck > 0.5) {
+        colorCheck = 0
+        restColor = parseRgb(getComputedStyle(svg).color)
+      }
+
+      const t = now / 1000
+      for (let i = 0; i < CELLS.length; i++) {
+        const cell = CELLS[i]!
+        const node = rects[i]!
+        const [x, y] = cell.base
+
+        const band = cell.diagonal ? BAND.diagonal : BAND.offDiagonal
+        const wave = reduced ? 0 : 0.5 + 0.5 * Math.sin(2 * Math.PI * (t / SHIMMER_SECONDS + cell.shimmerPhase))
+        const opacity = lerp(band.base + (band.peak - band.base) * wave, 1, hover)
+
+        const tint = tints[i]!
+        if (hover > 0.01 && !reduced) {
+          if (t >= tint.hoverRoll) {
+            tint.hoverTarget = pickHoverColor(cell.flare, restColor)
+            tint.hoverRoll = t + HOVER_ROLL_MIN + Math.random() * HOVER_ROLL_JITTER
+          }
+          tint.hoverColor = lerpRgb(tint.hoverColor, tint.hoverTarget, 1 - Math.exp(-dt / TAU_HOVER_COLOR))
+        } else if (hover <= 0.01) {
+          tint.hoverColor = [...restColor] as Rgb
+          tint.hoverRoll = 0
+        }
+
+        const blended = lerpRgb(restColor, tint.hoverColor, hover)
+        const fill: Rgb = [Math.round(blended[0]), Math.round(blended[1]), Math.round(blended[2])]
+
+        node.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`
+        node.style.opacity = opacity.toFixed(3)
+        node.style.fill = `rgb(${fill[0]}, ${fill[1]}, ${fill[2]})`
+      }
+
+      svg.style.transform = `scale(${lerp(1, HOVER_SCALE, hover).toFixed(4)})`
+      raf = requestAnimationFrame(frame)
+    }
+
+    svg.addEventListener('pointerenter', () => (wantHover.current = true))
+    svg.addEventListener('pointerleave', () => (wantHover.current = false))
+    raf = requestAnimationFrame(frame)
+    void raf
+  }
+
+  for (const svg of document.querySelectorAll<SVGSVGElement>('svg[data-cx-logo]')) initLogo(svg)
+</script>
+
+<style>
+  svg[data-cx-logo] {
+    transform-origin: center;
+    will-change: transform;
+  }
+</style>

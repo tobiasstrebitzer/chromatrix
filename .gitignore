@@ -3,6 +3,8 @@ build/
 dist/
 *.tsbuildinfo
 .turbo/
+# Astro generated types + build cache (apps/docs)
+.astro/
 .DS_Store
 # roam-code local index (binary SQLite)
 .roam/
@@ -11,7 +13,7 @@ dist/
 .spike-data/
 *.log
 
-# Secrets — the gateway is env-driven (PORT, VITE_DEV_URL, PUBLIC_WS_ORIGIN, …)
+# Secrets - the gateway is env-driven (PORT, VITE_DEV_URL, PUBLIC_WS_ORIGIN, …)
 .env
 .env.*
 !.env.example
