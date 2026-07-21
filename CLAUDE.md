@@ -36,7 +36,9 @@ apps/
 
 - **pnpm 11** workspace, **Node 24**, ESM everywhere. **Turbo** orchestrates `build`/`typecheck`/`test`/`dev`.
 - **TypeScript via `tsgo`** for typecheck — **no `tsc`**. **oxlint** only (no Prettier/ESLint).
-- Libraries + `apps/cli` build with **tsdown** (ESM + `.d.mts`), **only on prepack/CI** — never in dev.
+- Libraries + `apps/cli` + `apps/gateway` build with **tsdown**, **only on prepack/CI** — never in dev. The
+  gateway's build routes the TS transform through `unplugin-swc` (oxc can't emit the decorator metadata Nest
+  DI + ValidationPipe need), and its prepack copies the built dashboard into `<pkg>/web`.
 - **`@chromatrix/source` export condition**: apps resolve workspace packages straight to TS source in dev.
   Runtime needs `node --conditions=@chromatrix/source --import @swc-node/register/esm-register`; tsconfigs
   set `customConditions: ["@chromatrix/source"]` + `allowImportingTsExtensions`.
@@ -80,7 +82,9 @@ there: `pnpm --filter @chromatrix/gateway run accept` (ACL + full auth perimeter
 | session lifecycle | **built + verified**: create/start/stop/delete are four distinct verbs; `listSessions` left-joins the on-disk registry with running state so `stopped` is a resting state, not an absence |
 | per-tab viewport, screenshots | **built + verified**: every tab is its own sized window (floor 500×288, no emulation fakery); `/api/tab/screenshot` is one silkweave binary resource serving `<img>`, MCP image block, and CLI stdout |
 | multi-session e2e | **built + green**: concurrent fleet (3 identities × 3 agents × 2 tabs) — parallelism, isolation, ACL denial, zero-survivor teardown |
-| publishing | `cdp`/`core`/`fidelity`/`shared`/`cli` prepped for npm (public, MIT); `gateway` not yet packageable (repo-root-relative paths) — see `docs/NEXT-SESSION.md` |
+| publishing | all six packages (`cdp`/`core`/`fidelity`/`shared`/`cli`/`gateway`) prepped for npm (public, MIT); `gateway` bundles the dashboard so `npx @chromatrix/gateway` is standalone — verified from the built artifact. First publish still manual via keybridge |
+| gateway hardening | **built + verified**: global ValidationPipe (malformed DTO body → 400 at the edge) + sliding-window login throttle (429 + Retry-After, keyed by socket address); 13/13 acceptance |
+| takeover UI | **built + verified in real Chrome**: browser-style tab strip (favicon/title/agent badge, inline release), Fit vs 1:1 zoom, keyboard-focus pill + auto-focus, per-control busy states on Sessions |
 
 ## Wrapup Config
 

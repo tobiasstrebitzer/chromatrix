@@ -41,35 +41,22 @@ cost a debugging cycle to rediscover.
 
 ### Gateway follow-ups
 
-- A global `ValidationPipe`, so the `class-validator` rules on the DTOs actually run — today handlers read the
-  body directly, and validation is *declared but not enforced*.
-- Rate-limit or lock out repeated `/api/auth/login` failures. The token is 256-bit so brute force is not a
-  real threat, but unbounded login attempts are still worth bounding.
 - The takeover socket accepts `?token=` for non-browser viewers, which puts a credential in a query string.
   Nothing logs it today — keep it that way, and prefer the cookie path.
 
 ### UI
 
-1. **Takeover still looks like a debug tool** — two bare `<select>`s plus a frame count. Wants a real tab strip
-   (favicon + title + agent badge, close/release inline), fit-to-width vs 1:1 zoom, and a keyboard-focus
-   affordance (today you must click the frame first for keystrokes to land — undiscoverable).
-2. **Mutations share a single global `busy` key**, so any in-flight action disables the others and there is no
-   per-control spinner. Fine at this fleet size.
-3. **Empty/edge states** beyond "no sessions" are thin: identity starting, gateway unreachable mid-poll, and
+1. **Empty/edge states** beyond "no sessions" are thin: identity starting, gateway unreachable mid-poll, and
    "identity in the URL isn't running".
-4. **`listSessions` costs one `Target.getTargets` per identity per poll** (2.5 s) to enrich leases with live
+2. **`listSessions` costs one `Target.getTargets` per identity per poll** (2.5 s) to enrich leases with live
    url/title. Cheap today; cache or push if the fleet grows.
 
 ### Publishing (2026-07-21)
 
-- `@chromatrix/cdp`, `@chromatrix/core`, `@chromatrix/fidelity`, `@chromatrix/shared`, and `@chromatrix/cli`
-  are prepped for npm (public, MIT, `files`/build metadata set) but not yet published — first publish goes
-  through `keybridge` after a manual `/gatekeeper` pass and explicit confirmation.
-- **Package `@chromatrix/gateway` for npm.** It currently resolves the workspace root and `apps/web/dist` by
-  walking up from its own file to find `pnpm-workspace.yaml`, and writes tRPC types into
-  `apps/web/src/generated/` on every boot — both assume a monorepo checkout. A standalone
-  `npx @chromatrix/gateway` needs the dashboard bundled into the published package and those repo-root-relative
-  paths decoupled (fall back to `import.meta.url`-relative asset paths when no workspace root is found).
+- All six packages — `@chromatrix/cdp`, `core`, `fidelity`, `shared`, `cli`, and now `gateway` — are prepped
+  for npm (public, MIT, `files`/build metadata set) but not yet published — first publish goes through
+  `keybridge` after a manual `/gatekeeper` pass and explicit confirmation. Publish the four libraries before
+  `cli`/`gateway` (their `workspace:*` deps become exact-version registry deps at pack time).
 - **CI: GitHub Actions + npm Trusted Publisher.** Queue a release workflow (build → typecheck → test → publish
   via OIDC Trusted Publishing, no long-lived npm token in CI) for the packages above once the first manual
   publish has been verified.
@@ -116,6 +103,17 @@ Durable, expensively-learned details. Roughly grouped; all still current.
   not `about:blank`.
 
 ### Nest / HTTP
+
+- **oxc does not emit decorator metadata**, so a plain tsdown build of the gateway boots but injects nothing
+  and validates nothing — Nest DI and the `ValidationPipe` both read `design:paramtypes`. The gateway's
+  `tsdown.config.ts` routes the transform through `unplugin-swc` (same jsc config as `.swcrc`) for exactly
+  this reason; if the build ever mysteriously loses validation, check that plugin is still doing the TS.
+- **The gateway detects "dev checkout vs npm install" by whether `common/paths.ts` runs from
+  `<workspace>/apps/gateway/src`** — not by the presence of `pnpm-workspace.yaml` alone, because an npm
+  install can land inside some unrelated monorepo whose workspace root would be mistaken for ours. Checkout:
+  `apps/web/dist`, boot-time typegen, `<repo>/.profiles`. Install: bundled `<pkg>/web`, no typegen,
+  `~/.local/share/chromatrix/profiles`. Running `node build/main.mjs` inside the repo behaves as an install
+  (the bundle lives under `build/`, not `src/`) — that's intended, it's how the packaged shape gets tested.
 
 - **Returning a bare `Buffer` from a Nest handler silently JSON-encodes it** — `200` with
   `{"type":"Buffer","data":[…]}`, which no `<img>` can decode. Use `StreamableFile` with an explicit `type`;
