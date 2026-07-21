@@ -53,13 +53,17 @@ cost a debugging cycle to rediscover.
 
 ### Publishing (2026-07-21)
 
-- All six packages — `@chromatrix/cdp`, `core`, `fidelity`, `shared`, `cli`, and now `gateway` — are prepped
-  for npm (public, MIT, `files`/build metadata set) but not yet published — first publish goes through
-  `keybridge` after a manual `/gatekeeper` pass and explicit confirmation. Publish the four libraries before
-  `cli`/`gateway` (their `workspace:*` deps become exact-version registry deps at pack time).
+- **All six packages are LIVE on npm at 0.1.0** (public, MIT, under the `chromatrix` org): `@chromatrix/shared`,
+  `cdp`, `fidelity`, `core`, `cli`, `gateway`. Published via keybridge after a `/gatekeeper` pass.
+- **Publishing gotcha — keybridge shells out to `npm publish`, and npm does NOT rewrite `workspace:*`** (that's
+  a pnpm/yarn behaviour). Publishing a manifest with `workspace:*` ships it literally and the package is
+  uninstallable. The first publish worked around it by temporarily pinning the four affected manifests
+  (`core`, `fidelity`, `cli`, `gateway`) to `0.1.0`, publishing, then reverting manifest + lockfile (a pnpm
+  run during prepack absorbs the pins into `pnpm-lock.yaml` — revert that too). Future releases: either repeat
+  the pin-publish-revert dance, or move to `pnpm publish` / CI Trusted Publishing which rewrite correctly.
 - **CI: GitHub Actions + npm Trusted Publisher.** Queue a release workflow (build → typecheck → test → publish
-  via OIDC Trusted Publishing, no long-lived npm token in CI) for the packages above once the first manual
-  publish has been verified.
+  via OIDC Trusted Publishing, no long-lived npm token in CI) — this also dissolves the workspace-protocol
+  gotcha above if the workflow publishes with pnpm.
 
 ---
 

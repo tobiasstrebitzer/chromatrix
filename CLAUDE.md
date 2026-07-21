@@ -82,7 +82,7 @@ there: `pnpm --filter @chromatrix/gateway run accept` (ACL + full auth perimeter
 | session lifecycle | **built + verified**: create/start/stop/delete are four distinct verbs; `listSessions` left-joins the on-disk registry with running state so `stopped` is a resting state, not an absence |
 | per-tab viewport, screenshots | **built + verified**: every tab is its own sized window (floor 500×288, no emulation fakery); `/api/tab/screenshot` is one silkweave binary resource serving `<img>`, MCP image block, and CLI stdout |
 | multi-session e2e | **built + green**: concurrent fleet (3 identities × 3 agents × 2 tabs) — parallelism, isolation, ACL denial, zero-survivor teardown |
-| publishing | all six packages (`cdp`/`core`/`fidelity`/`shared`/`cli`/`gateway`) prepped for npm (public, MIT); `gateway` bundles the dashboard so `npx @chromatrix/gateway` is standalone — verified from the built artifact. First publish still manual via keybridge |
+| publishing | **all six packages LIVE on npm at 0.1.0** (public, MIT, `chromatrix` org); `gateway` bundles the dashboard so `npx @chromatrix/gateway` is standalone. Published via keybridge + gatekeeper; note the `workspace:*` npm-publish gotcha in `docs/NEXT-SESSION.md` before the next release |
 | gateway hardening | **built + verified**: global ValidationPipe (malformed DTO body → 400 at the edge) + sliding-window login throttle (429 + Retry-After, keyed by socket address); 13/13 acceptance |
 | takeover UI | **built + verified in real Chrome**: browser-style tab strip (favicon/title/agent badge, inline release), Fit vs 1:1 zoom, keyboard-focus pill + auto-focus, per-control busy states on Sessions |
 
