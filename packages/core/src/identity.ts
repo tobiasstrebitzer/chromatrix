@@ -1,4 +1,4 @@
-// Identity registry - the id → profile-dir mapping (PRD §4, NEXT-SESSION §2). An "identity" is one signed-in
+// Identity registry - the id → profile-dir mapping. An "identity" is one signed-in
 // browser persona: one persistent `--user-data-dir` under `.profiles/<id>/` holding its cookies/session. The
 // registry is deliberately thin (the profile dir IS the durable state; we don't duplicate it in a DB) - it
 // just resolves ids to dirs, creates the dir on demand, and lists what's on disk.

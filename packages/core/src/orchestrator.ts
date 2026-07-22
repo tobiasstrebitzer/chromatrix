@@ -1,4 +1,4 @@
-// Orchestrator - the domain facade the gateway drives (PRD §4). Holds the identity registry and, per running
+// Orchestrator - the domain facade the gateway drives. Holds the identity registry and, per running
 // identity, a ChromeSupervisor (the process + control channel) paired with a TabPool (exclusive tab leasing).
 // It knows nothing about HTTP/WS/CDP-mux - the gateway layers those on top. One Chrome per identity, shared
 // default context, exclusive per-agent tabs: the v1 concurrency model S3 validated.
@@ -68,7 +68,7 @@ export class Orchestrator {
   }
 
   /** Lease an exclusive tab under a running identity for `agentId`. */
-  async allocateTab(id: string, agentId: string, opts: { url?: string } = {}): Promise<Lease> {
+  async allocateTab(id: string, agentId: string, opts: { url?: string; compat?: boolean } = {}): Promise<Lease> {
     return this.require(id).tabs.lease(agentId, opts)
   }
 

@@ -51,6 +51,17 @@ export class AllocateTabDto {
   @IsOptional()
   @IsInt()
   height?: number
+
+  @ApiProperty({
+    required: false,
+    description:
+      'Framework-compat mode: mint a CDP URL that gets the unmitigated protocol. Set this for Playwright ' +
+      '(connectOverCDP), which drives the Runtime execution-context lifecycle that the default fidelity ' +
+      'mitigation suppresses. Raw-CDP clients like agent-browser should leave it off.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  compat?: boolean
 }
 
 export class SetViewportDto {

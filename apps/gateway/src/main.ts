@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Gateway entrypoint. Boots NestJS (management REST + silkweave MCP under /mcp) plus the raw-WS CDP mux +
 // takeover routes bound to the SAME underlying http.Server - CDP frames bypass Nest's DI/guard/interceptor
-// pipeline entirely (PRD §6, the "mitigating mux, not transparent proxy" crux). One process, one port.
+// pipeline entirely (the "mitigating mux, not transparent proxy" crux). One process, one port.
 
 import { configPath } from '@chromatrix/shared'
 import { startGateway } from './bootstrap.ts'

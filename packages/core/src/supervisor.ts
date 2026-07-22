@@ -1,4 +1,4 @@
-// ChromeSupervisor - owns the lifecycle of ONE identity's Chrome (PRD §4, NEXT-SESSION §2). On start it takes
+// ChromeSupervisor - owns the lifecycle of ONE identity's Chrome. On start it takes
 // the single-writer profile lock, reaps any orphaned Chrome tree still bound to the profile dir, launches the
 // real headed Chrome via @chromatrix/fidelity, and opens a control CdpClient (used by the TabPool to create/
 // close targets and to health-check). On stop it SIGTERMs Chrome so cookies flush and releases the lock.

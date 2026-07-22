@@ -1,5 +1,5 @@
 // @chromatrix/cdp - CDP client + mitigating multiplexer core. Mechanism only; fidelity policies that plug
-// into the Interceptor seam live in @chromatrix/fidelity. See docs/PRD.md §3/§4.
+// into the Interceptor seam live in @chromatrix/fidelity. See docs/FINDINGS.md.
 
 export { CdpClient } from './client.ts'
 export { CdpMux } from './mux.ts'

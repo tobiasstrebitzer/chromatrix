@@ -45,7 +45,7 @@ export function tokensMatch(a: string | undefined, b: string | undefined): boole
  * - **It is not reversible.** The gateway cannot recover `agentId` from the token, so the caller names the
  *   agent in the path (`/cdp/<identity>/<agentId>`) and this binds it: claiming another agent's id yields a token you cannot forge.
  * - **There is no per-agent revocation.** Rotating the access token rotates every agent's token at once.
- *   That is the accepted trade (see docs/NEXT-SESSION.md) - the token is a *name*, not a grant: authority
+ *   That is the accepted trade - the token is a *name*, not a grant: authority
  *   comes from the live TabPool lease, which is destroyed on stop regardless.
  *
  * The NUL separator is load-bearing: identity `"a"` + agent `"b:c"` must not collide with `"a:b"` + `"c"`.

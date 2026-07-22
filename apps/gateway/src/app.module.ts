@@ -2,7 +2,7 @@
 // and the AppRouter typegen the web app consumes) plus ServeStatic for the built SPA in prod. The
 // CdpGatewayService is a factory provider - its one ctor arg (the absolute profiles root) isn't a Nest
 // provider, so it's supplied via useFactory. The raw-WS CDP mux is NOT a Nest concern; main.ts binds it to
-// the underlying http.Server after boot (PRD §6).
+// the underlying http.Server after boot.
 
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
@@ -50,7 +50,7 @@ const typegenPath = typegenTarget()
       adapters: [
         // @Trpc()-decorated controller methods → tRPC procedures under /trpc (the web app's typed client).
         trpc({ basePath: '/trpc', auth: { required: true, verifyToken } }),
-        // The same methods (where @Mcp'd) → MCP tools under /mcp. Provisioning-only surface (PRD §5): agents
+        // The same methods (where @Mcp'd) → MCP tools under /mcp. Provisioning-only surface: agents
         // then drive raw CDP over the scoped URL AllocateTab returns.
         //
         // Auth goes on the ADAPTER, not on the controller methods: `tools/list` is a transport-level call with

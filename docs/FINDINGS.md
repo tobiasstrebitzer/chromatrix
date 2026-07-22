@@ -2,7 +2,7 @@
 
 One page of what the S1-S4 spikes established. The spikes were throwaway de-risking experiments; they served
 their purpose and have been **retired** - their proven primitives live in `packages/` + `apps/`, their
-fidelity assertions live on as `pnpm fidelity:check` (see S1/S2 below), and this page plus [`PRD.md`](PRD.md)
+fidelity assertions live on as `pnpm fidelity:check` (see S1/S2 below), and this page plus the [README](../README.md)
 is the record of what they proved. The spike code itself is recoverable from git history if ever needed.
 Dev machine: MacBook Pro **M3 Pro**, real Google **Chrome 150**, residential IP.
 
@@ -94,7 +94,7 @@ them via takeover and the resulting session persists.
    not the crux.
 2. **What buys the most is authenticity**, not tricks: a real headed Chrome + a stable identity (profile +
    fixed egress IP) + human takeover for interactive gates. Persisting a human-completed session (e.g.
-   `cf_clearance`) is the pragmatic, honest answer to human-verification challenges (see NEXT-SESSION for the
+   `cf_clearance`) is the pragmatic, honest answer to human-verification challenges (see the [takeover docs](https://tobiasstrebitzer.github.io/chromatrix/takeover) for the
    empirical persistence test still to run).
 3. **Concurrency model** = one Chrome per identity (one `--user-data-dir`), shared default context, tab pool
    with **exclusive** per-agent leasing; a single-writer lock per profile.
@@ -115,13 +115,13 @@ The four points above are implemented and verified end-to-end (real Chrome + rea
 
 - **Mitigating mux (1)** - one embedded `CdpMux` per identity carrying `runtimeEnableSuppressInterceptor`,
   fed already-upgraded sockets on the raw `/cdp/<id>?token=…` route bound to the underlying `http.Server`,
-  outside Nest's pipeline (PRD §6).
+  outside Nest's pipeline.
 - **Concurrency + ACL (3)** - the `TabPool`'s exclusive per-agent leasing becomes the mux's **live per-tab
   scope**: an agent's raw client may evaluate in its own tab but is **denied** attaching to another agent's
   target. The acceptance test (`pnpm --filter @chromatrix/gateway run accept`) asserts exactly this - 5/5 green.
 - **Human takeover** - S4's screencast + `isTrusted` input promoted to the `/takeover/<id>` route.
 - **Provisioning** - 14 MCP tools (identity/tab lifecycle + viewport + settings + health + takeover) at `/mcp`;
-  agents then drive raw CDP over the scoped URL `AllocateTab` returns (PRD §5). Identity lifecycle is four
+  agents then drive raw CDP over the scoped URL `AllocateTab` returns. Identity lifecycle is four
   distinct verbs - Create, Start, Stop, Delete - where only Delete discards the profile dir.
 - **Concurrency + isolation under load** - `run e2e` runs a concurrent fleet (verified 3 identities × 3 agents
   × 2 tabs = 18 tabs) and proves, together: work overlaps rather than serializing (wall-clock ≪ Σ per-agent

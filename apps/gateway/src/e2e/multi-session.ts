@@ -1,4 +1,4 @@
-// Multi-session parallel e2e (NEXT-SESSION §"multi-session parallel e2e test"). Scales the single-identity
+// Multi-session parallel e2e. Scales the single-identity
 // acceptance test into the load shape the platform exists for: several identities (each its own real Chrome)
 // running concurrently, each driven by multiple agents doing real work in parallel. It proves, together and
 // under load: (a) tab work runs concurrently, not serialized (S3 shared-context + tab-affinity), (b) the live

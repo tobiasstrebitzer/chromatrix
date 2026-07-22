@@ -1,4 +1,4 @@
-// Takeover - the human-in-the-loop path (PRD §4/§0, promoted from spike S4). A per-identity hub attaches to
+// Takeover - the human-in-the-loop path (promoted from spike S4; docs/FINDINGS.md). A per-identity hub attaches to
 // the identity's front page target over the control CDP client, runs ONE ack-throttled JPEG screencast, and
 // fans frames out to every connected viewer while forwarding their mouse/keyboard back as Input.dispatch*
 // events (which are isTrusted - indistinguishable from a real user). This is how a person completes a
@@ -21,6 +21,39 @@ export interface TargetSummary {
   agentId?: string
 }
 
+/** Everything a viewer can send. One shape, because it arrives as one untyped JSON frame off the socket. */
+interface ViewerMessage {
+  type?: string
+  event?: string
+  phase?: string
+  nx?: number
+  ny?: number
+  dx?: number
+  dy?: number
+  button?: string
+  buttons?: number
+  clickCount?: number
+  /** CDP modifier bitmask: Alt=1, Ctrl=2, Meta/Command=4, Shift=8. */
+  modifiers?: number
+  key?: string
+  code?: string
+  keyCode?: number
+  text?: string
+  action?: string
+  targetId?: string
+}
+
+/** Coalescing window for `Target.targetInfoChanged`, which fires several times per navigation. */
+const TARGET_INFO_DEBOUNCE_MS = 300
+
+/** Which mouse button a move is dragging, read off the held-buttons bitmask. */
+function heldButton(buttons: number): string {
+  if (buttons & 1) return 'left'
+  if (buttons & 2) return 'right'
+  if (buttons & 4) return 'middle'
+  return 'none'
+}
+
 const NON_PRINTABLE: Record<string, { keyCode: number; text?: string }> = {
   Enter: { keyCode: 13, text: '\r' },
   Tab: { keyCode: 9 },
@@ -31,7 +64,29 @@ const NON_PRINTABLE: Record<string, { keyCode: number; text?: string }> = {
   ArrowUp: { keyCode: 38 },
   ArrowDown: { keyCode: 40 },
   Escape: { keyCode: 27 },
+  Home: { keyCode: 36 },
+  End: { keyCode: 35 },
+  PageUp: { keyCode: 33 },
+  PageDown: { keyCode: 34 },
 }
+
+/**
+ * Read the current selection out of the page.
+ *
+ * Two cases, because they are genuinely different in the DOM: a selection inside an `<input>`/`<textarea>`
+ * lives on the element (`selectionStart/End`) and is invisible to `window.getSelection()`, which is what an
+ * ordinary document selection uses. Checking the focused element first is what makes "copy the OTP I just
+ * highlighted in a form field" work at all. A selection inside a cross-origin iframe is not reachable from
+ * here and comes back empty.
+ */
+const READ_SELECTION_JS = `(() => {
+  const el = document.activeElement
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && typeof el.selectionStart === 'number') {
+    return String(el.value).slice(el.selectionStart, el.selectionEnd)
+  }
+  const s = window.getSelection()
+  return s ? s.toString() : ''
+})()`
 
 /** One takeover session per identity. Lazily attaches + screencasts on the first viewer; stops on the last. */
 export class TakeoverHub {
@@ -53,6 +108,8 @@ export class TakeoverHub {
   private wantedTargetId?: string
   /** The tab currently being cast, so viewers can highlight it in the picker. */
   private activeTargetId?: string
+  /** Pending debounced target-list push (see onTargetInfoChanged). */
+  private infoPush?: NodeJS.Timeout
 
   constructor(
     private readonly client: CdpClient,
@@ -72,21 +129,7 @@ export class TakeoverHub {
     void this.pushTargets(ws)
 
     ws.on('message', (raw) => {
-      let m: {
-        type?: string
-        event?: string
-        phase?: string
-        nx?: number
-        ny?: number
-        dx?: number
-        dy?: number
-        button?: string
-        buttons?: number
-        key?: string
-        code?: string
-        keyCode?: number
-        targetId?: string
-      }
+      let m: ViewerMessage
       try {
         m = JSON.parse(raw.toString())
       } catch {
@@ -96,7 +139,7 @@ export class TakeoverHub {
         void this.attachTo(m.targetId)
         return
       }
-      void this.onInput(m)
+      void this.onInput(m, ws)
     })
 
     const drop = () => {
@@ -228,6 +271,7 @@ export class TakeoverHub {
     await this.client.send('Target.setDiscoverTargets', { discover: true }).catch(() => {})
     this.client.on('Target.targetCreated', this.onTargetChange)
     this.client.on('Target.targetDestroyed', this.onTargetChange)
+    this.client.on('Target.targetInfoChanged', this.onTargetInfoChanged)
   }
 
   private unwatchPages(): void {
@@ -235,6 +279,9 @@ export class TakeoverHub {
     this.watching = false
     this.client.off('Target.targetCreated', this.onTargetChange)
     this.client.off('Target.targetDestroyed', this.onTargetChange)
+    this.client.off('Target.targetInfoChanged', this.onTargetInfoChanged)
+    clearTimeout(this.infoPush)
+    this.infoPush = undefined
   }
 
   private readonly onTargetChange = (): void => {
@@ -244,6 +291,25 @@ export class TakeoverHub {
       if (this.sessionId && !(await this.sessionIsLive())) await this.stopCasting()
       if (!this.sessionId) await this.startCasting()
     }).then(() => this.pushTargets())
+  }
+
+  /**
+   * A tab NAVIGATING is not a tab appearing, and only the latter used to reach the viewer. Without this a tab
+   * allocated blank and then driven somewhere - by an agent, or by the address field right here - keeps its
+   * stale entry in the strip forever: titled "Untitled tab", and, because the dashboard reads a blank URL as
+   * "nothing loaded", with the live frame HIDDEN behind a placeholder while its frames stream in behind it.
+   *
+   * Debounced because `targetInfoChanged` fires repeatedly through a single navigation (each URL and title
+   * change), and every push costs a `Target.getTargets` per viewer.
+   */
+  private readonly onTargetInfoChanged = (): void => {
+    if (this.viewers.size === 0) return
+    clearTimeout(this.infoPush)
+    this.infoPush = setTimeout(() => {
+      this.infoPush = undefined
+      void this.pushTargets()
+    }, TARGET_INFO_DEBOUNCE_MS)
+    this.infoPush.unref?.()
   }
 
   private async sessionIsLive(): Promise<boolean> {
@@ -281,26 +347,15 @@ export class TakeoverHub {
     return sessionId
   }
 
-  private async onInput(m: {
-    type?: string
-    event?: string
-    phase?: string
-    nx?: number
-    ny?: number
-    dx?: number
-    dy?: number
-    button?: string
-    buttons?: number
-    key?: string
-    code?: string
-    keyCode?: number
-  }): Promise<void> {
+  private async onInput(m: ViewerMessage, ws: WebSocket): Promise<void> {
     const sid = this.sessionId
     if (!sid) return
     const dw = this.lastMeta.deviceWidth
     const dh = this.lastMeta.deviceHeight
+    const modifiers = m.modifiers ?? 0
     if (m.type === 'mouse') {
       const type = m.event === 'down' ? 'mousePressed' : m.event === 'up' ? 'mouseReleased' : 'mouseMoved'
+      const buttons = m.buttons ?? 0
       await this.client
         .send(
           'Input.dispatchMouseEvent',
@@ -308,97 +363,90 @@ export class TakeoverHub {
             type,
             x: (m.nx ?? 0) * dw,
             y: (m.ny ?? 0) * dh,
-            button: m.button ?? 'none',
-            buttons: m.buttons ?? 0,
-            clickCount: type === 'mouseMoved' ? 0 : 1,
+            // A drag has to name the button it is dragging with, not just the held-buttons mask: Chrome extends
+            // a selection on `mouseMoved` only when `button` says which one is down. With 'none' the press and
+            // release land as a click and the drag between them does nothing - which is why selecting text by
+            // dragging never worked here.
+            button: m.button ?? (type === 'mouseMoved' ? heldButton(buttons) : 'none'),
+            buttons,
+            // Carries double- and triple-click through, which is how a word and a line get selected. Chrome
+            // derives those from clickCount, so a hardcoded 1 made every click a single click.
+            clickCount: type === 'mouseMoved' ? 0 : (m.clickCount ?? 1),
+            modifiers,
           },
           sid,
         )
         .catch(() => {})
     } else if (m.type === 'wheel') {
       await this.client
-        .send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: (m.nx ?? 0) * dw, y: (m.ny ?? 0) * dh, deltaX: m.dx, deltaY: m.dy }, sid)
+        .send(
+          'Input.dispatchMouseEvent',
+          { type: 'mouseWheel', x: (m.nx ?? 0) * dw, y: (m.ny ?? 0) * dh, deltaX: m.dx, deltaY: m.dy, modifiers },
+          sid,
+        )
         .catch(() => {})
     } else if (m.type === 'key' && m.key) {
       const printable = m.key.length === 1
       const special = NON_PRINTABLE[m.key]
-      const text = printable ? m.key : special?.text
+      // Suppress `text` while Ctrl/Meta is held: with it, Cmd+C types a literal "c" into the page before the
+      // shortcut is ever considered. Shift/Alt are not suppressed - those DO produce text ("A", "ß").
+      const shortcut = (modifiers & 2) !== 0 || (modifiers & 4) !== 0
+      const text = shortcut ? undefined : printable ? m.key : special?.text
       const down = m.phase === 'down'
       await this.client
         .send(
           'Input.dispatchKeyEvent',
           {
-            type: down ? 'keyDown' : 'keyUp',
+            type: down && text ? 'keyDown' : down ? 'rawKeyDown' : 'keyUp',
             key: m.key,
             code: m.code ?? (printable ? `Key${m.key.toUpperCase()}` : m.key),
             windowsVirtualKeyCode: m.keyCode ?? special?.keyCode ?? (printable ? m.key.toUpperCase().charCodeAt(0) : 0),
+            modifiers,
             ...(text && down ? { text } : {}),
+            // Editing commands the renderer executes directly (selectAll, delete, …). This is how Cmd+A works
+            // without the browser-level shortcut handling that a synthetic key event never reaches.
+            ...(down && m.action ? { commands: [m.action] } : {}),
           },
           sid,
         )
         .catch(() => {})
+    } else if (m.type === 'clipboard') {
+      await this.onClipboard(m, ws, sid)
+    } else if (m.type === 'paste' && typeof m.text === 'string') {
+      // insertText, not synthesized keystrokes: it delivers the whole string as one composed input (correct for
+      // multi-line and non-ASCII), and it is what a real paste looks like to the page.
+      await this.client.send('Input.insertText', { text: m.text }, sid).catch(() => {})
     }
   }
-}
 
-/** The minimal viewer page served at GET /takeover/<id>; drives the real tab via /takeover/<id>/ws. */
-export function takeoverViewerHtml(identity: string): string {
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>chromatrix · takeover · ${identity}</title>
-    <style>
-      :root { color-scheme: dark; }
-      * { box-sizing: border-box; }
-      body { margin: 0; background: #0b0d10; color: #cdd3da; font: 13px ui-monospace, monospace; overflow: hidden; }
-      #bar { height: 34px; display: flex; align-items: center; gap: 14px; padding: 0 12px; background: #14171c; border-bottom: 1px solid #222; }
-      #bar b { color: #6ee7b7; }
-      #dot { width: 9px; height: 9px; border-radius: 50%; background: #f87171; }
-      #dot.live { background: #34d399; }
-      #wrap { position: absolute; top: 34px; bottom: 0; left: 0; right: 0; display: grid; place-items: center; }
-      #screen { max-width: 100%; max-height: 100%; cursor: crosshair; image-rendering: auto; background: #000; box-shadow: 0 0 0 1px #222; }
-      #hint { color: #7c8794; }
-    </style>
-  </head>
-  <body>
-    <div id="bar">
-      <span id="dot"></span><b>chromatrix</b> takeover · <span style="color:#93c5fd">${identity}</span>
-      <span id="status">connecting…</span>
-      <span id="hint">- click / type directly on the frame; your input drives the real tab</span>
-    </div>
-    <div id="wrap"><img id="screen" draggable="false" /></div>
-    <script>
-      const img = document.getElementById('screen')
-      const status = document.getElementById('status')
-      const dot = document.getElementById('dot')
-      const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/takeover/${identity}/ws')
-      let frames = 0
-      ws.onopen = () => { status.textContent = 'connected' }
-      ws.onclose = () => { status.textContent = 'disconnected'; dot.classList.remove('live') }
-      ws.onmessage = (e) => {
-        const m = JSON.parse(e.data)
-        if (m.type === 'frame') {
-          img.src = 'data:image/jpeg;base64,' + m.data
-          if (++frames % 10 === 0) status.textContent = frames + ' frames'
-          dot.classList.add('live')
-        }
-      }
-      function norm(e) {
-        const r = img.getBoundingClientRect()
-        return { nx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), ny: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }
-      }
-      const BTN = ['left', 'middle', 'right']
-      function send(o) { if (ws.readyState === 1) ws.send(JSON.stringify(o)) }
-      img.addEventListener('mousemove', (e) => { const n = norm(e); send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons }) })
-      img.addEventListener('mousedown', (e) => { e.preventDefault(); const n = norm(e); send({ type: 'mouse', event: 'down', nx: n.nx, ny: n.ny, button: BTN[e.button] || 'left', buttons: e.buttons }) })
-      img.addEventListener('mouseup', (e) => { e.preventDefault(); const n = norm(e); send({ type: 'mouse', event: 'up', nx: n.nx, ny: n.ny, button: BTN[e.button] || 'left', buttons: e.buttons }) })
-      img.addEventListener('contextmenu', (e) => e.preventDefault())
-      img.addEventListener('wheel', (e) => { e.preventDefault(); const n = norm(e); send({ type: 'wheel', nx: n.nx, ny: n.ny, dx: e.deltaX, dy: e.deltaY }) }, { passive: false })
-      window.addEventListener('keydown', (e) => { e.preventDefault(); send({ type: 'key', phase: 'down', key: e.key, code: e.code, keyCode: e.keyCode }) })
-      window.addEventListener('keyup', (e) => { e.preventDefault(); send({ type: 'key', phase: 'up', key: e.key, code: e.code, keyCode: e.keyCode }) })
-    </script>
-  </body>
-</html>`
+  /**
+   * Copy/cut. The clipboard is the BROWSER's, not the renderer's, so a synthesized Cmd+C reaches the page and
+   * does nothing - there is no browser UI layer here to act on it. Instead the hub reads the page's selection
+   * and hands the text back to the viewer, which puts it on the *operator's own* clipboard. Cut then deletes
+   * the selection through the renderer's editing command.
+   *
+   * The text crosses the socket the operator is already watching pixels on, so this exposes nothing that the
+   * screencast does not - but it is worth knowing that it is text, and therefore greppable, where a frame is
+   * not. Only the requesting viewer is answered, never broadcast.
+   */
+  private async onClipboard(m: ViewerMessage, ws: WebSocket, sid: string): Promise<void> {
+    let text = ''
+    try {
+      const res = await this.client.send<{ result?: { value?: string } }>(
+        'Runtime.evaluate',
+        { expression: READ_SELECTION_JS, returnByValue: true },
+        sid,
+      )
+      text = res.result?.value ?? ''
+    } catch {
+      return
+    }
+    if (m.action === 'cut' && text) {
+      await this.client
+        .send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Delete', windowsVirtualKeyCode: 46, commands: ['delete'] }, sid)
+        .catch(() => {})
+      await this.client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Delete', windowsVirtualKeyCode: 46 }, sid).catch(() => {})
+    }
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: 'clipboard', text }))
+  }
 }

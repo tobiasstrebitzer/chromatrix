@@ -1,4 +1,4 @@
-// Gateway management controller - the provisioning surface (PRD §5: MCP is provisioning-ONLY; agents then
+// Gateway management controller - the provisioning surface (MCP is provisioning-ONLY; agents then
 // drive raw CDP over the scoped URL an allocateTab hands back). Each action is a REST route under /api, a
 // tRPC procedure (the web dashboard's typed client), and - where it provisions - an @Mcp tool for agents. It
 // carries no CDP traffic: that goes over the raw-WS mux mounted outside Nest (see cdp/cdp-upgrade.ts).
@@ -94,6 +94,7 @@ export class GatewayController {
       url: body.url,
       width: body.width,
       height: body.height,
+      compat: body.compat,
     })
   }
 

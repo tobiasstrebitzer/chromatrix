@@ -1,7 +1,7 @@
 // Fidelity verification probes: the CDP-based assertions that prove an identity Chrome presents as the real
 // browser it is. Promoted from spikes S1 (Runtime.enable getter-trap) and S2 (WebGL renderer, automation
 // fingerprint). Pure - each takes a raw CdpClient + an attached page sessionId and reads the page; capacity
-// measurements (RAM, occlusion) are eval-only and live in eval.ts, not here. See docs/PRD.md §7.
+// measurements (RAM, occlusion) are eval-only and live in eval.ts, not here. See docs/FINDINGS.md.
 
 import type { CdpClient } from '@chromatrix/cdp'
 

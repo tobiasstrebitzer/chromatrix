@@ -1,4 +1,4 @@
-// Orphaned-Chrome-tree reaper (PRD §4, NEXT-SESSION §2). A supervisor crash or hard-kill can leave a Chrome
+// Orphaned-Chrome-tree reaper. A supervisor crash or hard-kill can leave a Chrome
 // (plus its renderer/GPU/utility children) still bound to an identity's --user-data-dir. On relaunch we must
 // clear those before a fresh Chrome can take the profile, or the ProfileLock is free but the OS still has a
 // zombie holding the dir. We find them by the one thing that is unique per identity: the --user-data-dir flag.

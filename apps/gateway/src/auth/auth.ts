@@ -36,7 +36,7 @@ export const Public = () => SetMetadata(PUBLIC_ROUTE, true)
  * The process-wide access token, resolved once at boot.
  *
  * Deliberately module state rather than a Nest provider: the raw-WS upgrade handler runs *outside* Nest's DI
- * container (PRD §6) and needs the same value, and threading a provider out to it would mean either a second
+ * container and needs the same value, and threading a provider out to it would mean either a second
  * source of truth or passing the token through three layers that have no other reason to know it.
  */
 let accessToken: string | undefined

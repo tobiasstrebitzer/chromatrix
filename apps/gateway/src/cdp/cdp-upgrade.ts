@@ -1,4 +1,4 @@
-// Raw-WS upgrade wiring - the architectural crux (PRD §6). NestJS owns the HTTP + MCP surface, but CDP frames
+// Raw-WS upgrade wiring - the architectural crux. NestJS owns the HTTP + MCP surface, but CDP frames
 // must NOT traverse Nest's DI/guard/interceptor pipeline: they are high-volume binary-ish JSON routed by the
 // mux, not Nest routes. So we bind our own handler to the underlying http.Server's `upgrade` event (ahead of
 // anything Nest does with upgrades) and hand matched sockets straight to the per-identity CdpMux / TakeoverHub.
@@ -69,9 +69,12 @@ export function mountGatewayUpgrades(
       const identity = cdp[1]
       const agent = decodeSegment(cdp[2])
       const token = url.searchParams.get('token') ?? undefined
+      // Not a credential and not a resource coordinate - it says which protocol dialect this connection wants
+      // (see InterceptContext.compat), so it belongs in the query and needs no proof.
+      const compat = url.searchParams.get('compat') === '1'
       let resolved
       try {
-        resolved = service.resolveCdpUpgrade(identity, agent, token)
+        resolved = service.resolveCdpUpgrade(identity, agent, token, compat)
       } catch (e) {
         // The message names the identity and agent but never the token - this line is the one thing that runs
         // on every rejected attach, so it is exactly where a credential would end up in the logs forever.
@@ -79,8 +82,11 @@ export function mountGatewayUpgrades(
         return reject(socket, 403)
       }
       wss.handleUpgrade(req, socket, head, (ws: WebSocket) => {
-        resolved.mux.attachClient(ws, resolved.scope)
-        log.log(`cdp client attached to "${identity}" (scope: ${resolved.scope.allowedTargets().length} tab(s))`)
+        resolved.mux.attachClient(ws, resolved.scope, { compat: resolved.compat })
+        log.log(
+          `cdp client attached to "${identity}" (scope: ${resolved.scope.allowedTargets().length} tab(s)` +
+            `${resolved.compat ? ', compat' : ''})`,
+        )
       })
       return
     }

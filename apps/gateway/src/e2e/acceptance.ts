@@ -1,4 +1,4 @@
-// End-to-end acceptance test (NEXT-SESSION §"the end-to-end acceptance test"). Boots the REAL gateway on an
+// End-to-end acceptance test. Boots the REAL gateway on an
 // ephemeral port against a throwaway profiles root, provisions an identity + a real headed Chrome, allocates
 // a tab for agent A and agent B over the HTTP provisioning surface, then connects a RAW CdpClient to A's
 // scoped URL and asserts:

@@ -50,6 +50,7 @@ export type AppRouter = TRPCBuiltRouter<TrpcRootTypes, {
       url?: string | undefined
       width?: number | undefined
       height?: number | undefined
+      compat?: boolean | undefined
     }
     output: unknown
   }>

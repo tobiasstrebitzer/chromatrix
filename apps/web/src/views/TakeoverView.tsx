@@ -113,6 +113,7 @@ function Screencast({ identity, target }: { identity: string; target?: string })
       let m: {
         type?: string
         data?: string
+        text?: string
         message?: string
         targets?: TargetSummary[]
         activeTargetId?: string
@@ -128,6 +129,17 @@ function Screencast({ identity, target }: { identity: string; target?: string })
         setFrames((n) => n + 1)
       } else if (m.type === 'waiting') {
         setWaiting(m.message ?? 'Waiting for a tab…')
+      } else if (m.type === 'clipboard') {
+        // A successful copy stays silent - that is what copying feels like everywhere else. Only the two
+        // failure modes say anything, because both are otherwise indistinguishable from a working copy.
+        const text = m.text ?? ''
+        if (!text) {
+          toast('Nothing selected', { description: 'Select something in the page first, then copy.' })
+        } else {
+          void writeClipboard(text).then((ok) => {
+            if (!ok) toast.error('Could not write to your clipboard', { description: 'Your browser refused clipboard access.' })
+          })
+        }
       } else if (m.type === 'targets') {
         const list = m.targets ?? []
         setTargets(list)
@@ -158,18 +170,125 @@ function Screencast({ identity, target }: { identity: string; target?: string })
     imgRef.current?.focus({ preventScroll: true })
   }, [status, frameShown, activeTargetId])
 
-  const send = (o: unknown) => {
+  const send = React.useCallback((o: unknown) => {
     const ws = wsRef.current
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(o))
-  }
-  const norm = (e: React.MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  }, [])
+  // Normalized against the <img> itself rather than the event target, so a drag that leaves the frame still
+  // reports coordinates (clamped to the edge) instead of stopping dead.
+  const norm = React.useCallback((e: { clientX: number; clientY: number }) => {
+    const r = imgRef.current?.getBoundingClientRect()
+    if (!r || r.width === 0 || r.height === 0) return { nx: 0, ny: 0 }
     return {
       nx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
       ny: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
     }
-  }
+  }, [])
   const BTN = ['left', 'middle', 'right'] as const
+
+  /**
+   * Set when a Cmd+V has been let through and we are waiting for the browser to deliver the `paste` event
+   * it implies. If that never arrives, the fallback below runs - a paste that silently does nothing is the
+   * single worst outcome here, and is exactly how the first version of this shipped.
+   */
+  const pasteWatchdog = React.useRef<number | undefined>(undefined)
+
+  // Paste comes from the browser's own event rather than `navigator.clipboard.readText()`, which needs a
+  // permission the event does not. Bound to the document because a `paste` event is not delivered to a
+  // non-editable element like our <img> - hence gated on the frame holding focus, or a paste into the
+  // address field would be forwarded to the page as well.
+  React.useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (document.activeElement !== imgRef.current) return
+      e.preventDefault()
+      window.clearTimeout(pasteWatchdog.current)
+      pasteWatchdog.current = undefined
+      const text = e.clipboardData?.getData('text/plain')
+      if (text) send({ type: 'paste', text })
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [send])
+
+  /** Cmd/Ctrl+V. Separated because it is the one shortcut that must NOT be preventDefault()ed. */
+  const isPasteShortcut = (e: React.KeyboardEvent): boolean =>
+    (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'v'
+
+  /** Let the keystroke run its default course, but notice if no paste event follows it. */
+  const armPasteWatchdog = (): void => {
+    window.clearTimeout(pasteWatchdog.current)
+    pasteWatchdog.current = window.setTimeout(() => {
+      pasteWatchdog.current = undefined
+      // The browser declined to produce a paste event. Ask for the clipboard directly - this needs a
+      // permission, which is why it is the fallback and not the primary path.
+      void navigator.clipboard.readText().then(
+        (text) => {
+          if (text) send({ type: 'paste', text })
+        },
+        () =>
+          toast.error('Could not paste', {
+            description: 'Your browser blocked clipboard access. Click the page and try again.',
+          }),
+      )
+    }, 250)
+  }
+
+  /**
+   * Clipboard shortcuts, which cannot survive being forwarded as keystrokes.
+   *
+   * Cmd/Ctrl+C, +X and +V are handled by the *browser*, not by the page - so a synthetic key event delivered
+   * into the renderer reaches the page and nothing acts on it. Each therefore becomes an explicit round trip
+   * instead. Returns true when it handled the key, so the raw keystroke is not also forwarded.
+   */
+  const onClipboardShortcut = (e: React.KeyboardEvent): boolean => {
+    const accel = e.metaKey || e.ctrlKey
+    if (!accel || e.altKey) return false
+    switch (e.key.toLowerCase()) {
+      case 'c':
+      case 'x':
+        // The hub reads the page's selection and sends the text back; the reply handler puts it on this
+        // machine's clipboard. Asynchronous by nature - there is a real page on the other side of it.
+        send({ type: 'clipboard', action: e.key.toLowerCase() === 'c' ? 'copy' : 'cut' })
+        return true
+      case 'a':
+        // Select-all IS reachable in the renderer, as an editing command carried on the key event.
+        send({ type: 'key', phase: 'down', key: 'a', code: 'KeyA', keyCode: 65, modifiers: cdpModifiers(e), action: 'selectAll' })
+        send({ type: 'key', phase: 'up', key: 'a', code: 'KeyA', keyCode: 65, modifiers: cdpModifiers(e) })
+        return true
+      default:
+        // Cmd+V is deliberately absent: it is intercepted before preventDefault() runs (see onKeyDown).
+        return false
+    }
+  }
+
+  /**
+   * Press-drag-release, tracked on the WINDOW rather than the frame.
+   *
+   * A selection drag routinely wanders off the image - past its edge, over the toolbar - and `mousemove`/
+   * `mouseup` bound to the <img> stop firing the moment it does. The release would then never be sent and the
+   * remote page would be left with the button still down. Listening on the window for the duration of the drag
+   * is what makes "click, drag past the edge, let go" behave like a real selection.
+   */
+  const onFrameMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    ;(e.currentTarget as HTMLElement).focus()
+    const button = BTN[e.button] ?? 'left'
+    const n = norm(e)
+    send({ type: 'mouse', event: 'down', nx: n.nx, ny: n.ny, button, buttons: e.buttons, clickCount: e.detail || 1, modifiers: cdpModifiers(e) })
+
+    const onMove = (ev: MouseEvent) => {
+      const p = norm(ev)
+      send({ type: 'mouse', event: 'move', nx: p.nx, ny: p.ny, button, buttons: ev.buttons, modifiers: cdpModifiers(ev) })
+    }
+    const onUp = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      const p = norm(ev)
+      send({ type: 'mouse', event: 'up', nx: p.nx, ny: p.ny, button, buttons: ev.buttons, clickCount: ev.detail || 1, modifiers: cdpModifiers(ev) })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   return (
     <div className='flex h-full flex-col'>
@@ -242,32 +361,35 @@ function Screencast({ identity, target }: { identity: string; target?: string })
             onFocus={() => setKbFocus(true)}
             onBlur={() => setKbFocus(false)}
             onMouseMove={(e) => {
+              // Hover only - once a button is down the window-level drag listeners own the move stream, and
+              // both firing would double up on every event.
+              if (e.buttons !== 0) return
               const n = norm(e)
-              send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: e.buttons })
+              send({ type: 'mouse', event: 'move', nx: n.nx, ny: n.ny, buttons: 0, modifiers: cdpModifiers(e) })
             }}
-            onMouseDown={(e) => {
-              e.preventDefault()
-              ;(e.currentTarget as HTMLElement).focus()
-              const n = norm(e)
-              send({ type: 'mouse', event: 'down', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
-            }}
-            onMouseUp={(e) => {
-              e.preventDefault()
-              const n = norm(e)
-              send({ type: 'mouse', event: 'up', nx: n.nx, ny: n.ny, button: BTN[e.button] ?? 'left', buttons: e.buttons })
-            }}
+            onMouseDown={onFrameMouseDown}
             onContextMenu={(e) => e.preventDefault()}
             onWheel={(e) => {
               const n = norm(e)
-              send({ type: 'wheel', nx: n.nx, ny: n.ny, dx: e.deltaX, dy: e.deltaY })
+              send({ type: 'wheel', nx: n.nx, ny: n.ny, dx: e.deltaX, dy: e.deltaY, modifiers: cdpModifiers(e) })
             }}
             onKeyDown={(e) => {
+              // Cmd/Ctrl+V is the ONE key that must not be cancelled: preventDefault() on the keydown also
+              // cancels the browser's default paste action, and with it the `paste` event that carries the
+              // clipboard payload. Cancelling it is why copy worked and paste silently did nothing.
+              if (isPasteShortcut(e)) {
+                armPasteWatchdog()
+                return
+              }
               e.preventDefault()
-              send({ type: 'key', phase: 'down', key: e.key, code: e.code, keyCode: e.keyCode })
+              if (onClipboardShortcut(e)) return
+              send({ type: 'key', phase: 'down', key: e.key, code: e.code, keyCode: e.keyCode, modifiers: cdpModifiers(e) })
             }}
             onKeyUp={(e) => {
+              // Matching the keydown: the page gets the inserted text, not a stray Cmd+V keyup.
+              if (isPasteShortcut(e)) return
               e.preventDefault()
-              send({ type: 'key', phase: 'up', key: e.key, code: e.code, keyCode: e.keyCode })
+              send({ type: 'key', phase: 'up', key: e.key, code: e.code, keyCode: e.keyCode, modifiers: cdpModifiers(e) })
             }}
           />
         </div>
@@ -286,6 +408,40 @@ function Screencast({ identity, target }: { identity: string; target?: string })
 
 /** A blank tab has no meaningful title; Chrome reports the literal string, which is noise in a picker. */
 const isBlank = (url?: string) => !url || url === 'about:blank'
+
+/** CDP's modifier bitmask. Without it the remote page sees every click and keystroke as unmodified. */
+function cdpModifiers(e: { altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): number {
+  return (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0)
+}
+
+/**
+ * Put text on the operator's own clipboard.
+ *
+ * `navigator.clipboard.writeText` is the real path but needs a secure context and can reject once the
+ * keystroke's transient activation has lapsed - and this text arrives after a round trip to the page, so by
+ * then it often has. The execCommand fallback is deprecated and still the only thing that works in that case.
+ */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    // Off-screen but focusable: `display:none` or `hidden` would make the selection - and so the copy - a no-op.
+    ta.setAttribute('style', 'position:fixed;top:-1000px;opacity:0')
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    ta.remove()
+    return ok
+  } catch {
+    return false
+  }
+}
 
 function tabLabel(t: TargetSummary): string {
   if (isBlank(t.url)) return 'Untitled tab'

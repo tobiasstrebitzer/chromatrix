@@ -21,5 +21,10 @@ dist/
 *.key
 *.p12
 *.pfx
+# An npm auth token would live here; publishing is OIDC-based, so this should never exist at all.
+.npmrc
 # The dashboard copy prepack bundles into the published gateway package
 apps/gateway/web/
+
+# Internal working notes - handoffs, briefs, idea sketches. Not part of the public repo.
+_docs/

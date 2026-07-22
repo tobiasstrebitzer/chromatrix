@@ -45,17 +45,35 @@ ws://127.0.0.1:8830/cdp/<identity>/<agentId>?token=<derived-token>
 
 ## Driving raw CDP
 
-Anything that speaks CDP works against the scoped URL - a bare CDP client, `puppeteer-core` via
-`connectOverCDP`, or `agent-browser`. The gateway:
+A bare CDP client or `agent-browser` works against the scoped URL directly. The gateway:
 
 - suppresses the `Runtime.enable` handshake for unmodified consumers while still handing them an
   execution context (via a synthesized isolated world);
 - routes events so the agent sees only its own targets;
 - **denies** any attempt to attach to another agent's tab - including a peer under the same identity.
 
-> Playwright's `connectOverCDP` is low-fidelity (it triggers `Runtime.enable`) and its GUI
-> remote-debugging support is fragile on recent Chrome, so treat Playwright as best-effort rather than a
-> guarantee. `agent-browser` and `puppeteer-core` are the intended raw-CDP clients.
+### Playwright
+
+`chromium.connectOverCDP()` is supported, but the tab must be allocated with **`compat: true`**:
+
+```sh
+curl -X POST "$GATEWAY/api/tab/allocate" -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"identity":"work","agentId":"my-job","compat":true}'
+```
+
+The returned `cdpUrl` already carries `&compat=1` - drive it as given rather than rebuilding it. From
+there `contexts()`, `pages()`, `goto`, `evaluate`, `newPage()` and detach/reconnect all behave normally,
+and a page Playwright opens itself is leased to that agent like any other tab.
+
+`compat` opts the connection out of the `Runtime.enable` mitigation, because Playwright tracks an
+execution context per world, per frame, per navigation - state that a suppressed Runtime domain never
+emits. See [fidelity](./fidelity#framework-compat-mode) for what that trades away (on current Chrome:
+very little).
+
+> **Puppeteer is not supported.** Its connect handshake asks for browser-level auto-attach with page
+> targets *excluded* and builds its page registry purely from attach events, so it sees no pages through
+> a scoped mux. Use Playwright or `agent-browser`.
 
 ## Credentials
 

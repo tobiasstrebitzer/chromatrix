@@ -53,6 +53,28 @@ The only case that does not silently clear is the **interactive human-verificati
 is correct. A managed challenge is meant to verify a human, so a human completes it via
 [takeover](./takeover) and the resulting session persists. chromatrix never auto-solves these.
 
+## Framework-compat mode
+
+Suppressing `Runtime.enable` means Chrome's Runtime domain is never enabled - so it emits **no execution
+context lifecycle events at all**. A raw-CDP consumer does not care: it evaluates in the isolated world the
+mux hands it. A framework client does, because it tracks a context per world, per frame, per navigation, so
+the first navigation strands it on a destroyed context and it hangs.
+
+A connection can therefore opt out, per connection rather than globally:
+
+```
+/cdp/<identity>/<agent>?token=…&compat=1
+```
+
+or `allocateTab({ compat: true })`, which mints that URL for you. `compat` is not a credential and grants no
+extra authority - the per-tab ACL, the derived per-agent token and the leasing model are all unchanged by it.
+The only thing it changes is that `Runtime.enable` reaches Chrome.
+
+That is an acceptable trade *on current Chrome specifically*: as measured above, Chrome 150 closed the
+in-page getter-trap leak upstream, which makes this suppression defense-in-depth rather than load-bearing.
+A client that would otherwise attach to a bare `--remote-debugging-port` Chrome - no mitigation at all, and
+no ACL - is strictly better off here. Leave it **off** for clients that do not need it.
+
 ## Running the check
 
 ```sh

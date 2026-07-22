@@ -17,7 +17,7 @@ import { configPath } from './paths.ts'
 /**
  * There is exactly ONE port. Chrome's own debugging ports are ephemeral (`--remote-debugging-port=0`) and
  * bound to loopback - never published - so `port` is the single public surface carrying the dashboard, the
- * REST/tRPC/MCP API, the takeover socket, and the muxed CDP endpoint alike. See docs/PRD.md §6.
+ * REST/tRPC/MCP API, the takeover socket, and the muxed CDP endpoint alike.
  */
 export const DEFAULT_PORT = 8830
 

@@ -7,7 +7,7 @@
 // NOTHING about authorization is stored. The token is `HMAC(accessToken, identity ‖ agentId)`, recomputed on
 // each upgrade rather than looked up; the per-tab ACL is derived live from the TabPool on every attach, so
 // lease/release takes effect immediately: a client's scope `allows(t)` iff its agent currently leases target
-// `t`. See docs/PRD.md §4/§6 and NEXT-SESSION §2-3.
+// `t`.
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -262,13 +262,13 @@ export class CdpGatewayService {
   async allocateTab(
     identity: string,
     agentId: string,
-    opts: { url?: string; width?: number; height?: number } = {},
+    opts: { url?: string; width?: number; height?: number; compat?: boolean } = {},
   ): Promise<AllocatedTab> {
     assertValidIdentityId(identity)
     if (!this.muxes.has(identity)) {
       throw new Error(`identity "${identity}" is not running - startIdentity first`)
     }
-    const lease = await this.orchestrator.allocateTab(identity, agentId, { url: opts.url })
+    const lease = await this.orchestrator.allocateTab(identity, agentId, { url: opts.url, compat: opts.compat })
     const wanted =
       opts.width && opts.height ? { width: opts.width, height: opts.height } : this.settings().defaultViewport
     if (wanted) {
@@ -431,7 +431,8 @@ export class CdpGatewayService {
     identity: string,
     agentId: string | undefined,
     token: string | undefined,
-  ): { mux: CdpMux; scope: ClientScope } {
+    compat = false,
+  ): { mux: CdpMux; scope: ClientScope; compat: boolean } {
     if (!agentId) throw new Error('missing agent')
     if (!token) throw new Error('missing token')
     if (!tokensMatch(token, this.tokenFor(identity, agentId))) {
@@ -439,7 +440,7 @@ export class CdpGatewayService {
     }
     const mux = this.muxes.get(identity)
     if (!mux) throw new Error(`identity "${identity}" is not running`)
-    return { mux, scope: this.scopeFor(identity, agentId) }
+    return { mux, scope: this.scopeFor(identity, agentId, compat), compat }
   }
 
   /** Control CDP client for a running identity - used by the takeover route. */
@@ -454,12 +455,19 @@ export class CdpGatewayService {
   // ── internals ────────────────────────────────────────────────────────────────────────────────────────
 
   /** The live ACL: an agent's client may see/attach exactly the targets its TabPool leases grant, right now. */
-  private scopeFor(identity: string, agentId: string): ClientScope {
+  private scopeFor(identity: string, agentId: string, compat: boolean): ClientScope {
     const tabs = this.orchestrator.session(identity).tabs
     return {
       identity,
       allows: (targetId) => tabs.isLeasedBy(agentId, targetId),
       allowedTargets: () => tabs.targetsFor(agentId),
+      // A tab the agent opened over its own CDP connection is leased to it exactly as if it had called
+      // `allocateTab` - so it shows up in the dashboard, counts against the cap, and gets reaped on release.
+      adopt: (targetId) => {
+        tabs.adopt(agentId, targetId, { compat })
+        this.log.log(`agent "${agentId}" adopted self-created tab ${targetId} on "${identity}"`)
+      },
+      release: (targetId) => tabs.drop(targetId),
     }
   }
 
@@ -481,12 +489,17 @@ export class CdpGatewayService {
     // agentId cannot be recovered from the HMAC - the client names itself and the token proves the claim.
     // Percent-encoded since agentId is an opaque caller-chosen string.
     const agent = encodeURIComponent(lease.agentId)
+    // `compat` rides in the query beside the token because, like the token, it qualifies the CONNECTION rather
+    // than naming a resource - and unlike the token it is not a credential, so a caller may equally well add
+    // it by hand. Embedding it here is what lets an agent keep following the "drive the URL you were handed"
+    // rule instead of having to rebuild it.
+    const query = `token=${token}${lease.compat ? '&compat=1' : ''}`
     return {
       identity: lease.identity,
       agentId: lease.agentId,
       targetId: lease.targetId,
       createdAt: lease.createdAt,
-      cdpUrl: `${this.publicWsOrigin}/cdp/${lease.identity}/${agent}?token=${token}`,
+      cdpUrl: `${this.publicWsOrigin}/cdp/${lease.identity}/${agent}?${query}`,
     }
   }
 

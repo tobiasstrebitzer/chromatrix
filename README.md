@@ -116,14 +116,10 @@ Each package/app has its own README with the specifics; this one is the map.
 ## Documentation
 
 Full documentation lives at **[tobiasstrebitzer.github.io/chromatrix](https://tobiasstrebitzer.github.io/chromatrix)**
-(built from `apps/docs`). Design and research notes live in [`docs/`](docs):
+(built from `apps/docs`). Alongside it:
 
-- [`docs/PRD.md`](docs/PRD.md) - the product & architecture spec: scoping decisions, the "mitigating mux, not
-  transparent proxy" crux, component design.
 - [`docs/FINDINGS.md`](docs/FINDINGS.md) - one page of what was actually measured against real Chrome and
   real anti-bot systems, human-verified where it matters.
-- [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) - open threads and hard-won gotchas for anyone continuing
-  this work.
 
 ## Development
 
@@ -150,8 +146,7 @@ The four foundational risks (protocol fingerprint, browser fidelity, shared-tab 
 were de-risked with runnable spikes, since retired: their primitives are promoted into `packages/`/`apps/`,
 their fidelity assertions live on as `pnpm fidelity:check`, and what they proved is recorded in
 [`docs/FINDINGS.md`](docs/FINDINGS.md). All four client surfaces are built and green: the gateway, the
-dashboard, the CLI, and MCP for agents. See [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md) for what's still
-open (empirical validation, prod hardening on the Mac mini, UI polish).
+dashboard, the CLI, and MCP for agents.
 
 **AI disclosure:** Claude Code (Anthropic) contributed substantially to this repository. The core protocol
 and fidelity claims are backed by runnable, repeatable checks (`pnpm fidelity:check`, the gateway's

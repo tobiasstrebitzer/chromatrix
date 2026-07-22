@@ -1,4 +1,4 @@
-// Single-writer profile lock. Nobody in the CDP-orchestration space documents one, so we build it (PRD §6/§7
+// Single-writer profile lock. Nobody in the CDP-orchestration space documents one, so we build it (docs/FINDINGS.md,
 // S3): exactly one chromatrix process may own an identity's `--user-data-dir` at a time, or two Chromes race
 // on the same cookie store and corrupt it. This is an ORCHESTRATOR-level lock, distinct from Chrome's own
 // SingletonLock (which @chromatrix/fidelity cleans on relaunch) - it guards against a second *supervisor*.
