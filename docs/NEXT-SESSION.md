@@ -25,19 +25,89 @@ cost a debugging cycle to rediscover.
   CAPTCHAs / Turnstile / managed challenges - auto-solving a human-verification gate is exactly the "fake a
   human" behaviour chromatrix excludes (PRD §0). The supported path is human takeover (S4); the value we add
   is that a human solves it *once* per identity and the session then persists.
-- **Real agent-browser + puppeteer-core through the scoped `/cdp` URL.** Per-tab ACL enforcement is proven,
-  but only against a bare `CdpClient`. Puppeteer does much heavier context bookkeeping, so it is a genuinely
-  different compatibility test.
+- ~~**Real agent-browser + puppeteer-core through the scoped `/cdp` URL.**~~ **ANSWERED 2026-07-22** on the
+  Mac mini (Chrome 150.0.7871.182), and it split:
+  - **agent-browser: works, fully.** `connect` to the scoped URL, then `open`, `snapshot -i` (a11y tree with
+    `@e1`/`@e2` refs), `click @ref` across a navigation, `eval`, `get text|url`, `screenshot`. Two agents on
+    the **same identity** drove two tabs concurrently to different sites with no interleaving.
+  - **Playwright + puppeteer-core: broken, both, at target discovery.** Playwright `connectOverCDP` connects
+    and `page.goto` succeeds, but `page.textContent` then hangs to timeout; puppeteer `connect` yields
+    `browser.pages() === 0`.
+
+  **Root cause: enable-style commands whose entire value is a state *replay* do not survive multiplexing.**
+  A raw probe through the scoped URL shows `Target.getTargets` answering correctly and ACL-filtered (it is a
+  *query*), while `Target.setDiscoverTargets {discover:true}` returns `{}` and emits **no
+  `Target.targetCreated` replay** for the already-existing leased tab. Playwright and Puppeteer both build
+  their page registry from that replay, so they see an empty browser and never surface a page.
+  agent-browser survives precisely because it uses the query rather than the replay.
+
+  This is the **same class of problem** `runtimeEnableSuppressInterceptor` already solves for `Runtime.enable`
+  (packages/fidelity/src/mitigation.ts), and it has the same seam: intercept the enable-style Target commands
+  per downstream client and **synthesize the replay** for the targets in that client's scope, rather than
+  forwarding to an upstream where the state may already be latched. Worth a puppeteer/playwright regression
+  test alongside the fix, since `accept`/`e2e` both drive a bare `CdpClient` and would stay green through
+  this bug.
+
+  **ATTEMPTED AND REVERTED 2026-07-22 - read this before trying again.** The obvious fix (mux owns the
+  upstream `setDiscoverTargets` enable-state, turned on in the factories before any client attaches;
+  `Target.setDiscoverTargets` from a client answered locally with a synthesized `Target.targetCreated` per
+  in-scope target) **is necessary but nowhere near sufficient**, and as written it made things worse:
+
+  - It **did** fix the protocol symptom: a raw probe confirmed `Target.targetCreated` now arrives after
+    `setDiscoverTargets`, where before it never did. `accept` (13/13) and `e2e` (9/9) stayed green.
+  - **puppeteer was unchanged at `browser.pages() === 0`.** Wire trace through a logging relay shows why the
+    replay alone does not help - puppeteer's connect handshake is:
+    `Target.getBrowserContexts` -> `Target.setDiscoverTargets {discover:true, filter:[{}]}` ->
+    `Target.setAutoAttach {autoAttach:true, waitForDebuggerOnStart:true, flatten:true,
+    filter:[{type:"page",exclude:true},{}]}`. That filter **excludes page targets from browser-level
+    auto-attach**, so no `Target.attachedToTarget` is minted for the leased page, and puppeteer builds its
+    Target objects from attach, not from discovery. It then answered `pages()` from memory with no further
+    CDP traffic at all.
+  - **Playwright got less stable, not more** - it went from "goto works, `textContent` hangs" to
+    nondeterministic across runs: `goto` timing out, then `pages()` returning 0 with
+    `browserContext.newPage: Cannot read properties of undefined (reading '_page')`.
+  - **agent-browser REGRESSED to a hang** (`Failed to read: Resource temporarily unavailable ... daemon may
+    be busy or unresponsive`), which is the real reason it was reverted: that is the load-bearing path.
+    Likely cause and the **key design constraint for any retry**: `attachClient` wires
+    `ws.on('message', (data) => void this.onClientMessage(...))` - **fire-and-forget, not serialized**. Any
+    `await` added before `forward()` (the fix awaited an internal `Target.getTargets`) opens a window where
+    later messages from the same client are forwarded ahead of earlier ones. A per-client command queue is a
+    prerequisite for doing any async work in that path.
+
+  Takeaway: this is not a one-interceptor fix. Framework clients maintain a full target+session state machine,
+  and a scoped mux that hides most targets has to emulate that lifecycle coherently (contexts, auto-attach
+  filters, attach-on-demand) rather than patch one command. Budget it as a real piece of work with a
+  puppeteer + playwright harness written FIRST.
 - **HSTS / TLS-session-cache cross-context leak probe** (S3 open item) - only needed if we ever use
   `createBrowserContext` for anonymity.
 
+### API papercuts (found while deploying, 2026-07-22)
+
+- **`allocate-tab` on a stopped identity returns a bare `500`.** The service throws a plain
+  `Error("identity \"x\" is not running - startIdentity first")`, which Nest maps to
+  `{"statusCode":500,"message":"Internal server error"}` - so the *useful* message only exists in the
+  server log and the caller gets nothing actionable. Should be a `409` (or `400`) carrying that text.
+- **`start-identity` is not idempotent** - it `409`s when the identity is already running. Defensible,
+  but every caller then has to either pre-check `sessions` or swallow the 409, which every script in
+  practice does (`>/dev/null 2>&1`). Consider making it idempotent, or documenting the 409 as "already
+  up, proceed".
+
 ### Prod hardening (deferred to the Mac mini)
 
-- LaunchAgent `KeepAlive` under auto-login (headed Chrome needs an Aqua GUI session).
+- ~~LaunchAgent `KeepAlive` under auto-login~~ **DONE 2026-07-22**: `~/Library/LaunchAgents/bi.atomic.chromatrix.plist`
+  on the mini. User agent in `gui/$(id -u)` (headed Chrome needs the Aqua session), runs the gateway
+  **from source** via the `@chromatrix/source` condition so a pull needs no build, `KeepAlive` only on
+  non-zero exit, `ProcessType Interactive` (Background QoS throttles the Chrome children),
+  `ExitTimeOut 30` so SIGTERM can close each Chrome gracefully.
 - Attach a display / dummy-HDMI so the GPU engages.
-- Tailscale-served endpoints; bind `CHROMATRIX_HOST=0.0.0.0` and set `CHROMATRIX_PUBLIC_ORIGIN` to the
-  `wss://…` tailnet name so minted `cdpUrl`s are reachable.
-- Per-identity profile-location strategy (`CHROMATRIX_PROFILES`).
+- ~~Tailscale-served endpoints~~ **DONE 2026-07-22**, though *not* by binding `0.0.0.0`: the gateway
+  stays on `127.0.0.1:8830` and Caddy fronts it at `https://chromatrix.mini.atomic.bi` (tailnet-only),
+  passing the `/cdp` + `/takeover` WS upgrades through. `CHROMATRIX_PUBLIC_ORIGIN=wss://chromatrix.mini.atomic.bi`,
+  so minted `cdpUrl`s are drivable from any tailnet device - verified end to end with `agent-browser`
+  over `wss`. Keeping the bind on loopback means the token is not the only thing standing between the
+  gateway and the LAN.
+- ~~Per-identity profile-location strategy (`CHROMATRIX_PROFILES`)~~ **DONE**: `<checkout>/.profiles`,
+  set absolutely in the plist.
 
 ### Gateway follow-ups
 
