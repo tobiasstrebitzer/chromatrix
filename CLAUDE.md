@@ -88,7 +88,7 @@ of bug - `accept`/`e2e` drive a bare `CdpClient` and stay green through framewor
 | Component | Result |
 |---|---|
 | S1-S4 spikes | Retired; findings consolidated in `docs/FINDINGS.md`. Runtime.enable leak closed on Chrome 150; authentic Apple/M3 WebGL; shared-context + exclusive-tab-leasing is the sound concurrency model; screencast + `isTrusted` takeover input proven with a real human x.com login |
-| gateway + auth | **built + verified**: Nest/MCP provisioning (15 tools) + raw-WS mux + live per-tab ACL + takeover; one access token across every surface, derived one-way per-agent CDP tokens; 10/10 acceptance |
+| gateway + auth | **built + verified**: Nest/MCP provisioning (16 tools) + raw-WS mux + live per-tab ACL + takeover; one access token across every surface, derived one-way per-agent CDP tokens; 10/10 acceptance |
 | apps/cli, apps/web | **built + verified**: CLI has zero per-command code (derived from `tools/list`); dashboard (Sessions + Takeover) renders clean in real Chrome, dev-proxy + prod-serve both verified |
 | session lifecycle | **built + verified**: create/start/stop/delete are four distinct verbs; `listSessions` left-joins the on-disk registry with running state so `stopped` is a resting state, not an absence |
 | per-tab viewport, screenshots | **built + verified**: every tab is its own sized window (floor 500×288, no emulation fakery); `/api/tab/screenshot` is one silkweave binary resource serving `<img>`, MCP image block, and CLI stdout |
