@@ -285,6 +285,51 @@ async function main(): Promise<void> {
       await step('page.close() closes it', () => newPage.close())
     }
 
+    // A popup opened BY a leased tab - the `target=_blank` click a human or an OAuth flow makes.
+    // Ownership is otherwise only minted by allocateTab or the client's own createTarget, so before
+    // adoption-by-opener this popup arrived owned by nobody: the ACL routed its `attachedToTarget` away from
+    // the very agent whose page spawned it, so Playwright never surfaced it as a Page, the agent could
+    // neither drive nor close it, and no release would ever reap it.
+    const markerPopup = 'pw-a__popup'
+    if (pageA) {
+      const popup = await step('a target=_blank click surfaces as a Page', async () => {
+        // A real click, not window.open() from evaluate(): a popup without user activation is blocked by
+        // Chrome, so the closure form would test the popup blocker rather than the ACL.
+        await pageA!.evaluate(
+          `(() => { const a = document.createElement('a'); a.id = 'popup-link'; a.target = '_blank';` +
+            ` a.href = ${JSON.stringify(page.pageUrl(markerPopup))}; a.textContent = 'open';` +
+            ` document.body.appendChild(a) })()`,
+        )
+        const [opened] = await Promise.all([
+          contextA.waitForEvent('page', { timeout: STEP_MS }),
+          pageA!.click('#popup-link'),
+        ])
+        return opened
+      })
+      if (popup) {
+        await expect(
+          'the popup is driveable by the opener’s agent',
+          () => popup.textContent('#marker', { timeout: STEP_MS }),
+          (t) => t === markerPopup,
+          (t) => `"${t}"`,
+        )
+        await expect(
+          'the gateway leased the popup to the opener’s agent',
+          async () => {
+            const res = await fetch(`${base}/sessions`, { headers: { authorization: `Bearer ${accessToken}` } })
+            const { sessions } = (await res.json()) as {
+              sessions: Array<{ identity: string; leases: Array<{ agentId: string }>; unowned: unknown[] }>
+            }
+            const s = sessions.find((x) => x.identity === identity)
+            return { leases: s?.leases.filter((l) => l.agentId === a.agentId).length ?? 0, unowned: s?.unowned.length ?? 0 }
+          },
+          (v) => v.leases === 2 && v.unowned === 0,
+          (v) => `${v.leases} lease(s) for ${a.agentId} (want 2), ${v.unowned} unowned (want 0)`,
+        )
+        await step('closing the popup reaps it', () => popup.close())
+      }
+    }
+
     // 11. ACL through Playwright's own view. The mux already denies a cross-agent Target.attachToTarget; the
     //     point here is that a peer's tab must not even APPEAR as a Page, since a framework client acts on
     //     what its registry lists.

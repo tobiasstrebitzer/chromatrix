@@ -18,6 +18,11 @@ export interface SessionInfo {
   browserWsUrl: string
   /** The tabs this identity currently leases. Server-held, so a page reload re-renders the real list. */
   leases: AllocatedTab[]
+  /**
+   * Live pages no agent leases - a tab a human opened during takeover, or a popup off an unowned tab. Shown
+   * next to the leases so the card can never report "no tabs" while Chrome still has windows open.
+   */
+  unowned: TargetSummary[]
 }
 
 /** A tab the takeover viewer can attach to, pushed over the takeover socket. */

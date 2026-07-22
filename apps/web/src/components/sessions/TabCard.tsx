@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Loader2, Plus, X } from 'lucide-react'
 import { tabScreenshotUrl } from '@/lib/useGateway'
-import type { AllocatedTab } from '@/lib/types'
+import type { AllocatedTab, TargetSummary } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { BlankTab } from '@/components/ui/BlankTab'
@@ -138,6 +138,79 @@ export function TabCard({
             disabled={releasing}
             onClick={onRelease}>
             {releasing ? <Loader2 className='animate-spin' /> : <X />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A live page that no agent leases - a tab a human opened during takeover (a `target=_blank` click), or a
+ * popup whose opener was itself unowned.
+ *
+ * Deliberately the same card as a leased tab rather than a lesser one: it is an equally real window, and the
+ * bug this fixes was precisely that it rendered nowhere. Only the badge and the missing CDP-URL copy say it
+ * belongs to nobody - a tab with no lease has no scoped URL to hand out.
+ */
+export function UnownedTabCard({
+  identity,
+  target,
+  tick,
+  closing,
+  onOpen,
+  onClose,
+}: {
+  identity: string
+  target: TargetSummary
+  tick: number
+  closing?: boolean
+  onOpen: () => void
+  onClose: () => void
+}) {
+  const blank = isBlank(target.url)
+  const label = blank ? 'Untitled tab' : target.title?.trim() || hostOf(target.url) || 'Untitled'
+
+  return (
+    <div className={CARD}>
+      <button
+        type='button'
+        onClick={onOpen}
+        title={blank ? 'Take over this tab' : `Take over - ${target.url}`}
+        className={cn(
+          THUMB,
+          'group block cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        )}>
+        {blank ? (
+          <BlankTab size='sm' className='absolute inset-0' />
+        ) : (
+          <Thumbnail identity={identity} targetId={target.targetId} tick={tick} />
+        )}
+        <span className='absolute inset-0 grid place-items-center bg-bg/70 opacity-0 transition-opacity group-hover:opacity-100'>
+          <span className='rounded-md border border-border bg-surface px-2 py-1 text-label font-medium text-fg-1'>
+            Take over
+          </span>
+        </span>
+      </button>
+
+      <div className='flex min-w-0 items-center gap-2 border-t border-border px-2.5 py-2'>
+        <div className='min-w-0 flex-1'>
+          <p className={cn('truncate text-body-sm font-medium', blank ? 'text-fg-3' : 'text-fg-1')} title={target.url}>
+            {label}
+          </p>
+          <Badge variant='warning' mono className='mt-1' title='No agent leases this tab'>
+            unowned
+          </Badge>
+        </div>
+        <div className='flex shrink-0 items-center'>
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            aria-label='Close tab'
+            title='Close tab'
+            disabled={closing}
+            onClick={onClose}>
+            {closing ? <Loader2 className='animate-spin' /> : <X />}
           </Button>
         </div>
       </div>

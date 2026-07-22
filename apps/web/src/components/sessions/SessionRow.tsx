@@ -3,7 +3,7 @@ import type { AllocatedTab, SessionInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { NewTabCard, TabCard } from './TabCard'
+import { NewTabCard, TabCard, UnownedTabCard } from './TabCard'
 
 /** The next unused `agent-N` for this identity, so repeated "new tab" clicks don't all land on agent-1. */
 function nextAgentId(tabs: AllocatedTab[]): string {
@@ -42,7 +42,7 @@ export interface SessionRowProps {
   tick: number
   /**
    * In-flight action keys from SessionsView's `run` - `start:<id>`, `stop:<id>`, `health:<id>`,
-   * `delete:<id>`, `tab:<id>`, `release:<id>:<targetId>` - so each control shows its own busy state
+   * `delete:<id>`, `tab:<id>`, `release:<id>:<targetId>`, `close:<id>:<targetId>` - so each control shows its own busy state
    * instead of one action greying out the whole page.
    */
   busy: ReadonlySet<string>
@@ -57,6 +57,8 @@ export interface SessionRowProps {
   onDelete: () => void
   onAllocate: (agentId: string, url?: string) => void
   onRelease: (targetId: string) => void
+  /** Close an unowned tab (no lease to release). */
+  onClose: (targetId: string) => void
 }
 
 /**
@@ -82,8 +84,10 @@ export function SessionRow({
   onDelete,
   onAllocate,
   onRelease,
+  onClose,
 }: SessionRowProps) {
   const tabs = session.leases
+  const unowned = session.unowned ?? []
   const suggested = nextAgentId(tabs)
   const bodyId = `session-body-${session.identity}`
   const running = session.state === 'running'
@@ -108,6 +112,10 @@ export function SessionRow({
           <StateBadge state={session.state} />
           <span className='hidden truncate text-label text-fg-4 sm:inline'>
             {tabs.length} {tabs.length === 1 ? 'tab' : 'tabs'}
+            {/* Counted separately rather than folded into the total: an unowned tab is a different thing
+                to reason about (nothing will reap it), and burying it in one number is how it went
+                unnoticed in the first place. */}
+            {unowned.length > 0 && ` · ${unowned.length} unowned`}
           </span>
         </button>
 
@@ -189,6 +197,17 @@ export function SessionRow({
                   releasing={busy.has(`release:${session.identity}:${t.targetId}`)}
                   onOpen={() => onTakeover(t.targetId)}
                   onRelease={() => onRelease(t.targetId)}
+                />
+              ))}
+              {unowned.map((t) => (
+                <UnownedTabCard
+                  key={t.targetId}
+                  identity={session.identity}
+                  target={t}
+                  tick={tick}
+                  closing={busy.has(`close:${session.identity}:${t.targetId}`)}
+                  onOpen={() => onTakeover(t.targetId)}
+                  onClose={() => onClose(t.targetId)}
                 />
               ))}
               <NewTabCard suggestedAgentId={suggested} busy={busyOn('tab')} onCreate={onAllocate} />

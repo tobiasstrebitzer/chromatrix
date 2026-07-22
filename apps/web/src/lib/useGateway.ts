@@ -42,6 +42,9 @@ export const gateway = {
     trackActivity(trpc.gatewaySetDefaultViewport.mutate({ width, height })) as Promise<GatewaySettings>,
   releaseTab: (identity: string, targetId: string) =>
     trackActivity(trpc.gatewayReleaseTab.mutate({ identity, targetId })),
+  /** Close a tab with or without a lease - what the card's X calls for an unowned tab. */
+  closeTab: (identity: string, targetId: string) =>
+    trackActivity(trpc.gatewayCloseTab.mutate({ identity, targetId })),
   health: (identity: string) => trackActivity(trpc.gatewayHealth.mutate({ identity })) as Promise<HealthResult>,
   startTakeover: (identity: string) =>
     trackActivity(trpc.gatewayStartTakeover.mutate({ identity })) as Promise<{ identity: string; viewerUrl: string }>,

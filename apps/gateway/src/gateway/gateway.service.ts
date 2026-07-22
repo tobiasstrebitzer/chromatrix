@@ -71,9 +71,15 @@ export interface AllocatedTab {
   title?: string
 }
 
-/** A running identity plus the tabs it currently leases - what the dashboard renders per card. */
+/** A running identity plus every tab in it - what the dashboard renders per card. */
 export interface SessionView extends SessionInfo {
   leases: AllocatedTab[]
+  /**
+   * Live pages that no agent leases. A human opening a link in takeover, or a popup whose opener was itself
+   * unowned, produces a real tab that the lease table never sees. Reported alongside the leases because the
+   * alternative is what it replaced: a card claiming the session has no tabs while Chrome has windows open.
+   */
+  unowned: TargetView[]
 }
 
 /** A live page target in an identity's Chrome, annotated with the agent leasing it (if any). */
@@ -170,7 +176,7 @@ export class CdpGatewayService {
   async listSessions(): Promise<SessionView[]> {
     return Promise.all(
       this.orchestrator.listSessions().map(async (s) => {
-        if (s.state !== 'running') return { ...s, leases: [] }
+        if (s.state !== 'running') return { ...s, leases: [], unowned: [] }
         const targets = await this.listTargets(s.identity).catch(() => [] as TargetView[])
         const byTarget = new Map(targets.map((t) => [t.targetId, t]))
         const leases = this.listTabs(s.identity).map((tab) => ({
@@ -178,7 +184,10 @@ export class CdpGatewayService {
           url: byTarget.get(tab.targetId)?.url,
           title: byTarget.get(tab.targetId)?.title,
         }))
-        return { ...s, leases }
+        // Free: listTargets was already fetched above for the url/title enrichment, and it annotates every
+        // page with its leasing agent. The unowned ones are simply the rest.
+        const unowned = targets.filter((t) => !t.agentId)
+        return { ...s, leases, unowned }
       }),
     )
   }
@@ -396,6 +405,28 @@ export class CdpGatewayService {
     await this.orchestrator.releaseTab(identity, targetId)
   }
 
+  /**
+   * Close a tab whether or not anything leases it - the dashboard's close button.
+   *
+   * `releaseTab` is the agent-facing lease verb and deliberately no-ops on a target it doesn't lease, which
+   * leaves no way to shut an unowned tab (one a human opened in takeover) except stopping the whole identity.
+   * A leased target still goes through release, so the pool's bookkeeping stays authoritative; only the
+   * unowned case reaches for the control client.
+   */
+  async closeTab(identity: string, targetId: string): Promise<void> {
+    assertValidIdentityId(identity)
+    if (!this.orchestrator.isRunning(identity)) return
+    if (this.orchestrator.session(identity).tabs.get(targetId)) {
+      await this.orchestrator.releaseTab(identity, targetId)
+      return
+    }
+    await this.controlClient(identity)
+      .send('Target.closeTarget', { targetId })
+      .catch(() => {
+        /* already gone (the human closed it first) - closing a closed tab is the desired end state */
+      })
+  }
+
   async health(identity: string): Promise<{ identity: string; product: string }> {
     assertValidIdentityId(identity)
     return { identity, product: await this.orchestrator.health(identity) }
@@ -461,11 +492,12 @@ export class CdpGatewayService {
       identity,
       allows: (targetId) => tabs.isLeasedBy(agentId, targetId),
       allowedTargets: () => tabs.targetsFor(agentId),
-      // A tab the agent opened over its own CDP connection is leased to it exactly as if it had called
-      // `allocateTab` - so it shows up in the dashboard, counts against the cap, and gets reaped on release.
+      // A tab the agent opened over its own CDP connection, or a popup opened BY one of its tabs, is leased
+      // to it exactly as if it had called `allocateTab` - so it shows up in the dashboard, counts against the
+      // cap, and gets reaped on release.
       adopt: (targetId) => {
         tabs.adopt(agentId, targetId, { compat })
-        this.log.log(`agent "${agentId}" adopted self-created tab ${targetId} on "${identity}"`)
+        this.log.log(`agent "${agentId}" adopted tab ${targetId} on "${identity}"`)
       },
       release: (targetId) => tabs.drop(targetId),
     }

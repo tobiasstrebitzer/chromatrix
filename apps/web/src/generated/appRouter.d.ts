@@ -102,6 +102,14 @@ export type AppRouter = TRPCBuiltRouter<TrpcRootTypes, {
     }
     output: unknown
   }>
+  gatewayCloseTab: TRPCMutationProcedure<{
+    meta: object
+    input: {
+      identity: string
+      targetId: string
+    }
+    output: unknown
+  }>
   gatewayHealth: TRPCMutationProcedure<{
     meta: object
     input: {

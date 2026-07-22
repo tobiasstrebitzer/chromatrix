@@ -24,6 +24,7 @@ import {
   IdentityRefDto,
   NavigateTabDto,
   ReleaseTabDto,
+  CloseTabDto,
   SetViewportDto,
   StartIdentityDto,
   TabRefDto,
@@ -145,6 +146,14 @@ export class GatewayController {
   async releaseTab(@Body() body: ReleaseTabDto) {
     await this.gateway.releaseTab(body.identity, body.targetId)
     return { identity: body.identity, targetId: body.targetId, released: true }
+  }
+
+  @Post('tab/close')
+  @Trpc({ kind: 'mutation' })
+  @Mcp({ name: 'close-tab' })
+  async closeTab(@Body() body: CloseTabDto) {
+    await this.gateway.closeTab(body.identity, body.targetId)
+    return { identity: body.identity, targetId: body.targetId, closed: true }
   }
 
   @Post('health')

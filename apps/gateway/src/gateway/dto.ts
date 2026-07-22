@@ -126,6 +126,20 @@ export class ReleaseTabDto {
   targetId!: string
 }
 
+export class CloseTabDto {
+  @ApiProperty({ description: 'Identity the tab belongs to.' })
+  @IsString()
+  identity!: string
+
+  @ApiProperty({
+    description:
+      'CDP targetId to close. Unlike release-tab this does not require a lease, so it also closes an ' +
+      'unowned tab (one a human opened during takeover).',
+  })
+  @IsString()
+  targetId!: string
+}
+
 export class IdentityRefDto {
   @ApiProperty({ description: 'Running identity id.' })
   @IsString()

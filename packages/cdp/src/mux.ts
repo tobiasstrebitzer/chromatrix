@@ -419,6 +419,10 @@ export class CdpMux {
     // Browser-level (non-sessioned) events. Target lifecycle events are per-target ACL'd; anything else is
     // broadcast to every client (each still command-id-isolated).
     const target = this.eventTargetId(msg)
+    // Before any target-scoped routing below: a page opened BY a leased tab must inherit that tab's lease, or
+    // the attach routing will hand its session to nobody. Has to run on whichever of targetCreated /
+    // attachedToTarget arrives first, hence here rather than inside either branch.
+    this.adoptByOpener(msg)
     if (msg.method === 'Target.attachedToTarget' && target && msg.params?.sessionId) {
       // Record it first, whoever it ends up going to: this table is what replayAutoAttach answers a later
       // client from, and a target attached while nobody was connected is exactly the common case.
@@ -485,6 +489,33 @@ export class CdpMux {
   private clientForTarget(targetId: string): DownstreamClient | undefined {
     for (const c of this.clients) if (c.scope !== unrestrictedScope && c.scope.allows(targetId)) return c
     return undefined
+  }
+
+  /**
+   * Grant a page opened BY a leased tab to that tab's owner (`target=_blank`, `window.open`, an OAuth popup).
+   *
+   * Ownership is otherwise only ever minted by `allocateTab` or a client's own `Target.createTarget`, so a
+   * popup arrives owned by nobody - and "nobody" is the worst case, not a neutral one: the ACL routes the
+   * popup's own `attachedToTarget` AWAY from the very agent whose page spawned it, so the agent cannot drive
+   * it, cannot close it, and no release will ever reap it. Chrome names the parent in `targetInfo.openerId`,
+   * so inherit the opener's lease: same agent, same scope, reaped with the rest of its family.
+   *
+   * A popup whose opener is itself unowned (a tab a human opened during takeover) is deliberately left alone -
+   * inheriting from nothing would be inventing an owner, and the human's tabs are theirs to close.
+   */
+  private adoptByOpener(msg: { method?: string; params?: Record<string, any> }): void {
+    if (msg.method !== 'Target.targetCreated' && msg.method !== 'Target.attachedToTarget') return
+    const info = msg.params?.targetInfo as { targetId?: string; type?: string; openerId?: string } | undefined
+    if (info?.type !== 'page' || !info.targetId || !info.openerId) return
+    if (this.clientForTarget(info.targetId)) return // already owned (its own createTarget beat us here)
+    const owner = this.clientForTarget(info.openerId)
+    if (!owner?.scope.adopt) return
+    try {
+      owner.scope.adopt(info.targetId)
+    } catch {
+      // The only expected throw is the identity's tab cap. Refusing to adopt is survivable (the popup stays
+      // unowned and the session view will show it as such); throwing out of event routing is not.
+    }
   }
 
   /**

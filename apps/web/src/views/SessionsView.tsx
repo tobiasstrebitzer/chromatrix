@@ -149,6 +149,11 @@ export function SessionsView() {
                     await gateway.releaseTab(s.identity, targetId)
                   })
                 }
+                onClose={(targetId) =>
+                  void run(`close:${s.identity}:${targetId}`, async () => {
+                    await gateway.closeTab(s.identity, targetId)
+                  })
+                }
               />
             ))}
             <CreateSessionRow
